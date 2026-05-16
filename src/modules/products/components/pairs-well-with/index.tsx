@@ -3,43 +3,18 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import AddBundleButton from "./add-bundle-button"
 import { sanitizeProductCopy } from "@lib/util/product-claims"
 import {
-  formatProductPriceDisplay,
-  type PriceDisplay,
-} from "@lib/util/price-display"
-import {
   getCollectionProducts,
   getCuratedCollections,
   type CuratedCollection,
 } from "@lib/data/strapi/curated-collections"
 import { withTimeout } from "@lib/util/promise-timeout"
-import type { StrapiCollectionProduct } from "@lib/data/strapi/collections"
 import type { HttpTypes } from "@medusajs/types"
 import {
   getCollectionSubstitutionGuardrails,
+  lineEstimatedTotal,
   lineCartMetadata,
+  productPriceDisplay,
 } from "@lib/util/collection-substitutions"
-
-function productPriceDisplay(
-  product: StrapiCollectionProduct
-): PriceDisplay | null {
-  const variant = product.MedusaProduct?.Variants?.[0]
-  const price = variant?.Price?.CalculatedPriceNumber
-  if (typeof price !== "number") return null
-  return formatProductPriceDisplay(
-    price,
-    product.Metadata,
-    variant?.Sku,
-    (
-      product.MedusaProduct as
-        | { PricingMode?: "per_lb" | "fixed_price" }
-        | undefined
-    )?.PricingMode
-  )
-}
-
-function lineTotal(product: StrapiCollectionProduct, quantity: number): number {
-  return (productPriceDisplay(product)?.estimatedPackPrice ?? 0) * quantity
-}
 
 function normalize(value?: unknown) {
   if (value == null) return ""
@@ -80,14 +55,16 @@ function scoreCollection(collection: CuratedCollection, currentText: string) {
 
   for (const keyword of asArray(collection.PdpMatchKeywords)) {
     const normalizedKeyword = normalize(keyword)
-    if (normalizedKeyword && currentText.includes(normalizedKeyword)) score += 10
+    if (normalizedKeyword && currentText.includes(normalizedKeyword))
+      score += 10
   }
 
   for (const rule of asArray(collection.RecommendationRules)) {
     if (!rule || rule.Surface !== "pdp") continue
     for (const keyword of asArray(rule.MatchKeywords)) {
       const normalizedKeyword = normalize(keyword)
-      if (normalizedKeyword && currentText.includes(normalizedKeyword)) score += 6
+      if (normalizedKeyword && currentText.includes(normalizedKeyword))
+        score += 6
     }
     score += Math.max(0, 200 - (rule.Priority || 100)) / 200
   }
@@ -117,7 +94,9 @@ function prepareCollections(
       }
     })
     .filter((collection) => collection.products.length >= 2)
-    .sort((a, b) => b.score - a.score || (a.SortOrder || 999) - (b.SortOrder || 999))
+    .sort(
+      (a, b) => b.score - a.score || (a.SortOrder || 999) - (b.SortOrder || 999)
+    )
     .slice(0, 3)
 }
 
@@ -179,14 +158,15 @@ export default async function PairsWellWith({
 
         <div className="grid gap-5 lg:grid-cols-3">
           {collections.map((collection) => {
-            const substitutionGuardrails =
-              getCollectionSubstitutionGuardrails(collection.products)
+            const substitutionGuardrails = getCollectionSubstitutionGuardrails(
+              collection.products
+            )
             const quickAddDisabledReason =
               substitutionGuardrails.needsBusinessReview
                 ? "This collection is temporarily unavailable while we confirm substitution weight and shipping costs."
                 : substitutionGuardrails.requiresAcknowledgement
-                  ? "Review substitution details on the collection page before adding."
-                  : undefined
+                ? "Review substitution details on the collection page before adding."
+                : undefined
             const items = collection.products
               .map((collectionItem) => ({
                 variantId:
@@ -201,7 +181,8 @@ export default async function PairsWellWith({
               }))
               .filter((item) => item.variantId)
             const total = collection.products.reduce(
-              (sum, item) => sum + lineTotal(item.Product, item.Quantity || 1),
+              (sum, item) =>
+                sum + lineEstimatedTotal(item.Product, item.Quantity || 1),
               0
             )
             const occasion =
@@ -237,12 +218,13 @@ export default async function PairsWellWith({
                 </div>
 
                 <div className="flex flex-1 flex-col divide-y divide-Charcoal/10">
-                  {collection.products.slice(0, 5).map(({ Product: item, Quantity }) => {
+                  {collection.products.map(({ Product: item, Quantity }) => {
                     const imageUrl =
                       typeof item.FeaturedImage?.url === "string"
                         ? item.FeaturedImage.url
                         : null
                     const price = productPriceDisplay(item)
+                    const lineTotal = lineEstimatedTotal(item, Quantity || 1)
                     const description = sanitizeProductCopy(
                       item.MedusaProduct?.ShortDescription,
                       {
@@ -279,15 +261,28 @@ export default async function PairsWellWith({
                               {item.Title || "Recommended product"}
                             </p>
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <div className="mt-1">
                             {price && (
-                              <span className="font-maison-neue-mono text-[11px] font-bold uppercase text-Charcoal/70">
-                                {price.primary}
-                                {price.primaryLabel && ` ${price.primaryLabel}`}
-                              </span>
+                              <div className="space-y-0.5">
+                                <span className="block font-maison-neue-mono text-[11px] font-bold uppercase leading-tight text-Charcoal/70">
+                                  {price.primary}
+                                  {price.primaryLabel &&
+                                    ` ${price.primaryLabel}`}
+                                </span>
+                                {price.secondary && (
+                                  <span className="block font-maison-neue text-xs leading-snug text-Charcoal/50">
+                                    {price.secondary}
+                                  </span>
+                                )}
+                                {Quantity > 1 && lineTotal > 0 && (
+                                  <span className="block font-maison-neue text-xs leading-snug text-Charcoal/50">
+                                    Line est. ${lineTotal.toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
                             )}
                             {description && (
-                              <span className="line-clamp-1 font-maison-neue text-xs text-Charcoal/50">
+                              <span className="mt-1 block line-clamp-1 font-maison-neue text-xs text-Charcoal/50">
                                 {description}
                               </span>
                             )}

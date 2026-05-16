@@ -17,6 +17,7 @@ import type { StrapiCollectionProduct } from "@lib/data/strapi/collections"
 import {
   collectionEstimatedSubtotals,
   getCollectionSubstitutionGuardrails,
+  lineEstimatedTotal,
   lineCartMetadata,
   productPriceDisplay,
 } from "@lib/util/collection-substitutions"
@@ -140,15 +141,18 @@ export default function ShopCollectionsSection({
                 </LocalizedClientLink>
 
                 <div className="flex flex-1 flex-col py-8">
-                  <LocalizedClientLink href={col.slug}>
+                  <LocalizedClientLink
+                    href={col.slug}
+                    className="block min-h-[168px] md:min-h-[178px]"
+                  >
                     {col.eyebrow && (
-                      <p className="mb-2 font-maison-neue-mono text-[11px] font-bold uppercase tracking-wide text-VibrantRed">
+                      <p className="mb-2 min-h-[14px] font-maison-neue-mono text-[11px] font-bold uppercase tracking-wide text-VibrantRed">
                         {col.eyebrow}
                       </p>
                     )}
                     <h4
                       id={`collection-${col.id}-title`}
-                      className="text-h4 font-gyst font-bold text-Charcoal pb-6 border-b border-Charcoal"
+                      className="min-h-[72px] border-b border-Charcoal pb-6 font-gyst text-h4 font-bold leading-tight text-Charcoal"
                     >
                       {col.title}
                     </h4>
@@ -161,7 +165,7 @@ export default function ShopCollectionsSection({
 
                   {col.collection && col.products.length > 0 && (
                     <div className="mt-5 border-t border-Charcoal/15 pt-4">
-                      <div className="mb-3 flex items-end justify-between gap-3">
+                      <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                         <div>
                           <p className="font-maison-neue-mono text-[10px] font-bold uppercase tracking-wide text-Charcoal/55">
                             Collection subtotal
@@ -172,7 +176,7 @@ export default function ShopCollectionsSection({
                         </div>
                         <LocalizedClientLink
                           href={col.slug}
-                          className="inline-flex min-h-[36px] items-center gap-2 font-rexton text-[11px] font-bold uppercase tracking-wide text-Charcoal hover:text-VibrantRed"
+                          className="mt-[19px] inline-flex min-h-[16px] items-center gap-2 font-rexton text-[11px] font-bold uppercase leading-none tracking-wide text-Charcoal hover:text-VibrantRed"
                         >
                           View items
                           <Image
@@ -217,31 +221,60 @@ export default function ShopCollectionsSection({
                         className="mt-4 space-y-2"
                         aria-label={`${col.title} items`}
                       >
-                        {col.products.slice(0, 3).map((item) => (
-                          <li
-                            key={`${col.id}-${item.Product.documentId}`}
-                            className="flex min-w-0 items-center justify-between gap-3 border-t border-Charcoal/10 pt-2"
-                          >
-                            <LocalizedClientLink
-                              href={`/products/${item.Product.MedusaProduct?.Handle}`}
-                              className="min-w-0"
+                        {col.products.map((item) => {
+                          const price = productPriceDisplay(item.Product)
+                          const lineTotal = lineEstimatedTotal(
+                            item.Product,
+                            item.Quantity || 1
+                          )
+
+                          return (
+                            <li
+                              key={`${col.id}-${item.Product.documentId}`}
+                              className="flex min-w-0 items-start justify-between gap-3 border-t border-Charcoal/10 pt-2"
                             >
-                              <span className="line-clamp-1 font-maison-neue text-xs font-semibold text-Charcoal">
-                                {item.Quantity > 1 ? `${item.Quantity}x ` : ""}
-                                {item.Product.Title}
-                              </span>
-                              <span className="mt-0.5 block font-maison-neue-mono text-[10px] uppercase tracking-wide text-Charcoal/45">
-                                {productPriceDisplay(item.Product)?.primary ||
-                                  "See price"}
-                              </span>
-                            </LocalizedClientLink>
-                            <CollectionItemAddButton
-                              item={item}
-                              collection={col.collection}
-                              countryCode={countryCode}
-                            />
-                          </li>
-                        ))}
+                              <LocalizedClientLink
+                                href={`/products/${item.Product.MedusaProduct?.Handle}`}
+                                className="min-w-0"
+                              >
+                                <span className="font-maison-neue text-xs font-semibold leading-snug text-Charcoal">
+                                  {item.Quantity > 1
+                                    ? `${item.Quantity}x `
+                                    : ""}
+                                  {item.Product.Title}
+                                </span>
+                                {price ? (
+                                  <span className="mt-1 block space-y-0.5">
+                                    <span className="block font-maison-neue-mono text-[10px] font-bold uppercase leading-tight tracking-wide text-Charcoal/55">
+                                      {price.primary}
+                                      {price.primaryLabel &&
+                                        ` ${price.primaryLabel}`}
+                                    </span>
+                                    {price.secondary && (
+                                      <span className="block font-maison-neue text-[11px] leading-snug text-Charcoal/50">
+                                        {price.secondary}
+                                      </span>
+                                    )}
+                                    {item.Quantity > 1 && lineTotal > 0 && (
+                                      <span className="block font-maison-neue text-[11px] leading-snug text-Charcoal/50">
+                                        Line est. ${lineTotal.toFixed(2)}
+                                      </span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span className="mt-1 block font-maison-neue-mono text-[10px] uppercase tracking-wide text-Charcoal/45">
+                                    See price
+                                  </span>
+                                )}
+                              </LocalizedClientLink>
+                              <CollectionItemAddButton
+                                item={item}
+                                collection={col.collection}
+                                countryCode={countryCode}
+                              />
+                            </li>
+                          )
+                        })}
                       </ul>
                     </div>
                   )}

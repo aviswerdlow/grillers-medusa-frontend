@@ -75,7 +75,8 @@ export default function CuratedCollectionTemplate({
             </span>
             {collection.TargetMinWeightLb && collection.TargetMaxWeightLb && (
               <span className="rounded-full bg-Scroll px-3 py-1 font-maison-neue-mono text-[11px] font-bold uppercase tracking-wide text-Charcoal">
-                {collection.TargetMinWeightLb}-{collection.TargetMaxWeightLb} lb target
+                {collection.TargetMinWeightLb}-{collection.TargetMaxWeightLb} lb
+                target
               </span>
             )}
           </div>
@@ -123,8 +124,8 @@ export default function CuratedCollectionTemplate({
               {needsBusinessReview && (
                 <div className="mb-4 rounded-[5px] border border-VibrantRed/30 bg-VibrantRed/10 p-3 font-maison-neue text-xs leading-relaxed text-Charcoal/70">
                   This collection has a substitution marked for business review.
-                  Editors should confirm weight, margin, and shipping cost before
-                  promoting it.
+                  Editors should confirm weight, margin, and shipping cost
+                  before promoting it.
                   {substitutionGuardrails.reviewReasons.length > 0 && (
                     <span className="mt-1 block text-Charcoal/60">
                       {substitutionGuardrails.reviewReasons[0]}
@@ -211,22 +212,31 @@ export default function CuratedCollectionTemplate({
                       {Required === false ? "Optional" : "Recommended"}
                     </span>
                   </div>
-                  <LocalizedClientLink href={`/products/${item.MedusaProduct?.Handle}`}>
+                  <LocalizedClientLink
+                    href={`/products/${item.MedusaProduct?.Handle}`}
+                  >
                     <h3 className="mt-2 line-clamp-2 font-maison-neue text-sm font-semibold leading-snug text-Charcoal hover:text-VibrantRed">
                       {item.Title}
                     </h3>
                   </LocalizedClientLink>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <div className="mt-1">
                     {price && (
-                      <span className="font-maison-neue-mono text-[11px] font-bold uppercase text-Charcoal/70">
-                        {price.primary}
-                        {price.primaryLabel && ` ${price.primaryLabel}`}
-                      </span>
+                      <div className="space-y-0.5">
+                        <span className="block font-maison-neue-mono text-[11px] font-bold uppercase leading-tight text-Charcoal/70">
+                          {price.primary}
+                          {price.primaryLabel && ` ${price.primaryLabel}`}
+                        </span>
+                        {price.secondary && (
+                          <span className="block font-maison-neue text-xs leading-snug text-Charcoal/50">
+                            {price.secondary}
+                          </span>
+                        )}
+                      </div>
                     )}
                     {description && (
-                      <span className="line-clamp-1 font-maison-neue text-xs text-Charcoal/50">
+                      <p className="mt-1 line-clamp-1 font-maison-neue text-xs text-Charcoal/50">
                         {description}
-                      </span>
+                      </p>
                     )}
                   </div>
                   {Role && (
@@ -257,7 +267,7 @@ export default function CuratedCollectionTemplate({
             )}
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {substitutionItems.map((item) => (
+            {substitutionItems.map((item) =>
               (() => {
                 const impact = getSubstitutionImpact(item)
                 const weightDelta = formatWeightDelta(impact.weightDelta)
@@ -307,7 +317,7 @@ export default function CuratedCollectionTemplate({
                   </div>
                 )
               })()
-            ))}
+            )}
           </div>
         </section>
       )}
