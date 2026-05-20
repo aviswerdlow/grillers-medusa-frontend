@@ -89,6 +89,16 @@ function getPreferredAddress(customer: HttpTypes.StoreCustomer | null) {
   )
 }
 
+function hasAddressForFulfillment(
+  address:
+    | HttpTypes.StoreCartAddress
+    | HttpTypes.StoreCustomerAddress
+    | null
+    | undefined
+) {
+  return Boolean(address?.address_1 && address?.postal_code)
+}
+
 function friendlyFulfillmentError(message?: string) {
   if (!message) {
     return "We could not save that fulfillment method. Please try another option."
@@ -154,10 +164,16 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
     southeastPickup: normalizeMinimum(config?.MinimumOrderThresholds?.SoutheastPickup, 0),
   }), [config])
 
-  // Pull active shipping address from cart, then fall back to the customer's
-  // default shipping address. This keeps Step 1 availability aligned with the
-  // address that Step 2 preselects.
-  const activeAddress = cart.shipping_address ?? getPreferredAddress(customer)
+  // Pull active shipping address from cart when it is actually usable, then
+  // fall back to the customer's saved address. Medusa can return a partial
+  // cart address during staff/customer handoff; that should not mask an
+  // address that exists in the profile.
+  const preferredCustomerAddress = getPreferredAddress(customer)
+  const activeAddress = hasAddressForFulfillment(cart.shipping_address)
+    ? cart.shipping_address
+    : hasAddressForFulfillment(preferredCustomerAddress)
+      ? preferredCustomerAddress
+      : cart.shipping_address || preferredCustomerAddress
   const shipZip = (activeAddress?.postal_code || "").trim()
   const shipCity = (activeAddress?.city || "").trim()
 

@@ -20,6 +20,8 @@ import CheckoutSummary from "@modules/checkout/templates/checkout-summary"
 import { Metadata } from "next"
 import { notFound, redirect } from "next/navigation"
 
+export const dynamic = "force-dynamic"
+
 // Default fulfillment config for when Strapi isn't set up yet
 const defaultFulfillmentConfig: FulfillmentConfigData["checkout"] = {
   // Atlanta delivery ZIP codes (from Strapi shipping-zones)
