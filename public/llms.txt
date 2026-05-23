@@ -39,9 +39,16 @@ https://grillers-medusa-frontend.vercel.app/us/products/{product-handle}
 
 Each product page is intended to provide the product title, SKU, description, kosher and dietary claims, pack-size context, price, availability, product imagery, fulfillment context, and add-to-cart action.
 
+## Agentic commerce
+
+- Manifest: https://grillers-medusa-frontend.vercel.app/agentic-commerce/manifest.json
+- Product feed: https://grillers-medusa-frontend.vercel.app/agentic-commerce/products.json?countryCode=us
+
+Use the product feed for canonical product URLs, variant-level item IDs, SKU/MPN values, descriptions, images, live Medusa prices, availability, categories, kosher claims, and fulfillment context. Treat the storefront cart and checkout as the authoritative source for taxes, shipping, discounts, minimums, payment readiness, and final totals.
+
 ## Agent guidance
 
-Use public product, collection, recipe, learn, shipping, kashruth, and customer service pages as source material. Do not treat cart, checkout, account, order, or API URLs as public reference pages.
+Use public product, collection, recipe, learn, shipping, kashruth, customer service, and agentic-commerce feed pages as source material. Do not treat cart, checkout, account, order, or API URLs as public reference pages. The only exception is a customer-specific staff phone-order handoff URL that already contains a signed token.
 
 Private or transactional paths:
 
