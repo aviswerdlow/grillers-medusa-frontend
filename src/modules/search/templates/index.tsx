@@ -3,10 +3,19 @@
 import { useEffect, useMemo, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { InstantSearch, Configure, useHits, useSearchBox, useStats } from "react-instantsearch"
+import {
+  InstantSearch,
+  Configure,
+  useHits,
+  useSearchBox,
+} from "react-instantsearch"
 import { searchLiteClient } from "@lib/algolia"
 import { PRODUCT_INDEX } from "@lib/algolia/indexes"
 import { hitToProduct } from "@lib/algolia/hit-to-product"
+import {
+  rankSearchHits,
+  searchQueryForAlgolia,
+} from "@lib/algolia/search-relevance"
 import type { StrapiCollectionProduct } from "@lib/data/strapi/collections"
 import { enrichStrapiProductsWithMedusaPrices } from "@lib/data/products"
 import StrapiProductGrid from "@modules/collections/components/strapi-product-grid"
@@ -29,19 +38,19 @@ interface SearchResultsProps {
 // Force the InstantSearch query to match the URL ?q= on mount.
 function QuerySync({ q }: { q: string }) {
   const { query, refine } = useSearchBox()
+  const algoliaQuery = searchQueryForAlgolia(q)
   useEffect(() => {
-    if (q && q !== query) refine(q)
-  }, [q, query, refine])
+    if (algoliaQuery && algoliaQuery !== query) refine(algoliaQuery)
+  }, [algoliaQuery, query, refine])
   return null
 }
 
-function ResultCount({ initialQuery }: { initialQuery: string }) {
-  const { nbHits, query } = useStats()
-  const display = query || initialQuery
+function ResultCount({ count, query }: { count: number; query: string }) {
+  const display = query
   if (!display) return null
   return (
     <p className="text-p-md text-Charcoal/70">
-      {nbHits} {nbHits === 1 ? "result" : "results"} for{" "}
+      {count} {count === 1 ? "result" : "results"} for{" "}
       <span className="font-bold text-Charcoal">&ldquo;{display}&rdquo;</span>
     </p>
   )
@@ -83,7 +92,13 @@ function EmptyResults({
   )
 }
 
-function SearchBody({ initialQuery, countryCode }: { initialQuery: string; countryCode: string }) {
+function SearchBody({
+  initialQuery,
+  countryCode,
+}: {
+  initialQuery: string
+  countryCode: string
+}) {
   const { items } = useHits<any>()
   const { query: liveQuery } = useSearchBox()
   // hitToProduct returns null for stub hits the upstream plugin writes when
@@ -97,7 +112,9 @@ function SearchBody({ initialQuery, countryCode }: { initialQuery: string; count
     [items]
   )
 
-  const [activeFilters, setActiveFilters] = useState<ActiveFilters>(getEmptyFilters())
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>(
+    getEmptyFilters()
+  )
   const [currentPage, setCurrentPage] = useState(1)
   // Mobile filter drawer — collapsed by default so products are the first
   // thing visible. Same pattern as the collection page (#119).
@@ -117,10 +134,16 @@ function SearchBody({ initialQuery, countryCode }: { initialQuery: string; count
     }
   }, [mobileFiltersOpen])
 
+  const displayQuery = initialQuery.trim() || liveQuery.trim()
+  const rankedProducts = useMemo(
+    () => rankSearchHits(allProducts, displayQuery),
+    [allProducts, displayQuery]
+  )
+
   // Reset page on new query or filter change.
   const filtered = useMemo(
-    () => filterProducts(allProducts, activeFilters),
-    [allProducts, activeFilters]
+    () => filterProducts(rankedProducts, activeFilters),
+    [rankedProducts, activeFilters]
   )
 
   const totalPages = Math.ceil(filtered.length / RESULTS_PER_PAGE)
@@ -132,7 +155,8 @@ function SearchBody({ initialQuery, countryCode }: { initialQuery: string; count
   // Algolia indexes Strapi metadata but does not carry live Medusa prices,
   // so the visible page is hydrated with current Medusa pricing before the
   // grid renders. Falls back silently to Algolia data on Medusa failure.
-  const [pricedProducts, setPricedProducts] = useState<StrapiCollectionProduct[]>(paginated)
+  const [pricedProducts, setPricedProducts] =
+    useState<StrapiCollectionProduct[]>(paginated)
   useEffect(() => {
     let cancelled = false
     setPricedProducts(paginated)
@@ -162,11 +186,10 @@ function SearchBody({ initialQuery, countryCode }: { initialQuery: string; count
   // Reset to page 1 when the underlying result set changes (new search).
   useEffect(() => {
     setCurrentPage(1)
-  }, [allProducts.length, initialQuery])
+  }, [rankedProducts.length, displayQuery])
 
-  const showFilters = productsHaveFilters(allProducts)
-  const displayQuery = (liveQuery || initialQuery).trim()
-  const isEmpty = displayQuery.length > 0 && allProducts.length === 0
+  const showFilters = productsHaveFilters(rankedProducts)
+  const isEmpty = displayQuery.length > 0 && rankedProducts.length === 0
 
   if (isEmpty) {
     return (
@@ -175,7 +198,7 @@ function SearchBody({ initialQuery, countryCode }: { initialQuery: string; count
           <h1 className="text-h2-mobile md:text-h2 font-gyst text-Charcoal">
             Search
           </h1>
-          <ResultCount initialQuery={initialQuery} />
+          <ResultCount count={rankedProducts.length} query={displayQuery} />
         </div>
         <EmptyResults query={displayQuery} countryCode={countryCode} />
       </>
@@ -188,14 +211,18 @@ function SearchBody({ initialQuery, countryCode }: { initialQuery: string; count
         <h1 className="text-h2-mobile md:text-h2 font-gyst text-Charcoal">
           Search
         </h1>
-        <ResultCount initialQuery={initialQuery} />
+        <ResultCount count={filtered.length} query={displayQuery} />
       </div>
 
-      <div className={`gap-8 grid grid-cols-1 ${showFilters ? "lg:grid-cols-[0.25fr_1fr]" : ""}`}>
+      <div
+        className={`gap-8 grid grid-cols-1 ${
+          showFilters ? "lg:grid-cols-[0.25fr_1fr]" : ""
+        }`}
+      >
         {showFilters && (
           <div className="hidden lg:block">
             <CollectionFilters
-              products={allProducts}
+              products={rankedProducts}
               activeFilters={activeFilters}
               onFilterChange={handleFilterChange}
             />
@@ -206,9 +233,11 @@ function SearchBody({ initialQuery, countryCode }: { initialQuery: string; count
           <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
             {hasActiveFilters(activeFilters) ? (
               <p className="text-sm text-gray-600">
-                Showing {filtered.length} of {allProducts.length}
+                Showing {filtered.length} of {rankedProducts.length}
               </p>
-            ) : <span />}
+            ) : (
+              <span />
+            )}
             {showFilters && (
               <button
                 type="button"
@@ -309,7 +338,7 @@ function SearchBody({ initialQuery, countryCode }: { initialQuery: string; count
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <CollectionFilters
-                products={allProducts}
+                products={rankedProducts}
                 activeFilters={activeFilters}
                 onFilterChange={handleFilterChange}
                 hideHeader

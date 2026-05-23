@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import { generatedSiteImages } from "@lib/content/generated-site-images"
 
 const recipePaths = [
   {
@@ -133,7 +134,7 @@ export default function LearnEntrySection() {
             >
               <figure className="relative min-h-[220px]">
                 <Image
-                  src="/images/pages/home/Plate_Steak_Cut_Potatoes.png"
+                  src={generatedSiteImages.recipeDiscovery}
                   alt=""
                   fill
                   sizes="(min-width: 1024px) 22vw, 100vw"
@@ -152,8 +153,8 @@ export default function LearnEntrySection() {
                     Find meals by table, cut, and cooking window
                   </h3>
                   <p className="mt-3 font-maison-neue text-sm leading-relaxed text-Charcoal/65">
-                    Search the recipe hub by Shabbos, weeknight, steaks,
-                    chops, whole birds, and holiday cooking.
+                    Search the recipe hub by Shabbos, weeknight, steaks, chops,
+                    whole birds, and holiday cooking.
                   </p>
                   <span className="mt-5 inline-flex items-center gap-2 font-rexton text-[11px] font-bold uppercase tracking-wide text-Charcoal">
                     Open recipe hub

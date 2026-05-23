@@ -1,47 +1,23 @@
 import React from "react"
 import { CreditCard } from "@medusajs/icons"
 
-import Ideal from "@modules/common/icons/ideal"
-import Bancontact from "@modules/common/icons/bancontact"
-import PayPal from "@modules/common/icons/paypal"
+export const STRIPE_CARD_PROVIDER_ID = "pp_stripe_stripe"
 
-/* Map of payment provider_id to their title and icon. Add in any payment providers you want to use. */
+/* Map of payment provider_id to its customer-facing title and icon. */
 export const paymentInfoMap: Record<
   string,
   { title: string; icon: React.JSX.Element }
 > = {
-  pp_stripe_stripe: {
+  [STRIPE_CARD_PROVIDER_ID]: {
     title: "Credit card",
     icon: <CreditCard />,
   },
-  "pp_stripe-ideal_stripe": {
-    title: "iDeal",
-    icon: <Ideal />,
-  },
-  "pp_stripe-bancontact_stripe": {
-    title: "Bancontact",
-    icon: <Bancontact />,
-  },
-  pp_paypal_paypal: {
-    title: "PayPal",
-    icon: <PayPal />,
-  },
-  pp_system_default: {
-    title: "Manual Payment",
-    icon: <CreditCard />,
-  },
-  // Add more payment providers here
 }
 
-// This only checks if it is native stripe for card payments, it ignores the other stripe-based providers
+// Native Stripe card payments only. This intentionally excludes Stripe wallet,
+// redirect, and manual providers because checkout only supports credit cards.
 export const isStripe = (providerId?: string) => {
-  return providerId?.startsWith("pp_stripe_")
-}
-export const isPaypal = (providerId?: string) => {
-  return providerId?.startsWith("pp_paypal")
-}
-export const isManual = (providerId?: string) => {
-  return providerId?.startsWith("pp_system_default")
+  return providerId === STRIPE_CARD_PROVIDER_ID
 }
 
 // Add currencies that don't need to be divided by 100

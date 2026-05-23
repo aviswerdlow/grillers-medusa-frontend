@@ -4,6 +4,7 @@ import type { HeaderNavLink } from "@lib/data/strapi/header"
 import type { HttpTypes } from "@medusajs/types"
 import strapiClient from "@lib/strapi"
 import { withTimeout } from "@lib/util/promise-timeout"
+import { augmentHeaderNav } from "@lib/util/header-nav"
 import AnnouncementBarProvider from "../../../../components/announcement-bar-provider"
 import Header from "./header"
 import Menu from "./menu"
@@ -20,16 +21,29 @@ export default async function Nav({ customer }: NavProps = {}) {
       null,
       "nav links"
     ),
-    withTimeout(listRegions().catch(() => []), 1000, [], "nav regions"),
+    withTimeout(
+      listRegions().catch(() => []),
+      1000,
+      [],
+      "nav regions"
+    ),
   ])
-  const navLinks: HeaderNavLink[] = navLinksData?.header?.HeaderNav || []
+  const navLinks: HeaderNavLink[] = augmentHeaderNav(
+    navLinksData?.header?.HeaderNav || []
+  )
   const phoneNumber: string | null = navLinksData?.header?.PhoneNumber || null
   const navCounts = {}
 
   return (
     <>
       <AnnouncementBarProvider />
-      <Header navLinks={navLinks} regions={regions || []} phoneNumber={phoneNumber} customer={customer} navCounts={navCounts} />
+      <Header
+        navLinks={navLinks}
+        regions={regions || []}
+        phoneNumber={phoneNumber}
+        customer={customer}
+        navCounts={navCounts}
+      />
       <Menu navLinks={navLinks} navCounts={navCounts} />
     </>
   )

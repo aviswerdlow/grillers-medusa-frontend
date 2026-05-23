@@ -19,6 +19,7 @@ import {
 } from "react-instantsearch"
 import { searchLiteClient } from "@lib/algolia"
 import { PRODUCT_INDEX } from "@lib/algolia/indexes"
+import { rankSearchHits } from "@lib/algolia/search-relevance"
 import { trackSearch } from "@lib/gtm"
 import { jitsuTrack } from "@lib/jitsu"
 import { formatProductPriceDisplay } from "@lib/util/price-display"
@@ -131,6 +132,7 @@ function InstantComboboxOptions({
   const { query } = useSearchBox()
   const trimmedQuery = query.trim()
   const showAllResultsLink = trimmedQuery.length >= 2
+  const rankedItems = rankSearchHits(items, trimmedQuery)
 
   return (
     <>
@@ -141,19 +143,24 @@ function InstantComboboxOptions({
         aria-atomic="true"
         className="sr-only"
       >
-        {query.length >= 2 && (
-          items.length === 0
+        {query.length >= 2 &&
+          (rankedItems.length === 0
             ? "No results found"
-            : `${items.length} result${items.length !== 1 ? "s" : ""} found`
-        )}
+            : `${rankedItems.length} result${
+                rankedItems.length !== 1 ? "s" : ""
+              } found`)}
       </div>
 
       <ComboboxOptions
         className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-96 overflow-auto"
         aria-label="Search results"
       >
-        {items.length === 0 ? (
-          <div className="px-4 py-3 text-p-md text-Pewter" role="option" aria-selected="false">
+        {rankedItems.length === 0 ? (
+          <div
+            className="px-4 py-3 text-p-md text-Pewter"
+            role="option"
+            aria-selected="false"
+          >
             {showAllResultsLink ? (
               <>
                 No quick matches.{" "}
@@ -171,8 +178,9 @@ function InstantComboboxOptions({
           </div>
         ) : (
           <>
-            {items.map((item) => {
-              const price = item.MedusaProduct?.Variants?.[0]?.Price?.CalculatedPriceNumber
+            {rankedItems.map((item) => {
+              const price =
+                item.MedusaProduct?.Variants?.[0]?.Price?.CalculatedPriceNumber
               // Resolve per-lb vs fixed-price the same way PDP/PLP do so
               // search dropdown never shows `$packPrice per lb` for a
               // fixed-price item, or `$packPrice` for a catch-weight one.
@@ -182,7 +190,11 @@ function InstantComboboxOptions({
                     price,
                     item.Metadata,
                     item.MedusaProduct?.Variants?.[0]?.Sku,
-                    (item.MedusaProduct as { PricingMode?: "per_lb" | "fixed_price" } | undefined)?.PricingMode
+                    (
+                      item.MedusaProduct as
+                        | { PricingMode?: "per_lb" | "fixed_price" }
+                        | undefined
+                    )?.PricingMode
                   )
                 : null
               const imageUrl = item.FeaturedImage?.url
@@ -210,7 +222,14 @@ function InstantComboboxOptions({
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-300">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <svg
+                              width="20"
+                              height="20"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                            >
                               <rect x="3" y="3" width="18" height="18" rx="2" />
                               <circle cx="8.5" cy="8.5" r="1.5" />
                               <path d="m21 15-5-5L5 21" />
@@ -227,13 +246,19 @@ function InstantComboboxOptions({
                         <p className="text-sm text-Charcoal/70 mt-0.5">
                           {priceDisplay ? (
                             <>
-                              <span className="font-semibold text-Charcoal">{priceDisplay.primary}</span>
+                              <span className="font-semibold text-Charcoal">
+                                {priceDisplay.primary}
+                              </span>
                               {priceDisplay.primaryLabel && (
-                                <span className="text-xs text-Charcoal/50 ml-1">{priceDisplay.primaryLabel}</span>
+                                <span className="text-xs text-Charcoal/50 ml-1">
+                                  {priceDisplay.primaryLabel}
+                                </span>
                               )}
                             </>
                           ) : (
-                            <span className="text-xs text-Gold font-medium">View product →</span>
+                            <span className="text-xs text-Gold font-medium">
+                              View product →
+                            </span>
                           )}
                         </p>
                       </div>

@@ -1,14 +1,11 @@
 "use client"
 import React, { Fragment, useState, useRef } from "react"
-import {
-  Dialog,
-  DialogPanel,
-  Transition,
-} from "@headlessui/react"
+import { Dialog, DialogPanel, Transition } from "@headlessui/react"
 import classNames from "classnames"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Image from "next/image"
 import type { HeaderNavLink } from "@lib/data/strapi/header"
+import { sectionHref } from "@lib/util/header-nav"
 import { Award, Clock, Star } from "lucide-react"
 
 // Icon mapper for bottom bar certifications
@@ -101,7 +98,10 @@ export const MobileNavMenu = ({
           className="fixed inset-y-0 left-0 z-40 w-full max-w-sm bg-white shadow-lg p-6 overflow-y-auto"
         >
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold font-maison-neue-mono uppercase" id="mobile-menu-title">
+            <h2
+              className="text-lg font-semibold font-maison-neue-mono uppercase"
+              id="mobile-menu-title"
+            >
               Menu
             </h2>
             <button
@@ -125,7 +125,10 @@ export const MobileNavMenu = ({
               </svg>
             </button>
           </div>
-          <nav className="flex flex-col space-y-2" aria-labelledby="mobile-menu-title">
+          <nav
+            className="flex flex-col space-y-2"
+            aria-labelledby="mobile-menu-title"
+          >
             {navLinks?.map((item, idx) => (
               <div key={item.id} role="none">
                 <button
@@ -160,69 +163,70 @@ export const MobileNavMenu = ({
                     aria-label={`${item.title} submenu`}
                   >
                     {item.sections.map((section, sectionIdx) => {
-                      const headerUrl = `/collections/kosher-${section.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`
+                      const headerUrl = sectionHref(section)
                       const headerCountLabel = formatCount(
-                        navCounts?.[headerUrl],
+                        navCounts?.[headerUrl]
                       )
                       return (
-                      <div key={sectionIdx} className="mb-3">
-                        <button
-                          onClick={() =>
-                            setExpandedSection(
-                              expandedSection === `${idx}-${sectionIdx}`
-                                ? null
-                                : `${idx}-${sectionIdx}`
-                            )
-                          }
-                          className="w-full min-h-[44px] text-left px-4 py-1 text-xs font-semibold text-gray-700 flex items-center justify-between"
-                        >
-                          <span className="flex items-baseline gap-2">
-                            <span>{section.title}</span>
-                            {headerCountLabel && (
-                              <span className="text-gray-400 text-[11px] font-normal tabular-nums">
-                                {headerCountLabel}
-                              </span>
-                            )}
-                          </span>
-                          <Image
-                            className={classNames(
-                              "ml-1 transform transition-transform duration-200",
-                              {
-                                "rotate-180": expandedSection === `${idx}-${sectionIdx}`,
-                              }
-                            )}
-                            src="/images/icons/chevron.svg"
-                            width={8}
-                            height={4}
-                            alt=""
-                            aria-hidden="true"
-                          />
-                        </button>
-                        {expandedSection === `${idx}-${sectionIdx}` && (
-                          <div className="mt-1 flex flex-col space-y-1">
-                            {section.items.map((navItem, itemIdx) => {
-                              const countLabel = formatCount(
-                                navCounts?.[navItem.Url],
+                        <div key={sectionIdx} className="mb-3">
+                          <button
+                            onClick={() =>
+                              setExpandedSection(
+                                expandedSection === `${idx}-${sectionIdx}`
+                                  ? null
+                                  : `${idx}-${sectionIdx}`
                               )
-                              return (
-                                <LocalizedClientLink
-                                  key={itemIdx}
-                                  href={navItem.Url}
-                                  className="block min-h-[44px] px-6 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold flex items-center"
-                                  onClick={() => setMobileOpen(false)}
-                                >
-                                  {navItem.Text}
-                                  {countLabel && (
-                                    <span className="text-gray-400 text-[11px] tabular-nums ml-1.5">
-                                      {countLabel}
-                                    </span>
-                                  )}
-                                </LocalizedClientLink>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
+                            }
+                            className="w-full min-h-[44px] text-left px-4 py-1 text-xs font-semibold text-gray-700 flex items-center justify-between"
+                          >
+                            <span className="flex items-baseline gap-2">
+                              <span>{section.title}</span>
+                              {headerCountLabel && (
+                                <span className="text-gray-400 text-[11px] font-normal tabular-nums">
+                                  {headerCountLabel}
+                                </span>
+                              )}
+                            </span>
+                            <Image
+                              className={classNames(
+                                "ml-1 transform transition-transform duration-200",
+                                {
+                                  "rotate-180":
+                                    expandedSection === `${idx}-${sectionIdx}`,
+                                }
+                              )}
+                              src="/images/icons/chevron.svg"
+                              width={8}
+                              height={4}
+                              alt=""
+                              aria-hidden="true"
+                            />
+                          </button>
+                          {expandedSection === `${idx}-${sectionIdx}` && (
+                            <div className="mt-1 flex flex-col space-y-1">
+                              {section.items.map((navItem, itemIdx) => {
+                                const countLabel = formatCount(
+                                  navCounts?.[navItem.Url]
+                                )
+                                return (
+                                  <LocalizedClientLink
+                                    key={itemIdx}
+                                    href={navItem.Url}
+                                    className="block min-h-[44px] px-6 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold flex items-center"
+                                    onClick={() => setMobileOpen(false)}
+                                  >
+                                    {navItem.Text}
+                                    {countLabel && (
+                                      <span className="text-gray-400 text-[11px] tabular-nums ml-1.5">
+                                        {countLabel}
+                                      </span>
+                                    )}
+                                  </LocalizedClientLink>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
                       )
                     })}
                   </div>
@@ -344,16 +348,26 @@ const DesktopNavMenu = ({
   return (
     <div className="hidden md:block sticky top-0 inset-x-0 z-30">
       {/* Navigation Bar */}
-      <nav className="bg-Charcoal border-b border-white/10" aria-label="Main navigation">
-        <div className="flex items-center justify-center space-x-16 py-2 h-12" role="menubar">
+      <nav
+        className="bg-Charcoal border-b border-white/10"
+        aria-label="Main navigation"
+      >
+        <ul
+          className="flex items-center justify-center space-x-16 py-2 h-12"
+          role="list"
+        >
           {navLinks.map((item) => (
-            <div
+            <li
               key={item.id}
               className="relative"
               onMouseEnter={() => handleMouseEnter(item.id)}
               onMouseLeave={handleMouseLeave}
             >
-              <button className="flex items-center text-p-sm-mono font-maison-neue-mono uppercase text-white hover:text-Gold gap-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold focus-visible:ring-offset-2 rounded group">
+              <button
+                type="button"
+                className="flex items-center text-p-sm-mono font-maison-neue-mono uppercase text-white hover:text-Gold gap-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold focus-visible:ring-offset-2 rounded group"
+                aria-expanded={activeMenu === item.id}
+              >
                 {item.title}
                 <svg
                   className={classNames(
@@ -371,9 +385,9 @@ const DesktopNavMenu = ({
                   <path d="M0 0L5 5L10 0H0Z" />
                 </svg>
               </button>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </nav>
 
       {/* Mega Menu Overlay */}
@@ -384,13 +398,10 @@ const DesktopNavMenu = ({
           onMouseLeave={handleMouseLeave}
         >
           <div
-            className={classNames(
-              "transition-all duration-300 ease-out",
-              {
-                "opacity-0 translate-y-[-10px]": isAnimating,
-                "opacity-100 translate-y-0": !isAnimating,
-              }
-            )}
+            className={classNames("transition-all duration-300 ease-out", {
+              "opacity-0 translate-y-[-10px]": isAnimating,
+              "opacity-100 translate-y-0": !isAnimating,
+            })}
           >
             {navLinks
               .filter((item) => item.id === activeMenu)
@@ -398,73 +409,89 @@ const DesktopNavMenu = ({
                 <div key={item.id} className="container mx-auto px-6 py-6">
                   <div className="grid grid-cols-12 gap-6">
                     {/* Menu Sections - smart column packing */}
-                    <div className={item.featured ? "col-span-8" : "col-span-12"}>
-                      <div className="flex gap-6">
-                        {packSectionsIntoColumns(item.sections).map((column, colIdx) => (
-                          <div key={colIdx} className="flex-1 min-w-0 space-y-6">
-                            {column.map((section, secIdx) => {
-                              const headerUrl = `/collections/kosher-${section.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`
-                              const headerCountLabel = formatCount(
-                                navCounts?.[headerUrl],
-                              )
-                              return (
-                              <div key={secIdx} className="space-y-3">
-                                <h3 className="text-sm font-semibold text-gray-900 border-b border-orange-200 pb-2">
-                                  <LocalizedClientLink
-                                    href={headerUrl}
-                                    className="hover:text-orange-600 transition-colors"
-                                    onClick={() => setActiveMenu(null)}
-                                  >
-                                    {section.title}
-                                    {headerCountLabel && (
-                                      <span className="text-gray-400 text-xs font-normal tabular-nums ml-1.5">
-                                        {headerCountLabel}
-                                      </span>
-                                    )}
-                                  </LocalizedClientLink>
-                                </h3>
-                                <ul className="space-y-1 pl-2">
-                                  {section.items.map((navItem, subIndex) => {
-                                    const countLabel = formatCount(
-                                      navCounts?.[navItem.Url],
-                                    )
-                                    return (
-                                      <li
-                                        key={subIndex}
-                                        className="flex items-center gap-2"
+                    <nav
+                      className={item.featured ? "col-span-8" : "col-span-12"}
+                      aria-label={`${item.title} menu`}
+                    >
+                      <ul className="flex gap-6" role="list">
+                        {packSectionsIntoColumns(item.sections).map(
+                          (column, colIdx) => (
+                            <li
+                              key={colIdx}
+                              className="flex-1 min-w-0 space-y-6"
+                            >
+                              {column.map((section, secIdx) => {
+                                const headerUrl = sectionHref(section)
+                                const headerCountLabel = formatCount(
+                                  navCounts?.[headerUrl]
+                                )
+                                return (
+                                  <div key={secIdx} className="space-y-3">
+                                    <h3 className="text-sm font-semibold text-gray-900 border-b border-orange-200 pb-2">
+                                      <LocalizedClientLink
+                                        href={headerUrl}
+                                        className="hover:text-orange-600 transition-colors"
+                                        onClick={() => setActiveMenu(null)}
                                       >
-                                        <span
-                                          className="w-1 h-1 rounded-full bg-Gold shrink-0"
-                                          aria-hidden="true"
-                                        />
-                                        <LocalizedClientLink
-                                          href={navItem.Url}
-                                          className="text-sm text-gray-600 hover:text-orange-600 transition-colors block py-1 hover:translate-x-1 transform duration-200"
-                                          onClick={() => setActiveMenu(null)}
-                                        >
-                                          {navItem.Text}
-                                          {countLabel && (
-                                            <span className="text-gray-400 text-xs tabular-nums ml-1.5">
-                                              {countLabel}
-                                            </span>
-                                          )}
-                                        </LocalizedClientLink>
-                                      </li>
-                                    )
-                                  })}
-                                </ul>
-                              </div>
-                              )
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                                        {section.title}
+                                        {headerCountLabel && (
+                                          <span className="text-gray-400 text-xs font-normal tabular-nums ml-1.5">
+                                            {headerCountLabel}
+                                          </span>
+                                        )}
+                                      </LocalizedClientLink>
+                                    </h3>
+                                    <ul className="space-y-1 pl-2">
+                                      {section.items.map(
+                                        (navItem, subIndex) => {
+                                          const countLabel = formatCount(
+                                            navCounts?.[navItem.Url]
+                                          )
+                                          return (
+                                            <li
+                                              key={subIndex}
+                                              className="flex items-center gap-2"
+                                            >
+                                              <span
+                                                className="w-1 h-1 rounded-full bg-Gold shrink-0"
+                                                aria-hidden="true"
+                                              />
+                                              <LocalizedClientLink
+                                                href={navItem.Url}
+                                                className="text-sm text-gray-600 hover:text-orange-600 transition-colors block py-1 hover:translate-x-1 transform duration-200"
+                                                onClick={() =>
+                                                  setActiveMenu(null)
+                                                }
+                                              >
+                                                {navItem.Text}
+                                                {countLabel && (
+                                                  <span className="text-gray-400 text-xs tabular-nums ml-1.5">
+                                                    {countLabel}
+                                                  </span>
+                                                )}
+                                              </LocalizedClientLink>
+                                            </li>
+                                          )
+                                        }
+                                      )}
+                                    </ul>
+                                  </div>
+                                )
+                              })}
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    </nav>
 
                     {/* Featured Section */}
                     {item.featured && (
                       <div className="col-span-4">
-                        <div className="bg-Charcoal rounded-lg p-5 h-full cursor-pointer hover:shadow-lg transition-shadow">
+                        <LocalizedClientLink
+                          href={item.featured.url || "/collections"}
+                          className="block bg-Charcoal rounded-lg p-5 h-full cursor-pointer hover:shadow-lg transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold"
+                          onClick={() => setActiveMenu(null)}
+                        >
                           {item.featured.badge && (
                             <div className="flex items-start justify-between mb-4">
                               <span className="bg-Gold text-Charcoal px-2 py-1 rounded text-xs font-medium">
@@ -503,35 +530,36 @@ const DesktopNavMenu = ({
                               {item.featured.description}
                             </p>
                           )}
-                        </div>
+                        </LocalizedClientLink>
                       </div>
                     )}
                   </div>
 
                   {/* Bottom Action Bar */}
                   {item.bottomBar && (
-                  <div className="mt-5 pt-4 border-t border-gray-200 flex items-center justify-between">
-                    <div className="flex items-center space-x-6 text-xs text-gray-600">
-                      {item.bottomBar.certifications?.map((cert, idx) => {
-                        const IconComponent = iconMap[cert.icon as keyof typeof iconMap]
-                        return (
-                          <div key={idx} className="flex items-center">
-                            {IconComponent && (
-                              <IconComponent className="h-3 w-3 mr-1 text-Gold" />
-                            )}
-                            {cert.text}
-                          </div>
-                        )
-                      })}
+                    <div className="mt-5 pt-4 border-t border-gray-200 flex items-center justify-between">
+                      <div className="flex items-center space-x-6 text-xs text-gray-600">
+                        {item.bottomBar.certifications?.map((cert, idx) => {
+                          const IconComponent =
+                            iconMap[cert.icon as keyof typeof iconMap]
+                          return (
+                            <div key={idx} className="flex items-center">
+                              {IconComponent && (
+                                <IconComponent className="h-3 w-3 mr-1 text-Gold" />
+                              )}
+                              {cert.text}
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <LocalizedClientLink
+                        href={item.bottomBar.viewAllUrl}
+                        className="text-Gold hover:text-Gold/80 font-medium text-xs flex items-center"
+                        onClick={() => setActiveMenu(null)}
+                      >
+                        {item.bottomBar.viewAllText} →
+                      </LocalizedClientLink>
                     </div>
-                    <LocalizedClientLink
-                      href={item.bottomBar.viewAllUrl}
-                      className="text-Gold hover:text-Gold/80 font-medium text-xs flex items-center"
-                      onClick={() => setActiveMenu(null)}
-                    >
-                      {item.bottomBar.viewAllText} →
-                    </LocalizedClientLink>
-                  </div>
                   )}
                 </div>
               ))}

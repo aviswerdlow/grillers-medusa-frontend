@@ -7,6 +7,7 @@ export type NavItem = {
 
 export type NavSection = {
   title: string
+  Url?: string
   items: NavItem[]
 }
 
@@ -14,6 +15,7 @@ export type NavFeatured = {
   title: string
   description: string
   badge: string
+  url?: string
   image?: {
     url: string
   }

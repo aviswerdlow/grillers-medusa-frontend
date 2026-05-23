@@ -15,10 +15,14 @@ import HolidayBanner from "@modules/home/components/holiday-banner"
 import SpecialtyRow from "@modules/home/components/specialty-row"
 import DeliveryPromiseSection from "@modules/home/components/delivery-promise"
 import LazySection from "@modules/common/components/lazy-section"
+import StandardsComparison from "@modules/common/components/standards-comparison"
 import { getRegion } from "@lib/data/regions"
 import { retrieveCart } from "@lib/data/cart"
 import { retrieveCustomer } from "@lib/data/customer"
-import { getLatestOrderDeliveryZip, listPurchaseHistory } from "@lib/data/orders"
+import {
+  getLatestOrderDeliveryZip,
+  listPurchaseHistory,
+} from "@lib/data/orders"
 import {
   getProductsByMedusaLookupRefs,
   type StrapiCollectionProduct,
@@ -125,7 +129,12 @@ export default async function Home(props: {
       null,
       "home customer"
     ),
-    withTimeout(retrieveCart().catch(() => null), 1000, null, "home cart"),
+    withTimeout(
+      retrieveCart().catch(() => null),
+      1000,
+      null,
+      "home cart"
+    ),
     withTimeout(
       strapiClient.request<HomePageData>(GetHomePageQuery).catch(() => null),
       3000,
@@ -163,23 +172,22 @@ export default async function Home(props: {
   const customerZipSource = cartZip
     ? "cart"
     : addressBookZip
-      ? "address"
-      : latestOrderZip
-        ? "recent_order"
-        : null
+    ? "address"
+    : latestOrderZip
+    ? "recent_order"
+    : null
 
   // Reorder-row data: fetch purchase history for logged-in customers. This
   // combines native Medusa orders and the QuickBooks-backed legacy projection.
   // Guests skip the call so the homepage RSC stays fast for them. (#53)
-  const purchaseHistory =
-    isLoggedIn
-      ? await withTimeout(
-          listPurchaseHistory().catch(() => []),
-          1200,
-          [],
-          "home purchase history"
-        )
-      : []
+  const purchaseHistory = isLoggedIn
+    ? await withTimeout(
+        listPurchaseHistory().catch(() => []),
+        1200,
+        [],
+        "home purchase history"
+      )
+    : []
   const hasOrders = purchaseHistory.length > 0
   const reorderStrapiMap: Record<string, StrapiCollectionProduct> = {}
   if (purchaseHistory.length > 0) {
@@ -279,6 +287,7 @@ export default async function Home(props: {
                   isLoggedIn={isLoggedIn}
                 />
                 <TrustBand customer={customer} phoneNumber={null} />
+                <StandardsComparison />
                 <HolidayBanner />
               </React.Fragment>
             )

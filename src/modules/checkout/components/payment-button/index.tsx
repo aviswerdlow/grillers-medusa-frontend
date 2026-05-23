@@ -1,12 +1,11 @@
 "use client"
 
-import { isManual, isStripe } from "@lib/constants"
+import { isStripe } from "@lib/constants"
 import { placeOrder } from "@lib/data/cart"
 import { jitsuTrack } from "@lib/jitsu"
 import { HttpTypes } from "@medusajs/types"
 import { useElements, useStripe } from "@stripe/react-stripe-js"
 import React, { useRef, useState } from "react"
-import ErrorMessage from "../error-message"
 import Spinner from "@modules/common/icons/spinner"
 
 // Custom gold button matching btn-primary style
@@ -62,7 +61,9 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
     !cart.email ||
     (cart.shipping_methods?.length ?? 0) < 1
 
-  const paymentSession = cart.payment_collection?.payment_sessions?.[0]
+  const paymentSession = cart.payment_collection?.payment_sessions?.find(
+    (session) => session.status === "pending" && isStripe(session.provider_id)
+  )
 
   switch (true) {
     case isStripe(paymentSession?.provider_id):
@@ -75,16 +76,8 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
           data-testid={dataTestId}
         />
       )
-    case isManual(paymentSession?.provider_id):
-      return (
-        <ManualTestPaymentButton notReady={notReady} data-testid={dataTestId} />
-      )
     default:
-      return (
-        <GoldButton disabled>
-          Select a payment method
-        </GoldButton>
-      )
+      return <GoldButton disabled>Select a payment method</GoldButton>
   }
 }
 
@@ -215,44 +208,6 @@ const StripePaymentButton = ({
       >
         Complete Purchase
       </GoldButton>
-    </>
-  )
-}
-
-const ManualTestPaymentButton = ({ notReady, "data-testid": dataTestId }: { notReady: boolean; "data-testid"?: string }) => {
-  const [submitting, setSubmitting] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
-  const onPaymentCompleted = async () => {
-    await placeOrder()
-      .catch((err) => {
-        setErrorMessage(err.message)
-      })
-      .finally(() => {
-        setSubmitting(false)
-      })
-  }
-
-  const handlePayment = () => {
-    setSubmitting(true)
-
-    onPaymentCompleted()
-  }
-
-  return (
-    <>
-      <GoldButton
-        disabled={notReady}
-        isLoading={submitting}
-        onClick={handlePayment}
-        data-testid={dataTestId || "submit-order-button"}
-      >
-        Complete Purchase
-      </GoldButton>
-      <ErrorMessage
-        error={errorMessage}
-        data-testid="manual-payment-error-message"
-      />
     </>
   )
 }

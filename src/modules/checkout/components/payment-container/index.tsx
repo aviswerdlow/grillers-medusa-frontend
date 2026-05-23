@@ -1,14 +1,18 @@
 import { Radio as RadioGroupOption } from "@headlessui/react"
 import { Text, clx } from "@medusajs/ui"
-import React, { useContext, useEffect, useMemo, useState, type JSX } from "react"
+import React, {
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type JSX,
+} from "react"
 
 import Radio from "@modules/common/components/radio"
 
-import { isManual } from "@lib/constants"
 import SkeletonCardDetails from "@modules/skeletons/components/skeleton-card-details"
 import { CardElement } from "@stripe/react-stripe-js"
 import { StripeCardElementOptions } from "@stripe/stripe-js"
-import PaymentTest from "../payment-test"
 import { StripeContext } from "../payment-wrapper/stripe-wrapper"
 
 const STRIPE_LOAD_TIMEOUT_MS = 15000
@@ -28,8 +32,6 @@ const PaymentContainer: React.FC<PaymentContainerProps> = ({
   disabled = false,
   children,
 }) => {
-  const isDevelopment = process.env.NODE_ENV === "development"
-
   return (
     <RadioGroupOption
       key={paymentProviderId}
@@ -49,17 +51,11 @@ const PaymentContainer: React.FC<PaymentContainerProps> = ({
           <Text className="text-base-regular">
             {paymentInfoMap[paymentProviderId]?.title || paymentProviderId}
           </Text>
-          {isManual(paymentProviderId) && isDevelopment && (
-            <PaymentTest className="hidden small:block" />
-          )}
         </div>
         <span className="justify-self-end text-ui-fg-base">
           {paymentInfoMap[paymentProviderId]?.icon}
         </span>
       </div>
-      {isManual(paymentProviderId) && isDevelopment && (
-        <PaymentTest className="small:hidden text-[10px]" />
-      )}
       {children}
     </RadioGroupOption>
   )
@@ -135,16 +131,20 @@ export const StripeCardContainer = ({
           </div>
         ) : stripeTimedOut ? (
           <div className="my-4 p-4 bg-red-50 border border-red-200/80 rounded-lg">
-            <p className="text-sm text-red-700 font-medium mb-1">Unable to load payment form</p>
+            <p className="text-sm text-red-700 font-medium mb-1">
+              Unable to load payment form
+            </p>
             <p className="text-xs text-red-600 leading-relaxed">
-              Please check your internet connection or disable any ad blockers, then{" "}
+              Please check your internet connection or disable any ad blockers,
+              then{" "}
               <button
                 type="button"
                 onClick={() => window.location.reload()}
                 className="underline font-semibold hover:text-red-800"
               >
                 reload the page
-              </button>.
+              </button>
+              .
             </p>
           </div>
         ) : (

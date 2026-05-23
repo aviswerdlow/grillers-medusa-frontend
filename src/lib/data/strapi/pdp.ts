@@ -46,12 +46,19 @@ export const GetProductQuery = gql`
       }
       Metadata {
         GlutenFree
+        MSG
+        Meat
+        Pareve
+        Dairy
+        CholovYisroel
         Uncooked
         Cooked
+        HeatAndServe
         AvgPackSize
         AvgPackWeight
         Serves
         PiecesPerPack
+        KosherForPassover
         ChassidishShchita
         CHK
         RabbiWeissmandl
@@ -60,6 +67,32 @@ export const GetProductQuery = gql`
         RabbiTeitelbaum
         CRC
         Lubavitch
+        Angus
+        GrassFed
+        Organic
+        FreeRange
+        AntibioticFree
+        HormoneFree
+        NoSteroids
+        NoNitrites
+        NoNitrates
+        Brand
+        Source
+        Origin
+        SouthAmerican
+        BoneIn
+        Boneless
+        SkinOn
+        Skinless
+        Trimmed
+        Untrimmed
+        Smoked
+        Pickled
+        Cured
+        Marinated
+        Sliced
+        Ground
+        VacuumPacked
         QualifiesForFreeDeliveryOffers
         FreeDeliveryExclusionReason
       }
@@ -201,6 +234,74 @@ function formatSchemaPrice(amount: number | null | undefined) {
   return amount.toFixed(2)
 }
 
+function propertyValue(name: string, value: string | null | undefined) {
+  if (!value) return null
+  return {
+    "@type": "PropertyValue",
+    name,
+    value,
+  }
+}
+
+function hechsherValue(metadata: Record<string, any> | null | undefined) {
+  if (!metadata) return null
+  const labels = [
+    metadata.CHK && "CHK",
+    metadata.OU && "OU",
+    metadata.StarK && "Star-K",
+    metadata.CRC && "CRC",
+    metadata.RabbiWeissmandl && "Rabbi Weissmandl",
+    metadata.RabbiTeitelbaum && "Rabbi Teitelbaum",
+    metadata.Lubavitch && "Lubavitch",
+    metadata.ChassidishShchita && "Chassidish shchita",
+    metadata.KosherForPassover && "Kosher for Passover",
+  ].filter(Boolean)
+
+  return labels.length > 0 ? labels.join(" / ") : null
+}
+
+function productAdditionalProperties(
+  metadata: Record<string, any> | null | undefined
+) {
+  if (!metadata) {
+    return []
+  }
+
+  const source = [
+    metadata.Angus && "American Angus",
+    metadata.GrassFed && "grass-fed",
+    metadata.Organic && "organic",
+    metadata.FreeRange && "free range",
+    metadata.AntibioticFree && "no antibiotics",
+    metadata.HormoneFree && "no hormones",
+    metadata.Source,
+    metadata.Origin,
+  ]
+    .filter(Boolean)
+    .join(", ")
+
+  const prep = [
+    metadata.Uncooked && "uncooked",
+    metadata.Cooked && "ready to eat",
+    metadata.HeatAndServe && "heat and serve",
+    metadata.VacuumPacked && "vacuum packed",
+  ]
+    .filter(Boolean)
+    .join(", ")
+
+  return [
+    metadata.GlutenFree && propertyValue("Dietary", "Gluten Free"),
+    metadata.MSG && propertyValue("Ingredient claim", "No MSG"),
+    propertyValue("Kashrut", hechsherValue(metadata)),
+    propertyValue("Average pack size", metadata.AvgPackSize),
+    propertyValue("Average pack weight", metadata.AvgPackWeight),
+    metadata.PiecesPerPack &&
+      propertyValue("Pieces per pack", String(metadata.PiecesPerPack)),
+    propertyValue("Source / grade", source),
+    propertyValue("Preparation", prep),
+  ].filter(Boolean)
+}
+
 /**
  * Generates Product JSON-LD schema for SEO
  */
@@ -232,6 +333,7 @@ export function generateProductJsonLd(
     }
     Metadata?: {
       GlutenFree?: boolean
+      [key: string]: any
     }
   } | null,
   baseUrl: string,
@@ -273,14 +375,15 @@ export function generateProductJsonLd(
     : cleanLegacyMedusaName(product.title || "")
   const displayName = rawName || strapiData?.Title || product.title
 
-  return {
-    "@context": "https://schema.org",
+  const productNode = {
     "@type": "Product",
+    "@id": `${productUrl}#product`,
     name: displayName,
     description: strapiData?.MedusaProduct?.Description || product.description,
     image: images.length > 0 ? images : undefined,
     url: productUrl,
     sku: variant?.sku || variant?.id,
+    suitableForDiet: "https://schema.org/KosherDiet",
     brand: {
       "@type": "Brand",
       name: "Grillers Pride",
@@ -295,18 +398,53 @@ export function generateProductJsonLd(
         availability: inStock
           ? "https://schema.org/InStock"
           : "https://schema.org/OutOfStock",
+        availableDeliveryMethod: [
+          "https://schema.org/ParcelService",
+          "https://schema.org/OnSitePickup",
+        ],
+        shippingDetails: {
+          "@type": "OfferShippingDetails",
+          shippingDestination: {
+            "@type": "DefinedRegion",
+            addressCountry: "US",
+          },
+          deliveryTime: {
+            "@type": "ShippingDeliveryTime",
+            handlingTime: {
+              "@type": "QuantitativeValue",
+              minValue: 0,
+              maxValue: 2,
+              unitCode: "DAY",
+            },
+            transitTime: {
+              "@type": "QuantitativeValue",
+              minValue: 1,
+              maxValue: 5,
+              unitCode: "DAY",
+            },
+          },
+        },
         seller: {
           "@type": "Organization",
           name: "Grillers Pride",
         },
       },
     }),
-    ...(strapiData?.Metadata?.GlutenFree && {
-      additionalProperty: {
-        "@type": "PropertyValue",
-        name: "Dietary",
-        value: "Gluten Free",
+    additionalProperty: productAdditionalProperties(strapiData?.Metadata),
+  }
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      productNode,
+      {
+        "@type": "DeliveryEvent",
+        "@id": `${productUrl}#cold-chain-delivery`,
+        name: "Cold-chain delivery confirmation",
+        description:
+          "Frozen kosher meat orders are packed in insulated packaging with dry ice when shipped. Final shipping, pickup, and delivery options are confirmed at checkout based on address and basket.",
+        about: { "@id": `${productUrl}#product` },
       },
-    }),
+    ],
   }
 }

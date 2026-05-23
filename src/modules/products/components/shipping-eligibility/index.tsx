@@ -36,6 +36,12 @@ export default function ShippingEligibility({
       sub: "Pick up at the plant or scheduled rendezvous. Available for in-region addresses.",
     },
   ]
+  const coldChainSteps = [
+    "Packed frozen",
+    "Insulated shipper",
+    "Dry ice calibrated",
+    "Checkout confirms lane",
+  ]
   return (
     <section
       aria-labelledby="shipping-eligibility-heading"
@@ -47,6 +53,23 @@ export default function ShippingEligibility({
       >
         Shipping &amp; pickup
       </h2>
+      <div className="mb-4 rounded-md border border-Gold/30 bg-white p-3">
+        <p className="mb-3 text-[11px] font-maison-neue-mono font-bold uppercase tracking-wide text-Charcoal/70">
+          Cold Chain Guarantee
+        </p>
+        <ol className="grid gap-2 sm:grid-cols-4" role="list">
+          {coldChainSteps.map((step, index) => (
+            <li key={step} className="flex items-center gap-2 sm:block">
+              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-Gold font-maison-neue-mono text-xs font-bold text-Charcoal">
+                {index + 1}
+              </span>
+              <span className="text-xs font-maison-neue font-semibold text-Charcoal sm:mt-2 sm:block">
+                {step}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
       <ul
         className="space-y-2.5 text-sm font-maison-neue text-Charcoal mb-3"
         role="list"
@@ -73,8 +96,8 @@ export default function ShippingEligibility({
         ))}
       </ul>
       <p className="text-xs font-maison-neue text-Charcoal/60">
-        Final options + costs are confirmed at checkout based on your
-        address and basket. See our{" "}
+        Final options + costs are confirmed at checkout based on your address
+        and basket. See our{" "}
         <LocalizedClientLink
           href="/shipping/ups"
           className="underline underline-offset-2 hover:text-Gold"

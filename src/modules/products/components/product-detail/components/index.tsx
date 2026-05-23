@@ -11,12 +11,15 @@ import { getProductPrice } from "@lib/util/get-product-price"
 import ProductActions from "./product-actions"
 import ProductPrice from "./product-price"
 import ProductVariantPicker from "./product-variant-picker"
-import Breadcrumb, { buildProductBreadcrumbs } from "@modules/common/components/breadcrumb"
+import Breadcrumb, {
+  buildProductBreadcrumbs,
+} from "@modules/common/components/breadcrumb"
 import SocialShare from "@modules/common/components/social-share"
 import KashruthBadges from "@modules/products/components/kashruth-badges"
 import NotifyBackInStockForm from "@modules/products/components/notify-back-in-stock"
 import ShippingEligibility from "@modules/products/components/shipping-eligibility"
 import ProductConversionPanel from "@modules/products/components/product-conversion-panel"
+import ProductFacts from "@modules/products/components/product-facts"
 import { sanitizeProductCopy } from "@lib/util/product-claims"
 
 import type { StrapiProductData } from "types/strapi"
@@ -66,11 +69,16 @@ const ProductImages = ({
     )
   }
 
-  const handleSlideChange = useCallback((swiper: SwiperType) => {
-    const newIndex = swiper.realIndex
-    setCurrentIndex(newIndex)
-    setAnnouncement(`Image ${newIndex + 1} of ${totalImages}: ${product.title}`)
-  }, [totalImages, product.title])
+  const handleSlideChange = useCallback(
+    (swiper: SwiperType) => {
+      const newIndex = swiper.realIndex
+      setCurrentIndex(newIndex)
+      setAnnouncement(
+        `Image ${newIndex + 1} of ${totalImages}: ${product.title}`
+      )
+    },
+    [totalImages, product.title]
+  )
 
   const handlePrev = useCallback(() => {
     swiperRef.current?.slidePrev()
@@ -80,15 +88,18 @@ const ProductImages = ({
     swiperRef.current?.slideNext()
   }, [])
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "ArrowLeft") {
-      e.preventDefault()
-      handlePrev()
-    } else if (e.key === "ArrowRight") {
-      e.preventDefault()
-      handleNext()
-    }
-  }, [handlePrev, handleNext])
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault()
+        handlePrev()
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault()
+        handleNext()
+      }
+    },
+    [handlePrev, handleNext]
+  )
 
   return (
     <div
@@ -99,11 +110,7 @@ const ProductImages = ({
       onKeyDown={handleKeyDown}
     >
       {/* Screen reader announcements for image changes */}
-      <div
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
         {announcement}
       </div>
 
@@ -150,7 +157,11 @@ const ProductImages = ({
       </Swiper>
 
       {/* Slider nav with enhanced accessibility */}
-      <div className="absolute bottom-4 right-4 flex space-x-2 z-[1]" role="group" aria-label="Gallery navigation">
+      <div
+        className="absolute bottom-4 right-4 flex space-x-2 z-[1]"
+        role="group"
+        aria-label="Gallery navigation"
+      >
         <button
           onClick={handlePrev}
           className="h-11 w-11 bg-white/80 rounded-full flex items-center justify-center hover:bg-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold focus-visible:ring-offset-2"
@@ -237,16 +248,15 @@ export default function ProductDetail({
   const strapiL2Tag = strapiData?.Categorization?.ProductTags?.find(
     (t: { Name: string }) => t.Name?.startsWith("L2:")
   )
-  const fallbackCollection =
-    strapiCollection
-      ? { title: strapiCollection.Name, handle: strapiCollection.Slug }
-      : product.collection ||
-        (strapiL2Tag
-          ? {
-              title: strapiL2Tag.Name.replace(/^L2:\s*/, ""),
-              handle: encodeURIComponent(strapiL2Tag.Name),
-            }
-          : null)
+  const fallbackCollection = strapiCollection
+    ? { title: strapiCollection.Name, handle: strapiCollection.Slug }
+    : product.collection ||
+      (strapiL2Tag
+        ? {
+            title: strapiL2Tag.Name.replace(/^L2:\s*/, ""),
+            handle: encodeURIComponent(strapiL2Tag.Name),
+          }
+        : null)
 
   const breadcrumbItems = buildProductBreadcrumbs(
     fallbackCollection,
@@ -309,9 +319,12 @@ export default function ProductDetail({
               {heroTag}
             </span>
           </div>
-          {(selectedVariant?.sku || strapiProductData?.MedusaProduct?.Variants?.[0]?.Sku) && (
+          {(selectedVariant?.sku ||
+            strapiProductData?.MedusaProduct?.Variants?.[0]?.Sku) && (
             <p className="text-xs font-maison-neue-mono uppercase tracking-wider text-Charcoal/40 mb-2 pr-[72px] sm:pr-0">
-              SKU: {selectedVariant?.sku || strapiProductData?.MedusaProduct?.Variants?.[0]?.Sku}
+              SKU:{" "}
+              {selectedVariant?.sku ||
+                strapiProductData?.MedusaProduct?.Variants?.[0]?.Sku}
             </p>
           )}
           <h1 className="text-h3 font-gyst text-Charcoal mb-7 text-balance pr-[72px] sm:pr-0">
@@ -328,7 +341,13 @@ export default function ProductDetail({
               product={product}
               variant={selectedVariant}
               metadata={strapiProductData?.Metadata}
-              explicitMode={(strapiProductData?.MedusaProduct as { PricingMode?: "per_lb" | "fixed_price" } | undefined)?.PricingMode}
+              explicitMode={
+                (
+                  strapiProductData?.MedusaProduct as
+                    | { PricingMode?: "per_lb" | "fixed_price" }
+                    | undefined
+                )?.PricingMode
+              }
             />
           </div>
 
@@ -368,102 +387,14 @@ export default function ProductDetail({
               <NotifyBackInStockForm
                 medusaProductId={product.id || ""}
                 productHandle={product.handle || ""}
-                productTitle={strapiProductData?.Title || product.title || "this product"}
+                productTitle={
+                  strapiProductData?.Title || product.title || "this product"
+                }
               />
             </div>
           )}
 
-          {/* Key product facts */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-6 border-y border-Charcoal py-5">
-            {inStock && (
-              <div className="inline-flex items-center gap-2">
-                <Image
-                  src="/images/icons/icon-circle-check.svg"
-                  width={20}
-                  height={20}
-                  alt=""
-                  className="flex-shrink-0"
-                />
-                <span className="text-p-sm-mono font-maison-neue-mono uppercase text-Charcoal">
-                  In Stock
-                </span>
-              </div>
-            )}
-            {strapiProductData?.Metadata?.Serves && (
-              <div className="inline-flex items-center gap-2">
-                <Image
-                  src="/images/icons/icon-circle-check.svg"
-                  width={20}
-                  height={20}
-                  alt="serves"
-                  className="flex-shrink-0"
-                />
-                <span className="text-p-sm-mono font-maison-neue-mono uppercase text-Charcoal">
-                  Serves {strapiProductData.Metadata.Serves}
-                </span>
-              </div>
-            )}
-            {strapiProductData?.Metadata?.Uncooked && (
-              <div className="inline-flex items-center gap-2">
-                <Image
-                  src="/images/icons/icon-circle-check.svg"
-                  width={20}
-                  height={20}
-                  alt="Uncooked"
-                  className="flex-shrink-0"
-                />
-                <span className="text-p-sm-mono font-maison-neue-mono uppercase text-Charcoal">
-                  Uncooked
-                </span>
-              </div>
-            )}
-            {strapiProductData?.Metadata?.Cooked && (
-              <div className="inline-flex items-center gap-2">
-                <Image
-                  src="/images/icons/icon-circle-check.svg"
-                  width={20}
-                  height={20}
-                  alt="Ready to Eat"
-                  className="flex-shrink-0"
-                />
-                <span className="text-p-sm-mono font-maison-neue-mono uppercase text-Charcoal">
-                  Ready to Eat
-                </span>
-              </div>
-            )}
-            {strapiProductData?.Metadata?.PiecesPerPack && (
-              <div className="inline-flex items-center gap-2">
-                <Image
-                  src="/images/icons/icon-circle-check.svg"
-                  width={20}
-                  height={20}
-                  alt={strapiProductData.Metadata.PiecesPerPack.toString()}
-                  className="flex-shrink-0"
-                />
-                <span className="text-p-sm-mono font-maison-neue-mono uppercase text-Charcoal">
-                  {strapiProductData.Metadata.PiecesPerPack} pieces per pack
-                </span>
-              </div>
-            )}
-            {/* AvgPackSize chip — restored after the AVG PACK WEIGHT
-                box dropped in 4e77641. Holds descriptive shape info
-                ("28 oz container", "vacuum-sealed pouch", "case of 6")
-                that complements the catch-weight math line above. #129. */}
-            {strapiProductData?.Metadata?.AvgPackSize && (
-              <div className="inline-flex items-center gap-2">
-                <Image
-                  src="/images/icons/icon-circle-check.svg"
-                  width={20}
-                  height={20}
-                  alt=""
-                  className="flex-shrink-0"
-                />
-                <span className="text-p-sm-mono font-maison-neue-mono uppercase text-Charcoal">
-                  Pack size: {strapiProductData.Metadata.AvgPackSize}
-                </span>
-              </div>
-            )}
-          </div>
+          <ProductFacts strapiProductData={strapiProductData} />
 
           {/* Description */}
           {productDescription && (
@@ -496,10 +427,16 @@ export default function ProductDetail({
           {/* Social Share */}
           <div className="mb-8">
             <SocialShare
-              url={typeof window !== "undefined" ? window.location.href : `/${countryCode}/products/${product.handle}`}
+              url={
+                typeof window !== "undefined"
+                  ? window.location.href
+                  : `/${countryCode}/products/${product.handle}`
+              }
               title={product.title || ""}
               description={productDescription || product.description || ""}
-              imageUrl={strapiProductData?.FeaturedImage?.url || product.thumbnail || ""}
+              imageUrl={
+                strapiProductData?.FeaturedImage?.url || product.thumbnail || ""
+              }
             />
           </div>
 
@@ -513,9 +450,7 @@ export default function ProductDetail({
 
       <div
         className={`fixed inset-x-0 bottom-0 z-50 bg-white transition-opacity duration-200 lg:hidden ${
-          showMobileActions
-            ? "opacity-100"
-            : "pointer-events-none opacity-0"
+          showMobileActions ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
         <div
@@ -553,10 +488,7 @@ export default function ProductDetail({
               type="button"
               onClick={handleAddToCart}
               disabled={
-                !inStock ||
-                !selectedVariant ||
-                isAdding ||
-                !isValidVariant
+                !inStock || !selectedVariant || isAdding || !isValidVariant
               }
               className="min-h-[44px] min-w-0 rounded-[5px] border border-Charcoal bg-Gold px-3 py-2 text-center font-rexton text-xs font-bold uppercase text-Charcoal transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="mobile-cart-button"
@@ -564,10 +496,10 @@ export default function ProductDetail({
               {!selectedVariant
                 ? "Select variant"
                 : !inStock || !isValidVariant
-                  ? "Out of stock"
-                  : isAdding
-                    ? "Adding..."
-                    : "Add to cart"}
+                ? "Out of stock"
+                : isAdding
+                ? "Adding..."
+                : "Add to cart"}
             </button>
           </div>
         </div>

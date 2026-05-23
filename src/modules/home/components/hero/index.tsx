@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { generatedSiteImages } from "@lib/content/generated-site-images"
 
 type HeroProps = {
   data: {
@@ -18,7 +19,12 @@ type HeroProps = {
   hasOrders?: boolean
 }
 
-const Hero = ({ data, countryCode = "us", isLoggedIn, hasOrders }: HeroProps) => {
+const Hero = ({
+  data,
+  countryCode = "us",
+  isLoggedIn,
+  hasOrders,
+}: HeroProps) => {
   // Strapi-managed CTA wins when set; otherwise pick a state-conditional
   // default so every visitor has a clear next action.
   //
@@ -46,21 +52,22 @@ const Hero = ({ data, countryCode = "us", isLoggedIn, hasOrders }: HeroProps) =>
         }
   const ctaText = data?.CTAButton?.Text || fallbackCta.text
   const ctaHref = data?.CTAButton?.Url || fallbackCta.href
+  const heroImage = data?.BackgroundImage?.url || generatedSiteImages.homeHero
 
   return (
     <section
-      className="h-[65vh] max-h-[673px] w-full bg-no-repeat bg-center bg-cover flex flex-col justify-center items-center relative"
+      className="min-h-[440px] h-[54vh] max-h-[560px] w-full bg-no-repeat bg-center bg-cover flex flex-col justify-center items-center relative"
       role="img"
-      aria-label="Hero banner featuring premium kosher meats"
+      aria-label="Hero banner featuring premium kosher beef"
       style={{
-        backgroundImage: `url('${data?.BackgroundImage?.url}')`,
+        backgroundImage: `linear-gradient(90deg, rgba(0, 27, 35, 0.62), rgba(0, 27, 35, 0.26)), url('${heroImage}')`,
       }}
     >
-      {/* Dark overlay for text contrast - ensures WCAG AA compliance */}
-      <div className="absolute inset-0 bg-black/30" aria-hidden="true" />
-
       <div className="text-center px-6 small:p-32 gap-6 flex flex-col items-center relative z-10">
         <div className="max-w-[820px]">
+          <p className="mb-4 font-maison-neue-mono text-p-sm-mono font-bold uppercase tracking-wide text-Gold drop-shadow">
+            Premium Kosher Meat, Shipped Frozen to Your Door
+          </p>
           <h1 className="text-white font-gyst text-[28px] sm:text-h1-mobile md:text-h1 leading-[1.1] text-balance drop-shadow-lg">
             {data?.HeroTitle}
           </h1>
