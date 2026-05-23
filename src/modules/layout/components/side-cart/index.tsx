@@ -91,7 +91,7 @@ const CartItemPrice = ({
       <p className="mt-1 text-p-sm font-maison-neue font-semibold text-Charcoal">
         <span>{display.primary}</span>
         {display.primaryLabel && (
-          <span className="text-xs font-maison-neue text-Charcoal/40 ml-0.5">
+          <span className="text-xs font-maison-neue text-Charcoal/60 ml-0.5">
             {display.primaryLabel}
           </span>
         )}
@@ -360,7 +360,7 @@ export default function SideCart({
                         <h2 className="text-h5 font-rexton font-bold text-Charcoal uppercase tracking-wider">
                           Cart
                           {totalItems > 0 && (
-                            <span className="text-p-sm font-maison-neue font-normal text-Charcoal/50 normal-case tracking-normal ml-2">
+                            <span className="text-p-sm font-maison-neue font-normal text-Charcoal/60 normal-case tracking-normal ml-2">
                               ({totalItems} {totalItems === 1 ? "item" : "items"})
                             </span>
                           )}
@@ -440,7 +440,7 @@ export default function SideCart({
                                             </p>
                                           )}
                                           {substitutionStatus && (
-                                            <p className="mt-1 font-maison-neue text-xs leading-snug text-Charcoal/55">
+                                            <p className="mt-1 font-maison-neue text-xs leading-snug text-Charcoal/60">
                                               Substituted
                                               {originalProductName
                                                 ? ` for ${originalProductName}`
@@ -458,7 +458,7 @@ export default function SideCart({
                                             currencyCode={cart.currency_code}
                                           />
                                           {!countsTowardFreeDelivery && (
-                                            <p className="mt-1 font-maison-neue text-xs leading-snug text-Charcoal/55">
+                                            <p className="mt-1 font-maison-neue text-xs leading-snug text-Charcoal/60">
                                               Does not count toward free delivery
                                               {exclusionReason
                                                 ? `: ${exclusionReason}`
@@ -551,7 +551,7 @@ export default function SideCart({
                               className="mb-3"
                             />
 
-                            <p className="text-xs font-maison-neue text-Charcoal/40 mb-4">
+                            <p className="text-xs font-maison-neue text-Charcoal/60 mb-4">
                               Shipping and taxes calculated at checkout.
                             </p>
 
@@ -568,7 +568,7 @@ export default function SideCart({
                             <button
                               type="button"
                               onClick={closeCart}
-                              className="block w-full mt-3 py-3 text-center text-p-sm font-maison-neue text-Charcoal/50 hover:text-Charcoal transition-colors"
+                              className="block w-full mt-3 py-3 text-center text-p-sm font-maison-neue text-Charcoal/60 hover:text-Charcoal transition-colors"
                             >
                               Continue Shopping
                             </button>
@@ -585,7 +585,7 @@ export default function SideCart({
                           <h3 className="text-[20px] font-maison-neue font-bold text-Charcoal mb-2">
                             Your cart is empty
                           </h3>
-                          <p className="text-p-sm font-maison-neue text-Charcoal/50 text-center mb-8">
+                          <p className="text-p-sm font-maison-neue text-Charcoal/60 text-center mb-8">
                             Explore our premium kosher selection and add your favorites.
                           </p>
                           <LocalizedClientLink

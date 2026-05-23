@@ -68,7 +68,7 @@ const CartTemplate = async ({
         <div className="mt-12">
           <LocalizedClientLink
             href="/store"
-            className="min-h-[44px] inline-flex items-center text-Gold hover:text-Gold/80 font-medium"
+            className="min-h-[44px] inline-flex items-center text-RichGold hover:text-RichGold/80 font-medium"
           >
             ← Continue shopping
           </LocalizedClientLink>

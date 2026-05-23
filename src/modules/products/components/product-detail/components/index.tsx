@@ -321,7 +321,7 @@ export default function ProductDetail({
           </div>
           {(selectedVariant?.sku ||
             strapiProductData?.MedusaProduct?.Variants?.[0]?.Sku) && (
-            <p className="text-xs font-maison-neue-mono uppercase tracking-wider text-Charcoal/40 mb-2 pr-[72px] sm:pr-0">
+            <p className="text-xs font-maison-neue-mono uppercase tracking-wider text-Charcoal/60 mb-2 pr-[72px] sm:pr-0">
               SKU:{" "}
               {selectedVariant?.sku ||
                 strapiProductData?.MedusaProduct?.Variants?.[0]?.Sku}

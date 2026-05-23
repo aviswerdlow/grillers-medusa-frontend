@@ -57,13 +57,13 @@ export default function StandardsComparison({
                 {row.area}
               </div>
               <div className="px-4 py-4 font-maison-neue text-sm leading-relaxed text-Charcoal sm:px-5">
-                <span className="mb-1 block font-maison-neue-mono text-[11px] font-bold uppercase tracking-wide text-Charcoal/50 sm:hidden">
+                <span className="mb-1 block font-maison-neue-mono text-[11px] font-bold uppercase tracking-wide text-Charcoal/60 sm:hidden">
                   Griller&apos;s Pride
                 </span>
                 {row.grillers}
               </div>
               <div className="px-4 py-4 font-maison-neue text-sm leading-relaxed text-Charcoal/65 sm:px-5">
-                <span className="mb-1 block font-maison-neue-mono text-[11px] font-bold uppercase tracking-wide text-Charcoal/50 sm:hidden">
+                <span className="mb-1 block font-maison-neue-mono text-[11px] font-bold uppercase tracking-wide text-Charcoal/60 sm:hidden">
                   {comparisonLabel}
                 </span>
                 {row.ordinary}

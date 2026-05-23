@@ -270,19 +270,19 @@ export default async function PairsWellWith({
                                     ` ${price.primaryLabel}`}
                                 </span>
                                 {price.secondary && (
-                                  <span className="block font-maison-neue text-xs leading-snug text-Charcoal/50">
+                                  <span className="block font-maison-neue text-xs leading-snug text-Charcoal/60">
                                     {price.secondary}
                                   </span>
                                 )}
                                 {Quantity > 1 && lineTotal > 0 && (
-                                  <span className="block font-maison-neue text-xs leading-snug text-Charcoal/50">
+                                  <span className="block font-maison-neue text-xs leading-snug text-Charcoal/60">
                                     Line est. ${lineTotal.toFixed(2)}
                                   </span>
                                 )}
                               </div>
                             )}
                             {description && (
-                              <span className="mt-1 block line-clamp-1 font-maison-neue text-xs text-Charcoal/50">
+                              <span className="mt-1 block line-clamp-1 font-maison-neue text-xs text-Charcoal/60">
                                 {description}
                               </span>
                             )}

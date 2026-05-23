@@ -41,7 +41,7 @@ export default function CartPageContent() {
           </p>
           <LocalizedClientLink
             href="/store"
-            className="text-Gold hover:text-Gold/80 font-medium"
+            className="text-RichGold hover:text-RichGold/80 font-medium"
           >
             Continue Shopping →
           </LocalizedClientLink>

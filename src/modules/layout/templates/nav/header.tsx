@@ -149,6 +149,24 @@ const Header = ({ navLinks, regions, phoneNumber, customer, navCounts }: HeaderP
           </div>
         </div>
       </nav>
+      <div className="hidden md:flex items-center justify-center gap-2 border-t border-Charcoal/10 bg-Scroll/60 px-4 py-2 text-[11px] font-maison-neue-mono uppercase tracking-wide text-Charcoal">
+        <span className="font-bold">Hechsher details:</span>
+        {["OU", "Star-K", "CHK", "CRC"].map((cert) => (
+          <LocalizedClientLink
+            key={cert}
+            href="/kashruth/hechsherim"
+            className="inline-flex h-6 min-w-10 items-center justify-center rounded-full border border-Charcoal/20 bg-white px-2 font-bold hover:border-Gold hover:text-Gold"
+          >
+            {cert}
+          </LocalizedClientLink>
+        ))}
+        <LocalizedClientLink
+          href="/kashruth/hechsherim"
+          className="ml-1 underline underline-offset-4 hover:text-Gold"
+        >
+          item-level supervision
+        </LocalizedClientLink>
+      </div>
     </header>
   )
 }

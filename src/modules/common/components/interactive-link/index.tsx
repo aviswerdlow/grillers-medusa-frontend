@@ -16,15 +16,15 @@ const InteractiveLink = ({
 }: InteractiveLinkProps) => {
   return (
     <LocalizedClientLink
-      className="min-h-[44px] inline-flex gap-x-1 items-center group"
+      className="min-h-[44px] inline-flex gap-x-1 items-center group text-RichGold hover:text-RichGold/80"
       href={href}
       onClick={onClick}
       {...props}
     >
-      <Text className="text-ui-fg-interactive">{children}</Text>
+      <Text className="text-current">{children}</Text>
       <ArrowUpRightMini
-        className="group-hover:rotate-45 ease-in-out duration-150"
-        color="var(--fg-interactive)"
+        className="text-current group-hover:rotate-45 ease-in-out duration-150"
+        color="currentColor"
       />
     </LocalizedClientLink>
   )

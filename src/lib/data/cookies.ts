@@ -1,5 +1,9 @@
 import "server-only"
 import { cookies as nextCookies } from "next/headers"
+import {
+  staffImpersonationCartCookieName,
+  type StaffCartCookieSession,
+} from "@lib/util/staff-cart-cookie"
 
 export const getAuthHeaders = async (): Promise<
   { authorization: string } | {}
@@ -84,6 +88,35 @@ export const setCartId = async (cartId: string) => {
 export const removeCartId = async () => {
   const cookies = await nextCookies()
   cookies.set("_medusa_cart_id", "", {
+    maxAge: -1,
+  })
+}
+
+export const getStaffImpersonationCartId = async (
+  session: StaffCartCookieSession
+) => {
+  const cookies = await nextCookies()
+  return cookies.get(staffImpersonationCartCookieName(session))?.value
+}
+
+export const setStaffImpersonationCartId = async (
+  session: StaffCartCookieSession,
+  cartId: string
+) => {
+  const cookies = await nextCookies()
+  cookies.set(staffImpersonationCartCookieName(session), cartId, {
+    maxAge: 60 * 60 * 24 * 7,
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+  })
+}
+
+export const removeStaffImpersonationCartId = async (
+  session: StaffCartCookieSession
+) => {
+  const cookies = await nextCookies()
+  cookies.set(staffImpersonationCartCookieName(session), "", {
     maxAge: -1,
   })
 }

@@ -80,7 +80,7 @@ const Summary = ({ cart, deliveryZip, atlantaZipConfig }: SummaryProps) => {
               type="button"
               onClick={handleChangeFulfillment}
               disabled={isChanging}
-              className="text-xs text-Gold hover:text-Gold/80 font-medium disabled:opacity-50"
+              className="text-xs text-RichGold hover:text-RichGold/80 font-medium disabled:opacity-50"
             >
               {isChanging ? "..." : "Change"}
             </button>

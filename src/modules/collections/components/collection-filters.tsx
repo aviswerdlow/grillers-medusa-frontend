@@ -380,7 +380,7 @@ function FilterSection({
                 <span className="text-xs font-maison-neue text-Charcoal/70 group-hover:text-VibrantRed transition-colors">
                   {option.label}
                 </span>
-                <span className="text-xs text-gray-400 ml-auto">
+                <span className="text-xs text-Charcoal/60 ml-auto">
                   ({option.count})
                 </span>
               </label>
@@ -636,7 +636,7 @@ export default function CollectionFilters({
                     <span className="text-p-sm font-maison-neue text-Charcoal/70 group-hover:text-VibrantRed transition-colors">
                       {group.l2.label}
                     </span>
-                    <span className="text-xs text-gray-400 ml-auto">
+                    <span className="text-xs text-Charcoal/60 ml-auto">
                       ({group.l2.count})
                     </span>
                   </label>
@@ -658,7 +658,7 @@ export default function CollectionFilters({
                           <span className="text-xs font-maison-neue text-Charcoal/70 group-hover:text-VibrantRed transition-colors">
                             {child.label}
                           </span>
-                          <span className="text-xs text-gray-400 ml-auto">
+                          <span className="text-xs text-Charcoal/60 ml-auto">
                             ({child.count})
                           </span>
                         </label>
@@ -682,7 +682,7 @@ export default function CollectionFilters({
                                   <span className="text-p-sm font-maison-neue text-Charcoal group-hover:text-VibrantRed transition-colors">
                                     {child.label}
                                   </span>
-                                  <span className="text-xs text-gray-400 ml-auto">
+                                  <span className="text-xs text-Charcoal/60 ml-auto">
                                     ({child.count})
                                   </span>
                                 </label>
@@ -691,7 +691,7 @@ export default function CollectionFilters({
                           </AnimatedOverflow>
                           <button
                             onClick={() => toggleGroupExpanded(group.l2.value)}
-                            className="text-p-sm font-maison-neue text-Charcoal/50 hover:text-Charcoal/80 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold rounded text-left transition-colors"
+                            className="text-p-sm font-maison-neue text-Charcoal/60 hover:text-Charcoal/80 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold rounded text-left transition-colors"
                           >
                             {isExpanded ? "View less" : `View more (${hiddenCount})`}
                           </button>

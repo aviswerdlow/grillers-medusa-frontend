@@ -12,6 +12,7 @@ type ProductActionsProps = {
   increment: () => void
   decrement: () => void
   handleAddToCart: () => void
+  actionId?: string
 }
 
 export default function ProductActions({
@@ -24,6 +25,7 @@ export default function ProductActions({
   isAdding,
   isValidVariant,
   handleAddToCart,
+  actionId = "add-to-cart",
 }: ProductActionsProps) {
   const { cheapestPrice, variantPrice } = getProductPrice({
     product,
@@ -63,12 +65,17 @@ export default function ProductActions({
 
       {/* add to cart */}
       <Button
+        id={actionId}
         className="btn-primary w-full min-w-0 flex-1 whitespace-normal px-5 leading-tight sm:w-auto sm:px-[42px]"
         type="button"
         disabled={!inStock || !variant || isAdding || !isValidVariant}
         onClick={handleAddToCart}
         isLoading={isAdding}
         data-testid="add-product-button"
+        data-agent-action="add-to-cart"
+        data-product-id={product.id}
+        data-variant-id={variant?.id}
+        data-sku={variant?.sku || undefined}
       >
         <span>Add to Cart</span>
         <span className="block sm:inline">${totalPrice}</span>

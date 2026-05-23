@@ -55,14 +55,14 @@ export default function NetWeightPricing({
             amount: pricePerLb,
             currency_code: currencyCode,
           })}
-          <span className="text-Charcoal/50">/lb</span>
+          <span className="text-Charcoal/60">/lb</span>
         </span>
       </div>
 
       {/* Estimated weight */}
       <div className="flex items-center gap-1">
         <span
-          className={clx("text-Charcoal/50", {
+          className={clx("text-Charcoal/60", {
             "text-xs": variant === "compact",
             "text-[10px]": variant === "default",
           })}
@@ -107,5 +107,4 @@ export function NetWeightBadge({ className }: { className?: string }) {
     </span>
   )
 }
-
 

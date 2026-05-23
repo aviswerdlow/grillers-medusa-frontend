@@ -72,6 +72,8 @@ export default function KashruthBadges({
   countryCode: string
 }) {
   const chips = chipsFor(metadata)
+  const visibleChips =
+    chips.length > 0 ? chips : [{ label: "Certified kosher", tone: "kosher" as const }]
   // Always render the section so the "kashruth policy" link is
   // discoverable even when no metadata flags are set on a SKU.
   return (
@@ -85,32 +87,42 @@ export default function KashruthBadges({
       >
         Kashruth &amp; sourcing
       </h2>
-      {chips.length > 0 && (
-        <ul className="flex flex-wrap gap-2 mb-3" role="list">
-          {chips.map((chip) => (
-            <li
-              key={chip.label}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-maison-neue-mono uppercase tracking-wide ${
-                toneClass[chip.tone]
-              }`}
+      <ul className="flex flex-wrap gap-2 mb-3" role="list">
+        {visibleChips.map((chip) => (
+          <li
+            key={chip.label}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-maison-neue-mono uppercase tracking-wide ${
+              toneClass[chip.tone]
+            }`}
+          >
+            <svg
+              className="w-3.5 h-3.5 flex-shrink-0"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
             >
-              <svg
-                className="w-3.5 h-3.5 flex-shrink-0"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.5 7.6a1 1 0 0 1-1.42 0L3.29 9.81a1 1 0 1 1 1.42-1.41l3.79 3.79 6.78-6.88a1 1 0 0 1 1.414-.006Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              {chip.label}
-            </li>
-          ))}
-        </ul>
-      )}
+              <path
+                fillRule="evenodd"
+                d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.5 7.6a1 1 0 0 1-1.42 0L3.29 9.81a1 1 0 1 1 1.42-1.41l3.79 3.79 6.78-6.88a1 1 0 0 1 1.414-.006Z"
+                clipRule="evenodd"
+              />
+            </svg>
+            {chip.label}
+          </li>
+        ))}
+      </ul>
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-maison-neue-mono uppercase tracking-wide text-Charcoal/70">
+        <span className="font-bold text-Charcoal">Catalog hechsher key:</span>
+        {["OU", "Star-K", "CHK", "CRC"].map((cert) => (
+          <LocalizedClientLink
+            key={cert}
+            href="/kashruth/hechsherim"
+            className="inline-flex h-6 min-w-10 items-center justify-center rounded-full border border-Charcoal/20 bg-white px-2 font-bold hover:border-Gold hover:text-Gold"
+          >
+            {cert}
+          </LocalizedClientLink>
+        ))}
+      </div>
       <p className="text-p-sm font-maison-neue text-Charcoal/70">
         Hechsher and supervision details for every cut →{" "}
         <LocalizedClientLink

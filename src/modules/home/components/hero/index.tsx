@@ -57,8 +57,7 @@ const Hero = ({
   return (
     <section
       className="min-h-[440px] h-[54vh] max-h-[560px] w-full bg-no-repeat bg-center bg-cover flex flex-col justify-center items-center relative"
-      role="img"
-      aria-label="Hero banner featuring premium kosher beef"
+      aria-labelledby="home-hero-heading"
       style={{
         backgroundImage: `linear-gradient(90deg, rgba(0, 27, 35, 0.62), rgba(0, 27, 35, 0.26)), url('${heroImage}')`,
       }}
@@ -68,7 +67,10 @@ const Hero = ({
           <p className="mb-4 font-maison-neue-mono text-p-sm-mono font-bold uppercase tracking-wide text-Gold drop-shadow">
             Premium Kosher Meat, Shipped Frozen to Your Door
           </p>
-          <h1 className="text-white font-gyst text-[28px] sm:text-h1-mobile md:text-h1 leading-[1.1] text-balance drop-shadow-lg">
+          <h1
+            id="home-hero-heading"
+            className="text-white font-gyst text-[28px] sm:text-h1-mobile md:text-h1 leading-[1.1] text-balance drop-shadow-lg"
+          >
             {data?.HeroTitle}
           </h1>
         </div>

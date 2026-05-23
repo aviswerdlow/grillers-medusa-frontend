@@ -114,8 +114,13 @@ test.describe("Accessibility Audit - WCAG 2.1 AA", () => {
       // Click on first product if available
       const productLink = page.locator("a[href*='/products/']").first()
       if (await productLink.isVisible()) {
-        await productLink.click()
+        const productHref = await productLink.getAttribute("href")
+        expect(productHref).toBeTruthy()
+
+        await page.goto(productHref!)
         await page.waitForLoadState("networkidle")
+        await expect(page.locator("#__next_error__")).toHaveCount(0)
+        await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
 
         const accessibilityScanResults = await new AxeBuilder({ page })
           .withTags(["wcag2a", "wcag2aa"])

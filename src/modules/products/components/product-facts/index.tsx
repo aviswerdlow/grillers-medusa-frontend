@@ -203,7 +203,7 @@ export default function ProductFacts(props: ProductFactsProps) {
               <span>{factGroup.title}</span>
               <span
                 aria-hidden="true"
-                className="text-lg leading-none text-Charcoal/50 transition-transform group-open:rotate-45"
+                className="text-lg leading-none text-Charcoal/60 transition-transform group-open:rotate-45"
               >
                 +
               </span>
@@ -214,7 +214,7 @@ export default function ProductFacts(props: ProductFactsProps) {
                   key={`${factGroup.title}-${row.label}`}
                   className="min-w-0"
                 >
-                  <dt className="font-maison-neue-mono text-[11px] font-bold uppercase tracking-wide text-Charcoal/50">
+                  <dt className="font-maison-neue-mono text-[11px] font-bold uppercase tracking-wide text-Charcoal/60">
                     {row.label}
                   </dt>
                   <dd className="mt-1 break-words leading-relaxed text-Charcoal/80">

@@ -100,6 +100,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
           easing="ease"
           speed={200}
           shadow="0 0 10px #1A1A1A,0 0 5px #1A1A1A"
+          template='<div class="bar" aria-hidden="true"><div class="peg"></div></div>'
         />
         <main className="relative">{props.children}</main>
       </body>

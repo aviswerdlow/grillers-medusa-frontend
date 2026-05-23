@@ -137,7 +137,7 @@ export default function CartUpsells({
                   {product.title}
                 </p>
                 {product.price != null && (
-                  <p className="mt-1 text-xs font-maison-neue text-Charcoal/55">
+                  <p className="mt-1 text-xs font-maison-neue text-Charcoal/60">
                     From ${product.price.toFixed(2)}
                   </p>
                 )}

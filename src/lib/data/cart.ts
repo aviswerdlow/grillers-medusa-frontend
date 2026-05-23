@@ -14,13 +14,18 @@ import {
   getCacheOptions,
   getCacheTag,
   getCartId,
+  getStaffImpersonationCartId,
   removeCartId,
+  removeStaffImpersonationCartId,
   setCartId,
+  setStaffImpersonationCartId,
 } from "./cookies"
 import { findShippingOptionByType } from "./fulfillment"
 import { getRegion } from "./regions"
 
-type ActiveStaffContext = Awaited<ReturnType<typeof getActiveStaffImpersonation>>
+type ActiveStaffContext = Awaited<
+  ReturnType<typeof getActiveStaffImpersonation>
+>
 
 async function getCartStaffContext(): Promise<ActiveStaffContext> {
   return getActiveStaffImpersonation().catch(() => null)
@@ -28,6 +33,41 @@ async function getCartStaffContext(): Promise<ActiveStaffContext> {
 
 async function cartHeadersForStaffContext(active: ActiveStaffContext) {
   return active ? {} : { ...(await getAuthHeaders()) }
+}
+
+async function getCurrentCartId(active: ActiveStaffContext) {
+  return active
+    ? await getStaffImpersonationCartId(active.session)
+    : await getCartId()
+}
+
+async function setCurrentCartId(cartId: string, active: ActiveStaffContext) {
+  if (active) {
+    await setStaffImpersonationCartId(active.session, cartId)
+    return
+  }
+
+  await setCartId(cartId)
+}
+
+async function removeCurrentCartId(active: ActiveStaffContext) {
+  if (active) {
+    await removeStaffImpersonationCartId(active.session)
+    return
+  }
+
+  await removeCartId()
+}
+
+function isStaffImpersonationCart(
+  cart: HttpTypes.StoreCart | null | undefined
+) {
+  const metadata = cart?.metadata || {}
+  return Boolean(
+    metadata.staff_impersonation ||
+      metadata.source === "staff_impersonation" ||
+      metadata.staff_target_customer_id
+  )
 }
 
 function withStaffCartMetadata<T extends Record<string, any>>(
@@ -54,13 +94,14 @@ function withStaffCartMetadata<T extends Record<string, any>>(
  * @returns The cart object if found, or null if not found.
  */
 export async function retrieveCart(cartId?: string) {
-  const id = cartId || (await getCartId())
+  const active = await getCartStaffContext()
+  const explicitCartId = Boolean(cartId)
+  const id = cartId || (await getCurrentCartId(active))
 
   if (!id) {
     return null
   }
 
-  const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
 
   const next = {
@@ -78,7 +119,24 @@ export async function retrieveCart(cartId?: string) {
       next,
       cache: "force-cache",
     })
-    .then(({ cart }) => cart)
+    .then(async ({ cart }) => {
+      if (!explicitCartId && active) {
+        if (
+          cart?.metadata?.staff_target_customer_id !==
+          active.session.targetCustomerId
+        ) {
+          await removeCurrentCartId(active)
+          return null
+        }
+      }
+
+      if (!explicitCartId && !active && isStaffImpersonationCart(cart)) {
+        await removeCurrentCartId(null)
+        return null
+      }
+
+      return cart
+    })
     .catch(() => null)
 }
 
@@ -97,7 +155,7 @@ export async function getOrSetCart(countryCode: string) {
     cart &&
     cart.metadata?.staff_target_customer_id !== active.session.targetCustomerId
   ) {
-    await removeCartId()
+    await removeCurrentCartId(active)
     cart = null
   }
 
@@ -118,7 +176,7 @@ export async function getOrSetCart(countryCode: string) {
     )
     cart = cartResp.cart
 
-    await setCartId(cart.id)
+    await setCurrentCartId(cart.id, active)
 
     const cartCacheTag = await getCacheTag("carts")
     revalidateTag(cartCacheTag)
@@ -127,7 +185,11 @@ export async function getOrSetCart(countryCode: string) {
   if (cart && cart?.region_id !== region.id) {
     await sdk.store.cart.update(
       cart.id,
-      withStaffCartMetadata({ region_id: region.id }, active, "cart_region_update"),
+      withStaffCartMetadata(
+        { region_id: region.id },
+        active,
+        "cart_region_update"
+      ),
       {},
       headers
     )
@@ -139,13 +201,13 @@ export async function getOrSetCart(countryCode: string) {
 }
 
 export async function updateCart(data: HttpTypes.StoreUpdateCart) {
-  const cartId = await getCartId()
+  const active = await getCartStaffContext()
+  const cartId = await getCurrentCartId(active)
 
   if (!cartId) {
     throw new Error("No existing cart found, please create one before updating")
   }
 
-  const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
 
   return sdk.store.cart
@@ -242,25 +304,23 @@ export async function updateLineItem({
     throw new Error("Missing lineItem ID when updating line item")
   }
 
-  const cartId = await getCartId()
+  const active = await getCartStaffContext()
+  const cartId = await getCurrentCartId(active)
 
   if (!cartId) {
     throw new Error("Missing cart ID when updating line item")
   }
 
-  const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
 
   await sdk.store.cart
     .updateLineItem(
       cartId,
       lineId,
-      withStaffCartMetadata(
-        { quantity },
-        active,
-        "cart_line_quantity_update",
-        { lineId, quantity }
-      ),
+      withStaffCartMetadata({ quantity }, active, "cart_line_quantity_update", {
+        lineId,
+        quantity,
+      }),
       {},
       headers
     )
@@ -288,23 +348,14 @@ export async function deleteLineItem(lineId: string) {
     throw new Error("Missing lineItem ID when deleting line item")
   }
 
-  const cartId = await getCartId()
+  const active = await getCartStaffContext()
+  const cartId = await getCurrentCartId(active)
 
   if (!cartId) {
     throw new Error("Missing cart ID when deleting line item")
   }
 
-  const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
-
-  if (active) {
-    await sdk.store.cart.update(
-      cartId,
-      withStaffCartMetadata({}, active, "cart_line_delete", { lineId }),
-      {},
-      headers
-    )
-  }
 
   await sdk.store.cart
     .deleteLineItem(cartId, lineId, headers)
@@ -350,15 +401,19 @@ export async function setRequestedDeliveryDate({
       )
       const atlantaZipConfig = await getAtlantaDeliveryZipConfig()
       const cart = await retrieveCart(cartId)
-      const fulfillmentType = cart?.metadata?.fulfillmentType as string | undefined
+      const fulfillmentType = cart?.metadata?.fulfillmentType as
+        | string
+        | undefined
       const destZip = (cart?.shipping_address?.postal_code || "").trim()
       const selectedShippingName =
         cart?.shipping_methods?.at(-1)?.name?.toLowerCase() || ""
       let method: any = "ups_ground"
       if (fulfillmentType === "atlanta_delivery") method = "atlanta_delivery"
-      else if (fulfillmentType === "southeast_pickup") method = "southeast_pickup"
+      else if (fulfillmentType === "southeast_pickup")
+        method = "southeast_pickup"
       else if (fulfillmentType === "plant_pickup") method = "plant_pickup"
-      else if (selectedShippingName.includes("overnight")) method = "ups_overnight"
+      else if (selectedShippingName.includes("overnight"))
+        method = "ups_overnight"
       else if (
         selectedShippingName.includes("2nd day") ||
         selectedShippingName.includes("second day") ||
@@ -557,12 +612,9 @@ export async function setShippingMethod({
   if (active) {
     await sdk.store.cart.update(
       cartId,
-      withStaffCartMetadata(
-        {},
-        active,
-        "shipping_method_update",
-        { shippingMethodId }
-      ),
+      withStaffCartMetadata({}, active, "shipping_method_update", {
+        shippingMethodId,
+      }),
       {},
       headers
     )
@@ -600,12 +652,9 @@ export async function initiatePaymentSession(
   if (active) {
     await sdk.store.cart.update(
       cart.id,
-      withStaffCartMetadata(
-        {},
-        active,
-        "payment_session_initiate",
-        { provider_id: data.provider_id }
-      ),
+      withStaffCartMetadata({}, active, "payment_session_initiate", {
+        provider_id: data.provider_id,
+      }),
       {},
       headers
     )
@@ -622,13 +671,13 @@ export async function initiatePaymentSession(
 }
 
 export async function applyPromotions(codes: string[]) {
-  const cartId = await getCartId()
+  const active = await getCartStaffContext()
+  const cartId = await getCurrentCartId(active)
 
   if (!cartId) {
     throw new Error("No existing cart found")
   }
 
-  const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
 
   return sdk.store.cart
@@ -714,12 +763,14 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
     if (!formData) {
       throw new Error("No form data found when setting addresses")
     }
-    const cartId = await getCartId()
+    const active = await getCartStaffContext()
+    const cartId = await getCurrentCartId(active)
     if (!cartId) {
       throw new Error("No existing cart found when setting addresses")
     }
 
-    const shippingPhone = (formData.get("shipping_address.phone") as string) || ""
+    const shippingPhone =
+      (formData.get("shipping_address.phone") as string) || ""
     const billingPhone = (formData.get("billing_address.phone") as string) || ""
     const data = {
       shipping_address: {
@@ -777,11 +828,12 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
     // persistOrderShippingAddressToAccount below in placeOrder (Path B).
     // See issue #74.
     try {
-      const active = await getCartStaffContext()
       if (active) {
         const { adminFetch, appendStaffAuditLog, retrieveAdminCustomer } =
           await import("@lib/data/staff/admin")
-        const current = await retrieveAdminCustomer(active.session.targetCustomerId)
+        const current = await retrieveAdminCustomer(
+          active.session.targetCustomerId
+        )
         const existingAddresses: any[] = current?.addresses || []
         if (
           data.shipping_address.address_1 &&
@@ -811,59 +863,67 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
               }),
             }
           )
-          await adminFetch(`/admin/customers/${active.session.targetCustomerId}`, {
-            method: "POST",
-            body: JSON.stringify({
-              metadata: {
-                ...appendStaffAuditLog(current?.metadata, {
-                  type: "staff_checkout_address_create",
-                  staffCustomerId: active.session.staffCustomerId,
-                  staffEmail: active.session.staffEmail,
-                  targetCustomerId: active.session.targetCustomerId,
-                }),
-                ...staffAuditFields(active.session, "checkout_address_create"),
-              },
-            }),
-          })
+          await adminFetch(
+            `/admin/customers/${active.session.targetCustomerId}`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                metadata: {
+                  ...appendStaffAuditLog(current?.metadata, {
+                    type: "staff_checkout_address_create",
+                    staffCustomerId: active.session.staffCustomerId,
+                    staffEmail: active.session.staffEmail,
+                    targetCustomerId: active.session.targetCustomerId,
+                  }),
+                  ...staffAuditFields(
+                    active.session,
+                    "checkout_address_create"
+                  ),
+                },
+              }),
+            }
+          )
           const customerCacheTag = await getCacheTag("customers")
           revalidateTag(customerCacheTag)
         }
       } else {
         const headers = { ...(await getAuthHeaders()) }
         if ("authorization" in headers && (headers as any).authorization) {
-        const { customer } = await sdk.store.customer.retrieve({}, headers)
-        const existingAddresses: any[] = customer?.addresses || []
-        if (
-          data.shipping_address.address_1 &&
-          !existingAddresses.some((a) => isSameAddressKey(a, data.shipping_address))
-        ) {
-          await sdk.store.customer.createAddress(
-            {
-              first_name: data.shipping_address.first_name as string,
-              last_name: data.shipping_address.last_name as string,
-              address_1: data.shipping_address.address_1 as string,
-              address_2: "",
-              company: (data.shipping_address.company as string) || "",
-              city: data.shipping_address.city as string,
-              postal_code: data.shipping_address.postal_code as string,
-              province: (data.shipping_address.province as string) || "",
-              country_code: data.shipping_address.country_code as string,
-              // data.shipping_address.phone is already digits-only above; the
-              // explicit stripPhone here is belt-and-suspenders in case this
-              // path ever inherits a different shape.
-              phone: data.shipping_address.phone
-                ? stripPhone(data.shipping_address.phone as string)
-                : "",
-              is_default_shipping: existingAddresses.length === 0,
-              is_default_billing: existingAddresses.length === 0,
-            },
-            {},
-            headers
-          )
-          const customerCacheTag = await getCacheTag("customers")
-          revalidateTag(customerCacheTag)
+          const { customer } = await sdk.store.customer.retrieve({}, headers)
+          const existingAddresses: any[] = customer?.addresses || []
+          if (
+            data.shipping_address.address_1 &&
+            !existingAddresses.some((a) =>
+              isSameAddressKey(a, data.shipping_address)
+            )
+          ) {
+            await sdk.store.customer.createAddress(
+              {
+                first_name: data.shipping_address.first_name as string,
+                last_name: data.shipping_address.last_name as string,
+                address_1: data.shipping_address.address_1 as string,
+                address_2: "",
+                company: (data.shipping_address.company as string) || "",
+                city: data.shipping_address.city as string,
+                postal_code: data.shipping_address.postal_code as string,
+                province: (data.shipping_address.province as string) || "",
+                country_code: data.shipping_address.country_code as string,
+                // data.shipping_address.phone is already digits-only above; the
+                // explicit stripPhone here is belt-and-suspenders in case this
+                // path ever inherits a different shape.
+                phone: data.shipping_address.phone
+                  ? stripPhone(data.shipping_address.phone as string)
+                  : "",
+                is_default_shipping: existingAddresses.length === 0,
+                is_default_billing: existingAddresses.length === 0,
+              },
+              {},
+              headers
+            )
+            const customerCacheTag = await getCacheTag("customers")
+            revalidateTag(customerCacheTag)
+          }
         }
-      }
       }
     } catch {
       // Non-critical — don't block checkout if saving to account fails
@@ -872,7 +932,10 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
     // Now that the address is saved, attach the shipping method
     // Medusa requires an address on the cart before a shipping method can be validated
     if (selectedFulfillment) {
-      const shippingOption = await findShippingOptionByType(cartId, selectedFulfillment as FulfillmentType)
+      const shippingOption = await findShippingOptionByType(
+        cartId,
+        selectedFulfillment as FulfillmentType
+      )
       if (shippingOption) {
         await setShippingMethod({ cartId, shippingMethodId: shippingOption.id })
       }
@@ -897,13 +960,13 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
  * @returns The cart object if the order was successful, or null if not.
  */
 export async function placeOrder(cartId?: string) {
-  const id = cartId || (await getCartId())
+  const active = await getCartStaffContext()
+  const id = cartId || (await getCurrentCartId(active))
 
   if (!id) {
     throw new Error("No existing cart found when placing an order")
   }
 
-  const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
 
   if (active) {
@@ -939,7 +1002,7 @@ export async function placeOrder(cartId?: string) {
     // Idempotent — skips when an equivalent address already exists.
     await persistOrderShippingAddressToAccount(cartRes.order)
 
-    removeCartId()
+    await removeCurrentCartId(active)
     redirect(`/${countryCode}/order/${cartRes?.order.id}/confirmed`)
   }
 
@@ -960,10 +1023,15 @@ async function persistOrderShippingAddressToAccount(
     if (active) {
       const { adminFetch, appendStaffAuditLog, retrieveAdminCustomer } =
         await import("@lib/data/staff/admin")
-      const current = await retrieveAdminCustomer(active.session.targetCustomerId)
+      const current = await retrieveAdminCustomer(
+        active.session.targetCustomerId
+      )
       const existing: any[] = current?.addresses || []
       const shipping = order?.shipping_address
-      if (!shipping?.address_1 || existing.some((a) => isSameAddressKey(a, shipping))) {
+      if (
+        !shipping?.address_1 ||
+        existing.some((a) => isSameAddressKey(a, shipping))
+      ) {
         return
       }
 
@@ -1055,7 +1123,8 @@ async function persistOrderShippingAddressToAccount(
  * @param countryCode
  */
 export async function updateRegion(countryCode: string, currentPath: string) {
-  const cartId = await getCartId()
+  const active = await getCartStaffContext()
+  const cartId = await getCurrentCartId(active)
   const region = await getRegion(countryCode)
 
   if (!region) {
@@ -1078,8 +1147,8 @@ export async function updateRegion(countryCode: string, currentPath: string) {
 }
 
 export async function listCartOptions() {
-  const cartId = await getCartId()
   const active = await getCartStaffContext()
+  const cartId = await getCurrentCartId(active)
   const headers = await cartHeadersForStaffContext(active)
   const next = {
     ...(await getCacheOptions("shippingOptions")),

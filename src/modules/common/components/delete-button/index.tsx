@@ -32,8 +32,9 @@ const DeleteButton = ({
   const [isDeleting, setIsDeleting] = useState(false)
 
   const handleDelete = async (id: string) => {
+    if (isDeleting) return
     setIsDeleting(true)
-    
+
     // Track remove_from_cart event before deletion
     if (productInfo) {
       trackRemoveFromCart({
@@ -51,17 +52,16 @@ const DeleteButton = ({
         currency: productInfo.currency || "USD",
       })
     }
-    
-    await deleteLineItem(id)
-      .then(() => {
-        onDeleted?.()
-        dispatchCartUpdated({ action: "remove", lineId: id })
-        // Refresh to get updated cart data from server
-        router.refresh()
-      })
-      .catch((err) => {
-        setIsDeleting(false)
-      })
+
+    try {
+      await deleteLineItem(id)
+      onDeleted?.()
+      dispatchCartUpdated({ action: "remove", lineId: id })
+      router.refresh()
+    } catch (err) {
+      console.error("[cart] failed to delete line item", err)
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -72,8 +72,11 @@ const DeleteButton = ({
       )}
     >
       <button
-        className="flex gap-x-1 text-ui-fg-subtle hover:text-ui-fg-base cursor-pointer"
+        aria-busy={isDeleting}
+        className="flex gap-x-1 text-ui-fg-subtle hover:text-ui-fg-base cursor-pointer disabled:cursor-wait disabled:opacity-60"
+        disabled={isDeleting}
         onClick={() => handleDelete(id)}
+        type="button"
       >
         {isDeleting ? <Spinner className="animate-spin" /> : <Trash />}
         <span>{children}</span>

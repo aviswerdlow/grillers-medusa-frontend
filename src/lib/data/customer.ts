@@ -23,6 +23,7 @@ import {
   getAuthHeaders,
   getCacheTag,
   getCartId,
+  getStaffImpersonationCartId,
   removeAuthToken,
   removeCartId,
   setAuthToken,
@@ -123,10 +124,8 @@ async function saveCartAddressesToAccount(): Promise<void> {
 
 export async function requestPasswordReset(email: string) {
   try {
-    const backendUrl =
-      process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
-    const publishableKey =
-      process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || ""
+    const backendUrl = process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
+    const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || ""
 
     await fetch(`${backendUrl}/store/forgot-password`, {
       method: "POST",
@@ -315,7 +314,11 @@ export async function signupWithCredentials(data: {
 
     const headers = { ...(await getAuthHeaders()) }
     await sdk.store.customer.create(
-      { email: data.email, first_name: data.first_name, last_name: data.last_name },
+      {
+        email: data.email,
+        first_name: data.first_name,
+        last_name: data.last_name,
+      },
       {},
       headers
     )
@@ -339,9 +342,16 @@ export async function signupWithCredentials(data: {
   } catch (error: any) {
     const msg = error?.message || error?.toString() || ""
     if (msg.includes("exists") || msg.includes("already")) {
-      return { success: false, error: "An account with this email already exists. Try signing in instead." }
+      return {
+        success: false,
+        error:
+          "An account with this email already exists. Try signing in instead.",
+      }
     }
-    return { success: false, error: "Could not create account. Please try again." }
+    return {
+      success: false,
+      error: "Could not create account. Please try again.",
+    }
   }
 }
 
@@ -354,7 +364,10 @@ export async function checkEmailExists(email: string): Promise<boolean> {
     return true
   } catch (error: any) {
     const msg = error?.message || error?.toString() || ""
-    if (msg.includes("Invalid email or password") || msg.includes("Unauthorized")) {
+    if (
+      msg.includes("Invalid email or password") ||
+      msg.includes("Unauthorized")
+    ) {
       return true
     }
     return false
@@ -420,7 +433,11 @@ export async function getActiveStaffImpersonation(): Promise<{
   if (!session) return null
 
   const staff = await retrieveAuthenticatedCustomerForStaffAccess()
-  if (!staff || !isStaffCustomer(staff) || staff.id !== session.staffCustomerId) {
+  if (
+    !staff ||
+    !isStaffCustomer(staff) ||
+    staff.id !== session.staffCustomerId
+  ) {
     return null
   }
 
@@ -431,7 +448,9 @@ export const retrieveCustomer =
   async (): Promise<HttpTypes.StoreCustomer | null> => {
     const active = await getActiveStaffImpersonation()
     if (active) {
-      const target = await retrieveAdminCustomer(active.session.targetCustomerId)
+      const target = await retrieveAdminCustomer(
+        active.session.targetCustomerId
+      )
       if (!target) return null
       return target as HttpTypes.StoreCustomer
     }
@@ -453,19 +472,18 @@ export const updateCustomer = async (body: HttpTypes.StoreUpdateCustomer) => {
       fields: Object.keys(body),
     })
 
-    const { customer } = await adminFetch<{ customer: HttpTypes.StoreCustomer }>(
-      `/admin/customers/${active.session.targetCustomerId}`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          ...body,
-          metadata: {
-            ...metadata,
-            ...staffAuditFields(active.session, "customer_profile_update"),
-          },
-        }),
-      }
-    )
+    const { customer } = await adminFetch<{
+      customer: HttpTypes.StoreCustomer
+    }>(`/admin/customers/${active.session.targetCustomerId}`, {
+      method: "POST",
+      body: JSON.stringify({
+        ...body,
+        metadata: {
+          ...metadata,
+          ...staffAuditFields(active.session, "customer_profile_update"),
+        },
+      }),
+    })
 
     const cacheTag = await getCacheTag("customers")
     revalidateTag(cacheTag)
@@ -623,14 +641,18 @@ export async function transferCart() {
   let preservedItems: Array<{ variant_id: string; quantity: number }> = []
   let regionId: string | undefined
   try {
-    const { cart: brokenCart } = await sdk.client.fetch<HttpTypes.StoreCartResponse>(
-      `/store/carts/${cartId}`,
-      { method: "GET", headers }
-    )
+    const { cart: brokenCart } =
+      await sdk.client.fetch<HttpTypes.StoreCartResponse>(
+        `/store/carts/${cartId}`,
+        { method: "GET", headers }
+      )
     regionId = brokenCart?.region_id ?? undefined
     preservedItems = (brokenCart?.items ?? [])
       .filter((i) => !!i.variant_id)
-      .map((i) => ({ variant_id: i.variant_id as string, quantity: i.quantity }))
+      .map((i) => ({
+        variant_id: i.variant_id as string,
+        quantity: i.quantity,
+      }))
   } catch {
     // best-effort; if the broken cart can't be read, just drop it and continue
   }
@@ -698,7 +720,9 @@ export const addCustomerAddress = async (
   const active = await getActiveStaffImpersonation()
   if (active) {
     try {
-      const current = await retrieveAdminCustomer(active.session.targetCustomerId)
+      const current = await retrieveAdminCustomer(
+        active.session.targetCustomerId
+      )
       if (!current) throw new Error("Could not load impersonated customer.")
 
       await adminFetch(
@@ -785,7 +809,9 @@ export async function saveAddressToProfileAndCart(input: {
   try {
     const active = await getActiveStaffImpersonation()
     if (active) {
-      const current = await retrieveAdminCustomer(active.session.targetCustomerId)
+      const current = await retrieveAdminCustomer(
+        active.session.targetCustomerId
+      )
       if (!current) throw new Error("Could not load impersonated customer.")
 
       const alreadyOnFile = (current.addresses || []).some(
@@ -809,31 +835,37 @@ export async function saveAddressToProfileAndCart(input: {
           }
         )
 
-        await adminFetch(`/admin/customers/${active.session.targetCustomerId}`, {
-          method: "POST",
-          body: JSON.stringify({
-            metadata: {
-              ...appendStaffAuditLog(current.metadata, {
-                type: "staff_checkout_address_create",
-                staffCustomerId: active.session.staffCustomerId,
-                staffEmail: active.session.staffEmail,
-                targetCustomerId: active.session.targetCustomerId,
-              }),
-              ...staffAuditFields(active.session, "checkout_address_create"),
-            },
-          }),
-        })
+        await adminFetch(
+          `/admin/customers/${active.session.targetCustomerId}`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              metadata: {
+                ...appendStaffAuditLog(current.metadata, {
+                  type: "staff_checkout_address_create",
+                  staffCustomerId: active.session.staffCustomerId,
+                  staffEmail: active.session.staffEmail,
+                  targetCustomerId: active.session.targetCustomerId,
+                }),
+                ...staffAuditFields(active.session, "checkout_address_create"),
+              },
+            }),
+          }
+        )
         revalidateTag(await getCacheTag("customers"))
       }
 
-      const cartId = await getCartId()
+      const cartId = await getStaffImpersonationCartId(active.session)
       if (cartId) {
         await sdk.store.cart.update(
           cartId,
           {
             shipping_address: addressPayload,
             billing_address: addressPayload,
-            metadata: staffAuditFields(active.session, "checkout_address_saved"),
+            metadata: staffAuditFields(
+              active.session,
+              "checkout_address_saved"
+            ),
           },
           {},
           {}
@@ -984,7 +1016,9 @@ export const updateCustomerAddress = async (
   const active = await getActiveStaffImpersonation()
   if (active) {
     try {
-      const current = await retrieveAdminCustomer(active.session.targetCustomerId)
+      const current = await retrieveAdminCustomer(
+        active.session.targetCustomerId
+      )
       if (!current) throw new Error("Could not load impersonated customer.")
 
       await adminFetch(

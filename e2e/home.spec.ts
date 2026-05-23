@@ -1,17 +1,27 @@
-import { test, expect } from "@playwright/test"
+import { test, expect, type Page } from "@playwright/test"
+
+async function dismissCookieBanner(page: Page) {
+  const rejectButton = page.getByRole("button", { name: /reject all/i })
+
+  if (await rejectButton.isVisible().catch(() => false)) {
+    await rejectButton.click()
+    await expect(rejectButton).toBeHidden()
+  }
+}
 
 test.describe("Homepage", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/us")
+    await dismissCookieBanner(page)
   })
 
   test("should display the hero section", async ({ page }) => {
     // Check for hero section
-    const hero = page.locator("section[role='img']")
+    const hero = page.locator("section[aria-labelledby='home-hero-heading']")
     await expect(hero).toBeVisible()
 
     // Check for hero title
-    const heroTitle = page.locator("h1")
+    const heroTitle = page.getByRole("heading", { level: 1 })
     await expect(heroTitle).toBeVisible()
   })
 
@@ -27,8 +37,10 @@ test.describe("Homepage", () => {
     await expect(nav).toBeVisible()
 
     // Check for logo
-    const logo = page.locator("img[alt='logo']").first()
-    await expect(logo).toBeVisible()
+    const logoLink = page.getByRole("link", {
+      name: /griller's pride home/i,
+    })
+    await expect(logoLink).toBeVisible()
   })
 
   test("should have cart button", async ({ page }) => {
@@ -41,23 +53,28 @@ test.describe("Homepage", () => {
 test.describe("Navigation", () => {
   test("should navigate to store page", async ({ page }) => {
     await page.goto("/us")
-    
-    // Look for a shop/store link in navigation
-    const storeLink = page.locator("a[href*='/store'], a[href*='/collections']").first()
-    
-    if (await storeLink.isVisible()) {
-      await storeLink.click()
-      await expect(page).toHaveURL(/\/(store|collections)/)
-    }
+    await dismissCookieBanner(page)
+
+    const storeLink = page.getByRole("link", { name: /shop kosher beef/i })
+    await expect(storeLink).toHaveAttribute(
+      "href",
+      /\/us\/collections\/kosher-beef/
+    )
+    const storeHref = await storeLink.getAttribute("href")
+
+    await page.goto(storeHref!)
+    await expect(page).toHaveURL(/\/collections\/kosher-beef/)
   })
 
-  test("should navigate to cart page", async ({ page }) => {
+  test("should open cart panel", async ({ page }) => {
     await page.goto("/us")
-    
+    await dismissCookieBanner(page)
+
     const cartLink = page.locator("[data-testid='nav-cart-link']")
     await cartLink.click()
-    
-    await expect(page).toHaveURL(/\/cart/)
+
+    await expect(page.getByRole("heading", { name: /^Cart$/ })).toBeVisible()
+    await expect(page.getByRole("button", { name: /close cart/i })).toBeVisible()
   })
 })
 
@@ -65,6 +82,7 @@ test.describe("Search", () => {
   test("should have search functionality on desktop", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.goto("/us")
+    await dismissCookieBanner(page)
     
     // Check for search input
     const searchInput = page.locator("input[placeholder*='Search']")
@@ -74,6 +92,7 @@ test.describe("Search", () => {
   test("should have mobile search button on mobile", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
     await page.goto("/us")
+    await dismissCookieBanner(page)
     
     // Check for mobile search button
     const mobileSearchButton = page.locator("button[aria-label='Open search']")
@@ -84,6 +103,7 @@ test.describe("Search", () => {
 test.describe("Accessibility", () => {
   test("should have proper heading hierarchy", async ({ page }) => {
     await page.goto("/us")
+    await dismissCookieBanner(page)
     
     // Check that there's an h1
     const h1 = page.locator("h1")
@@ -92,6 +112,7 @@ test.describe("Accessibility", () => {
 
   test("should have alt text on images", async ({ page }) => {
     await page.goto("/us")
+    await dismissCookieBanner(page)
     
     // Check that visible images have alt attributes
     const images = page.locator("img:visible")

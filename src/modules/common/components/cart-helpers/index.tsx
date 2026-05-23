@@ -205,7 +205,7 @@ export const CartLevelEstimateNote: React.FC<{ className?: string }> = ({
   className = "",
 }) => (
   <p
-    className={`text-[11px] font-maison-neue text-Charcoal/55 leading-snug ${className}`}
+    className={`text-[11px] font-maison-neue text-Charcoal/60 leading-snug ${className}`}
   >
     Final charge may vary slightly from this estimate based on actual cut
     weights. Variance is typically 2–5%.

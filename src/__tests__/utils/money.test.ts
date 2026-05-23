@@ -1,18 +1,18 @@
-import { convertToLocale, formatAmount } from "@lib/util/money"
+import { convertToLocale } from "@lib/util/money"
 
 describe("Money Utilities", () => {
   describe("convertToLocale", () => {
-    it("should format USD amounts correctly", () => {
+    it("should format USD major-unit amounts correctly", () => {
       const result = convertToLocale({
-        amount: 1999,
+        amount: 19.99,
         currency_code: "usd",
       })
       expect(result).toMatch(/\$19\.99/)
     })
 
-    it("should format EUR amounts correctly", () => {
+    it("should format EUR major-unit amounts correctly", () => {
       const result = convertToLocale({
-        amount: 2500,
+        amount: 25,
         currency_code: "eur",
       })
       expect(result).toMatch(/25/)
@@ -28,17 +28,18 @@ describe("Money Utilities", () => {
 
     it("should handle large amounts", () => {
       const result = convertToLocale({
-        amount: 100000,
+        amount: 1000,
         currency_code: "usd",
       })
       expect(result).toMatch(/1,000/)
     })
-  })
 
-  describe("formatAmount", () => {
-    it("should format amount with default options", () => {
-      const result = formatAmount(1999)
-      expect(typeof result).toBe("string")
+    it("should return the plain amount when currency is empty", () => {
+      const result = convertToLocale({
+        amount: 12.5,
+        currency_code: "",
+      })
+      expect(result).toBe("12.5")
     })
   })
 })

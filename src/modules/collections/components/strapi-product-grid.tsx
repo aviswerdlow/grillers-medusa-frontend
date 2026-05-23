@@ -225,7 +225,7 @@ export function ProductCard({
             )}
           </div>
 
-          <div className="grid w-full min-w-0 grid-cols-2 gap-3 sm:max-w-sm lg:flex lg:w-auto lg:max-w-none lg:flex-col lg:items-end">
+          <div className="grid w-full min-w-0 grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:max-w-sm lg:flex lg:w-auto lg:max-w-none lg:flex-col lg:items-end">
             <LocalizedClientLink
               href={`/products/${product?.MedusaProduct?.Handle}`}
               className="min-h-[44px] min-w-0 inline-flex gap-2 items-center justify-center hover:opacity-70 focus-visible:opacity-100 focus-visible:underline transition-opacity w-full"
@@ -238,6 +238,10 @@ export function ProductCard({
               onClick={handleAddToCart}
               disabled={isAdding || !product?.MedusaProduct?.Variants?.[0]?.VariantId}
               className="w-full min-h-[44px] min-w-0 px-4 py-2.5 rounded-[5px] border border-Charcoal bg-Gold text-Charcoal font-rexton text-xs font-bold uppercase transition-opacity hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-center"
+              data-agent-action="add-to-cart"
+              data-product-handle={product?.MedusaProduct?.Handle}
+              data-variant-id={product?.MedusaProduct?.Variants?.[0]?.VariantId}
+              data-sku={product?.MedusaProduct?.Variants?.[0]?.Sku}
             >
               {isAdding ? "Adding..." : "Add to Cart"}
             </button>
@@ -380,6 +384,10 @@ export function ProductCard({
           onClick={handleAddToCart}
           disabled={isAdding || !product?.MedusaProduct?.Variants?.[0]?.VariantId}
           className="min-h-[44px] min-w-0 px-4 py-2 rounded-[5px] border border-Charcoal bg-Gold text-Charcoal font-rexton text-xs font-bold uppercase transition-opacity hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          data-agent-action="add-to-cart"
+          data-product-handle={product?.MedusaProduct?.Handle}
+          data-variant-id={product?.MedusaProduct?.Variants?.[0]?.VariantId}
+          data-sku={product?.MedusaProduct?.Variants?.[0]?.Sku}
         >
           {isAdding ? "Adding..." : "Add to Cart"}
         </button>

@@ -1,5 +1,10 @@
 import { defineConfig, devices } from "@playwright/test"
 
+const e2ePort = process.env.PLAYWRIGHT_PORT || "8011"
+const baseURL =
+  process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${e2ePort}`
+const shouldStartWebServer = !process.env.PLAYWRIGHT_BASE_URL
+
 /**
  * Playwright E2E Testing Configuration
  * @see https://playwright.dev/docs/test-configuration
@@ -22,7 +27,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:8000",
+    baseURL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
@@ -60,10 +65,12 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
-    command: "npm run dev",
-    url: "http://localhost:8000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  webServer: shouldStartWebServer
+    ? {
+        command: `next dev --turbopack -p ${e2ePort}`,
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120 * 1000,
+      }
+    : undefined,
 })
