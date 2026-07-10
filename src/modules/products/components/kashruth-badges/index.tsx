@@ -23,6 +23,8 @@ function chipsFor(metadata: Metadata | null | undefined): Chip[] {
   const chips: Chip[] = []
 
   // Kashruth flags — only when set in Strapi.
+  if (m.ChassidishShchita)
+    chips.push({ label: "Chassidish shchita", tone: "kosher" })
   if (m.CHK) chips.push({ label: "CHK Certification", tone: "kosher" })
   if (m.ChassidishRecognized)
     chips.push({ label: "Chassidish Recognized", tone: "kosher" })
@@ -34,6 +36,13 @@ function chipsFor(metadata: Metadata | null | undefined): Chip[] {
   if (m.AgriStarLamedKLubavitch)
     chips.push({ label: "AgriStar Lamed-K · Lubavich", tone: "kosher" })
   if (m.OU) chips.push({ label: "OU", tone: "kosher" })
+  if (m.StarK) chips.push({ label: "Star-K", tone: "kosher" })
+  if (m.RabbiWeissmandl)
+    chips.push({ label: "Rabbi Weissmandl", tone: "kosher" })
+  if (m.RabbiTeitelbaum)
+    chips.push({ label: "Rabbi Teitelbaum", tone: "kosher" })
+  if (m.CRC) chips.push({ label: "CRC", tone: "kosher" })
+  if (m.Lubavitch) chips.push({ label: "Lubavitch", tone: "kosher" })
   if (m.KosherForPassover)
     chips.push({ label: "Kosher for Passover", tone: "kosher" })
   if (m.Pareve) chips.push({ label: "Pareve", tone: "kosher" })
@@ -113,13 +122,7 @@ export default function KashruthBadges({
       </ul>
       <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-maison-neue-mono uppercase tracking-wide text-Charcoal/70">
         <span className="font-bold text-Charcoal">Catalog hechsher key:</span>
-        {[
-          "OU",
-          "Chassidish",
-          "CHK",
-          "AgriStar / Weismandl",
-          "AgriStar Lubavich",
-        ].map((cert) => (
+        {["OU", "Star-K", "CHK", "CRC"].map((cert) => (
           <LocalizedClientLink
             key={cert}
             href="/kashruth/hechsherim"

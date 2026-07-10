@@ -26,17 +26,14 @@ type FacetGroupDef = {
 }
 
 const HECHSHER_FILTER_OPTIONS: FacetGroupDef["options"] = [
+  { field: "ChassidishShchita", label: "Chassidish Shchita" },
+  { field: "CHK", label: "CHK" },
+  { field: "RabbiWeissmandl", label: "Rabbi Weissmandl" },
   { field: "OU", label: "OU" },
-  { field: "ChassidishRecognized", label: "Chassidish Recognized" },
-  { field: "CHK", label: "CHK Certification" },
-  {
-    field: "AgriStarLamedKLubavitchOrRabbiWeissmandl",
-    label: "AgriStar Lamed-K · Lubavich or Rabbi Weismandl",
-  },
-  {
-    field: "AgriStarLamedKLubavitch",
-    label: "AgriStar Lamed-K · Lubavich",
-  },
+  { field: "StarK", label: "Star-K" },
+  { field: "RabbiTeitelbaum", label: "Rabbi Teitelbaum" },
+  { field: "CRC", label: "CRC (Brooklyn)" },
+  { field: "Lubavitch", label: "Lubavitch" },
 ]
 
 const FACET_GROUPS: FacetGroupDef[] = [

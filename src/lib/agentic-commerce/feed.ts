@@ -172,9 +172,12 @@ function kosherClaims(product: HttpTypes.StoreProduct) {
   for (const key of [
     "CHK",
     "OU",
-    "ChassidishRecognized",
-    "AgriStarLamedKLubavitchOrRabbiWeissmandl",
-    "AgriStarLamedKLubavitch",
+    "StarK",
+    "CRC",
+    "RabbiWeissmandl",
+    "RabbiTeitelbaum",
+    "Lubavitch",
+    "ChassidishShchita",
     "GlutenFree",
   ]) {
     if (

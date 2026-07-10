@@ -32,8 +32,8 @@ describe("collection hechsher filters", () => {
     expect(hechsher?.label).not.toContain("Shchita")
     expect(hechsher?.includeAnyOption).toBe(true)
     expect(hechsher?.options.map((option) => option.field)).toEqual([
-      "OU",
       "CHK",
+      "OU",
     ])
     expect(hechsher?.options.map((option) => option.count)).toEqual([1, 1])
   })

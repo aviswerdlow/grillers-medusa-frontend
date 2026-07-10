@@ -107,6 +107,32 @@ const HECHSHER_FLAGS: FlagDefinition[] = [
     slug: "hechsher-agristar-lubavitch",
     priority: 25,
   },
+  { key: "StarK", label: "Star-K", slug: "hechsher-star-k", priority: 26 },
+  { key: "CRC", label: "CRC", slug: "hechsher-crc", priority: 27 },
+  {
+    key: "RabbiWeissmandl",
+    label: "Rabbi Weissmandl",
+    slug: "hechsher-rabbi-weissmandl",
+    priority: 28,
+  },
+  {
+    key: "RabbiTeitelbaum",
+    label: "Rabbi Teitelbaum",
+    slug: "hechsher-rabbi-teitelbaum",
+    priority: 29,
+  },
+  {
+    key: "Lubavitch",
+    label: "Lubavitch",
+    slug: "hechsher-lubavitch",
+    priority: 30,
+  },
+  {
+    key: "ChassidishShchita",
+    label: "Chassidish shchita",
+    slug: "hechsher-chassidish-shchita",
+    priority: 31,
+  },
 ]
 
 const DIETARY_FLAGS: FlagDefinition[] = [

@@ -106,13 +106,14 @@ describe("product facts", () => {
     expect(screen.queryByText("Kashruth and sourcing")).not.toBeInTheDocument()
   })
 
-  it("renders the five exact legacy hechsher categories per item", () => {
+  it("adds the five exact legacy Hechshers without removing other kashruth attributes", () => {
     const highlights = buildProductFactHighlights({
       strapiProductData: productData({
         Metadata: {
           OU: true,
           CHK: true,
           ChassidishRecognized: true,
+          ChassidishShchita: true,
           AgriStarLamedKLubavitchOrRabbiWeissmandl: true,
           AgriStarLamedKLubavitch: true,
         },
@@ -124,6 +125,7 @@ describe("product facts", () => {
         "OU",
         "CHK Certification",
         "Chassidish Recognized",
+        "Chassidish shchita",
         "AgriStar Lamed-K · Lubavich or Rabbi Weismandl",
         "AgriStar Lamed-K · Lubavich",
       ])

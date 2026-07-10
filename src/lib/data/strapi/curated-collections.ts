@@ -194,12 +194,9 @@ const CuratedProductFields = gql`
       Dairy
       CholovYisroel
       ChassidishShchita
-      ChassidishRecognized
       CHK
       RabbiWeissmandl
       OU
-      AgriStarLamedKLubavitchOrRabbiWeissmandl
-      AgriStarLamedKLubavitch
       StarK
       RabbiTeitelbaum
       CRC

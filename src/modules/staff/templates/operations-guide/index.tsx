@@ -690,7 +690,7 @@ const sections: GuideSection[] = [
     useFor: [
       "Homepage sections, header, footer, customer service, legal, shipping, kashruth, holiday, recipes, learn articles, curated collections, testimonials, and checkout copy.",
       "Product titles, featured image, gallery images, product metadata, ingredient disclosures, SEO, social metadata, and related recipes.",
-      "Exact product supervision flags: OU, Chassidish Recognized, CHK Certification, AgriStar Lamed-K Lubavich or Rabbi Weismandl, and AgriStar Lamed-K Lubavich.",
+      "Exact product Hechsher flags: OU, Chassidish Recognized, CHK Certification, AgriStar Lamed-K Lubavich or Rabbi Weismandl, and AgriStar Lamed-K Lubavich.",
       "Availability lifecycle, waitlist settings, future-order eligibility, replenishment lead days, safety stock, unavailable copy, and suggested alternatives.",
       "Experiment records, variant content drafts, and placement content for content-driven tests.",
       "Back-in-stock request review when needed.",
@@ -698,7 +698,8 @@ const sections: GuideSection[] = [
     howTo: [
       "Open the correct Strapi content type, make the edit, and publish if the content type uses draft/publish.",
       "For product edits, use the customer-safe Title and PDP fields. Do not edit QuickBooks ListID unless you are deliberately correcting accounting identity.",
-      "Treat the five supervision flags as exact Item Manager categories joined by QuickBooks ListID. Use the controlled backfill for catalog-wide changes; do not guess a flag from a title, description, brand, or SKU.",
+      "Treat the five Hechsher flags as exact Item Manager categories joined by QuickBooks ListID. Use the controlled backfill for catalog-wide changes; do not guess a flag from a title, description, brand, or SKU.",
+      "Hechshers are certification fields only. Keep separate kashruth attributes such as Chassidish shchita and Kosher for Passover unchanged unless their own source data is being corrected.",
       "For lifecycle, choose active, seasonal inactive, discontinued, or internal only. Use Waitlist Enabled only when customers should expect notification when it returns.",
       "For checkout settings, edit available days, fulfillment blackout rows, pickup notes, delivery lead time, and shipping settings with care. Use the separate plant-operations, UPS-pickup, and UPS-delivery switches on every blackout row.",
       "For experiment content, keep variants in draft until the experiment is approved. Publish only the records that should be available to the storefront.",
