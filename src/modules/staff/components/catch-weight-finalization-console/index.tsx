@@ -38,6 +38,7 @@ import {
   replacementPriceLabel,
   replacementUnitPrice,
 } from "./replacement-pricing"
+import { resolveStaffLinePricingBasis } from "./pricing-basis"
 
 const statusLabels: Record<string, string> = {
   pending_pick: "Needs picking",
@@ -493,19 +494,6 @@ function finalizationPickerReadiness(
   return { blockers, warnings, lineIssues }
 }
 
-function lineRequiresActualWeight(line: StaffCatchWeightLine, title: string) {
-  const estimatedWeight = Number(line.estimated_weight_total)
-  return (
-    line.pricing_mode === "per_lb" ||
-    (Number.isFinite(estimatedWeight) && estimatedWeight > 0) ||
-    /\b\d+(?:\.\d+)?\s*(lb|lbs|pound|pounds)\b/i.test(title)
-  )
-}
-
-function lineIsFixedPrice(line: StaffCatchWeightLine, title: string) {
-  return !lineRequiresActualWeight(line, title)
-}
-
 function draftFromLine(line: StaffCatchWeightLine) {
   const title = line.customer_title || line.title_snapshot || "Order line"
   const unitWeights = Array.isArray(line.metadata?.actual_unit_weights_lb)
@@ -870,8 +858,9 @@ function LineEditor({
   const isRemoved = draft.status === "removed"
   const isSubstituted = draft.status === "substituted"
   const title = line.customer_title || line.title_snapshot || "Order line"
-  const requiresActualWeight = lineRequiresActualWeight(line, title)
-  const fixedPriceLine = lineIsFixedPrice(line, title)
+  const pricingBasis = resolveStaffLinePricingBasis(line, title)
+  const requiresActualWeight = pricingBasis === "by_weight"
+  const fixedPriceLine = pricingBasis === "per_pack"
   const packingPhase = phase === "packing"
   const pickedCount = pickedQuantity(line)
   const orderedCount = orderedQuantity(line)
