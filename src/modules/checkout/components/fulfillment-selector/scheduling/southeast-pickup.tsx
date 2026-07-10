@@ -2,6 +2,11 @@
 
 import { useMemo, useRef, useEffect } from "react"
 import { computeEligibleArrivalDates } from "@lib/util/eligible-arrival-dates"
+import {
+  normalizePickupState,
+  pickupLocationsForState,
+  regionalPickupPresentation,
+} from "@lib/util/southeast-pickup"
 
 export type SoutheastPickupCity = {
   id: string
@@ -17,6 +22,7 @@ export type SoutheastPickupCity = {
 
 type SoutheastPickupSchedulingProps = {
   locations: SoutheastPickupCity[]
+  preferredState?: string
   selectedLocationId: string
   selectedDate: string
   onLocationChange: (locationId: string) => void
@@ -96,6 +102,7 @@ function getValidDates(location: SoutheastPickupCity): string[] {
 
 export default function SoutheastPickupScheduling({
   locations,
+  preferredState,
   selectedLocationId,
   selectedDate,
   onLocationChange,
@@ -106,10 +113,14 @@ export default function SoutheastPickupScheduling({
 }: SoutheastPickupSchedulingProps) {
   const datesSectionRef = useRef<HTMLDivElement>(null)
 
-  const activeLocations = useMemo(
-    () => locations.filter((l) => l.IsActive !== false),
-    [locations]
-  )
+  const activeLocations = useMemo(() => {
+    const active = locations.filter((l) => l.IsActive !== false)
+    return pickupLocationsForState(active, preferredState)
+  }, [locations, preferredState])
+
+  const pickupPresentation = regionalPickupPresentation(preferredState)
+  const preferredStateName =
+    STATE_NAMES[normalizePickupState(preferredState)] || preferredState
 
   const locationDateInfo = useMemo(() => {
     const info: Record<string, { count: number; dates: string[] }> = {}
@@ -162,10 +173,14 @@ export default function SoutheastPickupScheduling({
 
       <div>
         <h2 className="text-lg font-semibold text-Charcoal mb-0.5">
-          {selectedLocationId ? "Change Pickup City" : "Select a Pickup City"}
+          {selectedLocationId
+            ? `Change ${pickupPresentation.title} Location`
+            : `Select a ${pickupPresentation.title} Location`}
         </h2>
         <p className="text-sm text-Charcoal/60 mb-4">
-          Choose a city near you for scheduled pickup.
+          {preferredStateName
+            ? `Choose from every active ${preferredStateName} route stop.`
+            : "Choose a city near you for scheduled pickup."}
         </p>
       </div>
 

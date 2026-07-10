@@ -106,6 +106,30 @@ describe("product facts", () => {
     expect(screen.queryByText("Kashruth and sourcing")).not.toBeInTheDocument()
   })
 
+  it("renders the five exact legacy hechsher categories per item", () => {
+    const highlights = buildProductFactHighlights({
+      strapiProductData: productData({
+        Metadata: {
+          OU: true,
+          CHK: true,
+          ChassidishRecognized: true,
+          AgriStarLamedKLubavitchOrRabbiWeissmandl: true,
+          AgriStarLamedKLubavitch: true,
+        },
+      }),
+    })
+
+    expect(highlights.map((fact) => fact.label)).toEqual(
+      expect.arrayContaining([
+        "OU",
+        "CHK Certification",
+        "Chassidish Recognized",
+        "AgriStar Lamed-K · Lubavich or Rabbi Weismandl",
+        "AgriStar Lamed-K · Lubavich",
+      ])
+    )
+  })
+
   it("keeps description and kashruth policy as supporting content", () => {
     render(
       React.createElement(ProductFacts, {

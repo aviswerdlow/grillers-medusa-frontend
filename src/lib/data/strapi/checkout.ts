@@ -2,7 +2,10 @@ import { cache } from "react"
 import { gql } from "graphql-request"
 import strapiClient from "@lib/strapi"
 import type { StrapiSEO } from "./seo"
-import type { AtlantaZipDayConfig } from "@lib/util/eligible-arrival-dates"
+import type {
+  AtlantaZipDayConfig,
+  FulfillmentBlackouts,
+} from "@lib/util/eligible-arrival-dates"
 export { ATLANTA_DELIVERY_ZIP_DAYS } from "@lib/util/atlanta-delivery-zips"
 
 // ============================================
@@ -226,6 +229,83 @@ export const CheckoutShippingBlackoutQuery = gql`
     }
   }
 `
+
+export type FulfillmentBlackoutRow = {
+  Date: string
+  Label: string
+  BlocksOperations: boolean
+  BlocksUPSPickup: boolean
+  BlocksUPSDelivery: boolean
+}
+
+export type FulfillmentBlackoutData = {
+  checkout: {
+    FulfillmentBlackoutDates: FulfillmentBlackoutRow[]
+    /** Legacy undifferentiated UPS blackout rows. */
+    ShippingBlackoutDates: { BlackoutDate: string }[]
+  } | null
+}
+
+/**
+ * Kept separate from FulfillmentConfigQuery so the storefront can deploy
+ * safely before the Strapi schema. Until the new field exists, this query
+ * fails closed to the static annual lists in eligible-arrival-dates.ts.
+ */
+export const FulfillmentBlackoutQuery = gql`
+  query FulfillmentBlackouts {
+    checkout {
+      FulfillmentBlackoutDates {
+        Date
+        Label
+        BlocksOperations
+        BlocksUPSPickup
+        BlocksUPSDelivery
+      }
+      ShippingBlackoutDates {
+        BlackoutDate
+      }
+    }
+  }
+`
+
+function uniqueIso(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.filter(Boolean) as string[])).sort()
+}
+
+export function toFulfillmentBlackouts(
+  data: FulfillmentBlackoutData | null | undefined
+): FulfillmentBlackouts {
+  const rows = data?.checkout?.FulfillmentBlackoutDates || []
+  const legacyUps =
+    data?.checkout?.ShippingBlackoutDates?.map((row) => row.BlackoutDate) || []
+
+  return {
+    operationsIso: uniqueIso(
+      rows.filter((row) => row.BlocksOperations).map((row) => row.Date)
+    ),
+    upsPickupIso: uniqueIso([
+      ...legacyUps,
+      ...rows.filter((row) => row.BlocksUPSPickup).map((row) => row.Date),
+    ]),
+    upsDeliveryIso: uniqueIso([
+      ...legacyUps,
+      ...rows.filter((row) => row.BlocksUPSDelivery).map((row) => row.Date),
+    ]),
+  }
+}
+
+export const getFulfillmentBlackouts = cache(
+  async (): Promise<FulfillmentBlackouts> => {
+    try {
+      const data = await strapiClient.request<FulfillmentBlackoutData>(
+        FulfillmentBlackoutQuery
+      )
+      return toFulfillmentBlackouts(data)
+    } catch {
+      return { operationsIso: [], upsPickupIso: [], upsDeliveryIso: [] }
+    }
+  }
+)
 
 export type CheckoutPageData = {
   checkout: {

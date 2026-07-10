@@ -236,9 +236,12 @@ export type StrapiCollectionProduct = {
     CholovYisroel?: boolean
     // Hechsher / Shchita (#43). Backfill in Strapi will surface these in PLP filters.
     ChassidishShchita?: boolean
+    ChassidishRecognized?: boolean
     CHK?: boolean
     RabbiWeissmandl?: boolean
     OU?: boolean
+    AgriStarLamedKLubavitchOrRabbiWeissmandl?: boolean
+    AgriStarLamedKLubavitch?: boolean
     StarK?: boolean
     RabbiTeitelbaum?: boolean
     CRC?: boolean
@@ -351,9 +354,12 @@ export const GetProductsByTagQuery = gql`
         Dairy
         CholovYisroel
         ChassidishShchita
+        ChassidishRecognized
         CHK
         RabbiWeissmandl
         OU
+        AgriStarLamedKLubavitchOrRabbiWeissmandl
+        AgriStarLamedKLubavitch
         StarK
         RabbiTeitelbaum
         CRC
@@ -466,9 +472,12 @@ export const GetProductsByCollectionSlugQuery = gql`
         Dairy
         CholovYisroel
         ChassidishShchita
+        ChassidishRecognized
         CHK
         RabbiWeissmandl
         OU
+        AgriStarLamedKLubavitchOrRabbiWeissmandl
+        AgriStarLamedKLubavitch
         StarK
         RabbiTeitelbaum
         CRC
@@ -501,7 +510,7 @@ export const GetProductsByCollectionSlugQuery = gql`
 `
 
 const FUTURE_PRODUCT_FIELD_RE =
-  /^\s+(ChassidishShchita|CHK|RabbiWeissmandl|OU|StarK|RabbiTeitelbaum|CRC|Lubavitch|QualifiesForFreeDeliveryOffers|FreeDeliveryExclusionReason)\n/gm
+  /^\s+(ChassidishShchita|ChassidishRecognized|CHK|RabbiWeissmandl|OU|AgriStarLamedKLubavitchOrRabbiWeissmandl|AgriStarLamedKLubavitch|StarK|RabbiTeitelbaum|CRC|Lubavitch|QualifiesForFreeDeliveryOffers|FreeDeliveryExclusionReason)\n/gm
 
 function legacyProductQuery(query: string): string {
   return query.replace(FUTURE_PRODUCT_FIELD_RE, "")
@@ -732,9 +741,12 @@ export const GetProductsByMedusaIdsQuery = gql`
         Dairy
         CholovYisroel
         ChassidishShchita
+        ChassidishRecognized
         CHK
         RabbiWeissmandl
         OU
+        AgriStarLamedKLubavitchOrRabbiWeissmandl
+        AgriStarLamedKLubavitch
         StarK
         RabbiTeitelbaum
         CRC
@@ -847,9 +859,12 @@ export const GetProductsByHandlesQuery = gql`
         Dairy
         CholovYisroel
         ChassidishShchita
+        ChassidishRecognized
         CHK
         RabbiWeissmandl
         OU
+        AgriStarLamedKLubavitchOrRabbiWeissmandl
+        AgriStarLamedKLubavitch
         StarK
         RabbiTeitelbaum
         CRC
@@ -1040,9 +1055,12 @@ export const GetProductsWithImagesQuery = gql`
         Dairy
         CholovYisroel
         ChassidishShchita
+        ChassidishRecognized
         CHK
         RabbiWeissmandl
         OU
+        AgriStarLamedKLubavitchOrRabbiWeissmandl
+        AgriStarLamedKLubavitch
         StarK
         RabbiTeitelbaum
         CRC

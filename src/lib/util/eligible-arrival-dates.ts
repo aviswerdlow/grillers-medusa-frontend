@@ -285,6 +285,21 @@ export type ArrivalMethod =
   | "ups_overnight"
   | "ups_2day"
 
+export type FulfillmentBlackouts = {
+  /** Plant closures: no pack-out, plant pickup, Atlanta delivery, or route run. */
+  operationsIso?: string[]
+  /** UPS will not accept an outbound shipment. */
+  upsPickupIso?: string[]
+  /** UPS will not deliver to the customer. */
+  upsDeliveryIso?: string[]
+}
+
+type NormalizedFulfillmentBlackouts = {
+  operationsIso: Set<string>
+  upsPickupIso: Set<string>
+  upsDeliveryIso: Set<string>
+}
+
 export type AtlantaZipDayConfig = {
   /** Zero-indexed weekday: 0 = Sunday, 1 = Monday, ... 6 = Saturday */
   weekdays: number[]
@@ -319,6 +334,8 @@ export type ComputeArrivalDatesInput = {
   defaultCutoffHour?: number
   /** Override default UPS daily pickup cutoff hour EST (15 = 3 PM ET). */
   upsPickupCutoffHour?: number
+  /** Operator-managed closures from Strapi. Static annual lists remain fallback. */
+  blackouts?: FulfillmentBlackouts
 }
 
 // ---------------------------------------------------------------------------
@@ -347,12 +364,43 @@ function isWeekend(d: Date): boolean {
   return dow === 0 || dow === 6
 }
 
+function normalizeBlackouts(
+  blackouts?: FulfillmentBlackouts
+): NormalizedFulfillmentBlackouts {
+  return {
+    operationsIso: new Set(blackouts?.operationsIso || []),
+    upsPickupIso: new Set(blackouts?.upsPickupIso || []),
+    upsDeliveryIso: new Set(blackouts?.upsDeliveryIso || []),
+  }
+}
+
 function isUpsHoliday(d: Date): boolean {
   return UPS_HOLIDAYS_ISO.has(toIsoDate(d))
 }
 
 function isJewishNoOps(d: Date): boolean {
   return JEWISH_NO_OPERATIONS_ISO.has(toIsoDate(d))
+}
+
+function isConfiguredOperationsBlackout(
+  d: Date,
+  blackouts: NormalizedFulfillmentBlackouts
+): boolean {
+  return blackouts.operationsIso.has(toIsoDate(d))
+}
+
+function isConfiguredUpsPickupBlackout(
+  d: Date,
+  blackouts: NormalizedFulfillmentBlackouts
+): boolean {
+  return blackouts.upsPickupIso.has(toIsoDate(d))
+}
+
+function isConfiguredUpsDeliveryBlackout(
+  d: Date,
+  blackouts: NormalizedFulfillmentBlackouts
+): boolean {
+  return blackouts.upsDeliveryIso.has(toIsoDate(d))
 }
 
 /**
@@ -371,10 +419,20 @@ function isShabbosPackoutBlocked(d: Date): boolean {
  * A day on which we can hand product to UPS / drive a delivery van.
  * Skips weekends, UPS holidays, Jewish no-op days, and Shabbos.
  */
-function isOperatingDay(d: Date, opts: { forPackout: boolean }): boolean {
+function isOperatingDay(
+  d: Date,
+  opts: { forPackout: boolean; forUpsDispatch?: boolean },
+  blackouts: NormalizedFulfillmentBlackouts
+): boolean {
   if (isWeekend(d)) return false
-  if (isUpsHoliday(d)) return false
   if (isJewishNoOps(d)) return false
+  if (isConfiguredOperationsBlackout(d, blackouts)) return false
+  if (
+    opts.forUpsDispatch &&
+    (isUpsHoliday(d) || isConfiguredUpsPickupBlackout(d, blackouts))
+  ) {
+    return false
+  }
   if (opts.forPackout && isShabbosPackoutBlocked(d)) return false
   return true
 }
@@ -385,9 +443,13 @@ function isOperatingDay(d: Date, opts: { forPackout: boolean }): boolean {
  * doesn't — keep Saturday excluded for safety. Customers in CA or TX who want
  * Saturday delivery should select Overnight or coordinate separately.
  */
-function isUpsDeliveryDay(d: Date): boolean {
+function isUpsDeliveryDay(
+  d: Date,
+  blackouts: NormalizedFulfillmentBlackouts
+): boolean {
   if (isWeekend(d)) return false
   if (isUpsHoliday(d)) return false
+  if (isConfiguredUpsDeliveryBlackout(d, blackouts)) return false
   return true
 }
 
@@ -395,12 +457,26 @@ function isUpsDeliveryDay(d: Date): boolean {
  * Add N business days to a date, where business days are operating days
  * (skipping weekends, UPS holidays, Jewish no-ops, and Shabbos for pack-out).
  */
-function addBusinessDays(start: Date, days: number, forPackout: boolean): Date {
+function addBusinessDays(
+  start: Date,
+  days: number,
+  forPackout: boolean,
+  blackouts: NormalizedFulfillmentBlackouts,
+  forUpsDispatch = false
+): Date {
   const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate())
   let added = 0
   while (added < days) {
     cursor.setDate(cursor.getDate() + 1)
-    if (isOperatingDay(cursor, { forPackout })) added += 1
+    if (
+      isOperatingDay(
+        cursor,
+        { forPackout, forUpsDispatch },
+        blackouts
+      )
+    ) {
+      added += 1
+    }
   }
   return cursor
 }
@@ -408,22 +484,30 @@ function addBusinessDays(start: Date, days: number, forPackout: boolean): Date {
 /**
  * Add N delivery days (UPS arrival side — only weekends/holidays excluded).
  */
-function addUpsDeliveryDays(start: Date, days: number): Date {
+function addUpsDeliveryDays(
+  start: Date,
+  days: number,
+  blackouts: NormalizedFulfillmentBlackouts
+): Date {
   const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate())
   let added = 0
   while (added < days) {
     cursor.setDate(cursor.getDate() + 1)
-    if (isUpsDeliveryDay(cursor)) added += 1
+    if (isUpsDeliveryDay(cursor, blackouts)) added += 1
   }
   return cursor
 }
 
-function subtractUpsDeliveryDays(start: Date, days: number): Date {
+function subtractUpsDeliveryDays(
+  start: Date,
+  days: number,
+  blackouts: NormalizedFulfillmentBlackouts
+): Date {
   const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate())
   let subtracted = 0
   while (subtracted < days) {
     cursor.setDate(cursor.getDate() - 1)
-    if (isUpsDeliveryDay(cursor)) subtracted += 1
+    if (isUpsDeliveryDay(cursor, blackouts)) subtracted += 1
   }
   return cursor
 }
@@ -440,11 +524,19 @@ function subtractUpsDeliveryDays(start: Date, days: number): Date {
 function upsArrivalIsTransitFeasible(
   arrival: Date,
   transit: number,
-  msPerDay: number
+  msPerDay: number,
+  blackouts: NormalizedFulfillmentBlackouts
 ): boolean {
-  const shipDate = subtractUpsDeliveryDays(arrival, transit)
+  const shipDate = subtractUpsDeliveryDays(arrival, transit, blackouts)
   const calendarGap = Math.round((arrival.getTime() - shipDate.getTime()) / msPerDay)
-  return calendarGap <= transit
+  return (
+    calendarGap <= transit &&
+    isOperatingDay(
+      shipDate,
+      { forPackout: true, forUpsDispatch: true },
+      blackouts
+    )
+  )
 }
 
 /**
@@ -504,8 +596,11 @@ export function normalizeUpsServiceCode(
   return normalized
 }
 
-function isAllowedUpsArrivalDay(d: Date): boolean {
-  if (!isUpsDeliveryDay(d)) return false
+function isAllowedUpsArrivalDay(
+  d: Date,
+  blackouts: NormalizedFulfillmentBlackouts
+): boolean {
+  if (!isUpsDeliveryDay(d, blackouts)) return false
 
   // Frozen UPS deliveries should land Monday-Thursday only. Friday arrivals
   // leave too little room for missed-delivery recovery before Shabbos/weekend.
@@ -521,12 +616,28 @@ function isAllowedUpsArrivalDay(d: Date): boolean {
  * For atlanta_delivery / southeast_pickup we don't ship via UPS so the only constraint
  * is that we pack a business day before the route runs.
  */
-function earliestPackoutDate(now: Date, upsCutoffHour: number, forPackout: boolean): Date {
+function earliestPackoutDate(
+  now: Date,
+  upsCutoffHour: number,
+  forPackout: boolean,
+  blackouts: NormalizedFulfillmentBlackouts,
+  forUpsDispatch: boolean
+): Date {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const todayOk = isOperatingDay(today, { forPackout })
+  const todayOk = isOperatingDay(
+    today,
+    { forPackout, forUpsDispatch },
+    blackouts
+  )
   const beforeCutoff = now.getHours() < upsCutoffHour
   if (todayOk && beforeCutoff) return today
-  return addBusinessDays(today, 1, forPackout)
+  return addBusinessDays(
+    today,
+    1,
+    forPackout,
+    blackouts,
+    forUpsDispatch
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -556,19 +667,34 @@ export function computeEligibleArrivalDates(
     southeastAvailableIso,
     defaultCutoffHour = 12,
     upsPickupCutoffHour = 15,
+    blackouts,
   } = input
 
   const now = input.now ?? nowEST()
+  const normalizedBlackouts = normalizeBlackouts(blackouts)
   const out: Date[] = []
   let reason = ""
+  const usesUps = method.startsWith("ups_")
 
   // Earliest pack-out date — same logic for all methods. We add the catch-weight
   // pack lead time on top of that; if packLeadTimeDays === 0 the earliest packout
   // IS the dispatch day.
-  const packoutBase = earliestPackoutDate(now, upsPickupCutoffHour, true)
+  const packoutBase = earliestPackoutDate(
+    now,
+    upsPickupCutoffHour,
+    true,
+    normalizedBlackouts,
+    usesUps
+  )
   const dispatchDate =
     packLeadTimeDays > 0
-      ? addBusinessDays(packoutBase, packLeadTimeDays - 1, true)
+      ? addBusinessDays(
+          packoutBase,
+          packLeadTimeDays - 1,
+          true,
+          normalizedBlackouts,
+          usesUps
+        )
       : packoutBase
 
   if (
@@ -599,14 +725,26 @@ export function computeEligibleArrivalDates(
     }
 
     // Earliest arrival = dispatch + transit business days (UPS-side: weekends + holidays only)
-    const earliest = addUpsDeliveryDays(dispatchDate, transit)
+    const earliest = addUpsDeliveryDays(
+      dispatchDate,
+      transit,
+      normalizedBlackouts
+    )
     const horizon = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     horizon.setDate(horizon.getDate() + lookAheadDays)
 
     const cursor = new Date(earliest)
     const MS_PER_DAY = 24 * 60 * 60 * 1000
     while (cursor <= horizon) {
-      if (isAllowedUpsArrivalDay(cursor) && upsArrivalIsTransitFeasible(cursor, transit, MS_PER_DAY)) {
+      if (
+        isAllowedUpsArrivalDay(cursor, normalizedBlackouts) &&
+        upsArrivalIsTransitFeasible(
+          cursor,
+          transit,
+          MS_PER_DAY,
+          normalizedBlackouts
+        )
+      ) {
         out.push(new Date(cursor))
       }
       cursor.setDate(cursor.getDate() + 1)
@@ -638,7 +776,14 @@ export function computeEligibleArrivalDates(
 
     const cursor = new Date(dispatchDate)
     while (cursor <= horizon) {
-      if (cfg.weekdays.includes(cursor.getDay()) && !isUpsHoliday(cursor) && !isJewishNoOps(cursor)) {
+      if (
+        cfg.weekdays.includes(cursor.getDay()) &&
+        isOperatingDay(
+          cursor,
+          { forPackout: false, forUpsDispatch: false },
+          normalizedBlackouts
+        )
+      ) {
         // Cutoff: cutoffHour on the day "cutoffOffset" days before the delivery day
         const cutoff = new Date(cursor)
         cutoff.setDate(cutoff.getDate() - cutoffOffset)
@@ -658,7 +803,12 @@ export function computeEligibleArrivalDates(
       const [y, m, d] = iso.split("-").map(Number)
       if (!y || !m || !d) continue
       const date = new Date(y, m - 1, d)
-      if (isUpsHoliday(date) || isJewishNoOps(date)) continue
+      if (
+        isJewishNoOps(date) ||
+        isConfiguredOperationsBlackout(date, normalizedBlackouts)
+      ) {
+        continue
+      }
       const cutoff = new Date(date)
       cutoff.setDate(cutoff.getDate() - 1)
       cutoff.setHours(defaultCutoffHour, 0, 0, 0)
@@ -674,7 +824,13 @@ export function computeEligibleArrivalDates(
     horizon.setDate(horizon.getDate() + lookAheadDays)
     const cursor = new Date(dispatchDate)
     while (cursor <= horizon) {
-      if (isOperatingDay(cursor, { forPackout: true })) {
+      if (
+        isOperatingDay(
+          cursor,
+          { forPackout: true, forUpsDispatch: false },
+          normalizedBlackouts
+        )
+      ) {
         out.push(new Date(cursor))
       }
       cursor.setDate(cursor.getDate() + 1)
@@ -727,7 +883,10 @@ export function parseCheckoutDate(dateMmDdYyyyOrIso: string): Date | null {
 
 export function computeQuickBooksDueDateForArrival(
   dateMmDdYyyyOrIso: string,
-  input: Pick<ComputeArrivalDatesInput, "method" | "destinationZip">
+  input: Pick<
+    ComputeArrivalDatesInput,
+    "method" | "destinationZip" | "blackouts"
+  >
 ): string | null {
   const arrivalDate = parseCheckoutDate(dateMmDdYyyyOrIso)
   if (!arrivalDate) return null
@@ -754,5 +913,21 @@ export function computeQuickBooksDueDateForArrival(
     return null
   }
 
-  return toIsoDate(subtractUpsDeliveryDays(arrivalDate, transit))
+  const normalizedBlackouts = normalizeBlackouts(input.blackouts)
+  const shipDate = subtractUpsDeliveryDays(
+    arrivalDate,
+    transit,
+    normalizedBlackouts
+  )
+  if (
+    !isOperatingDay(
+      shipDate,
+      { forPackout: true, forUpsDispatch: true },
+      normalizedBlackouts
+    )
+  ) {
+    return null
+  }
+
+  return toIsoDate(shipDate)
 }

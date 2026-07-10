@@ -101,9 +101,12 @@ export interface Metadata {
   // Kashruth.
   KosherForPassover?: boolean
   ChassidishShchita?: boolean
+  ChassidishRecognized?: boolean
   CHK?: boolean
   RabbiWeissmandl?: boolean
   OU?: boolean
+  AgriStarLamedKLubavitchOrRabbiWeissmandl?: boolean
+  AgriStarLamedKLubavitch?: boolean
   StarK?: boolean
   RabbiTeitelbaum?: boolean
   CRC?: boolean

@@ -17,6 +17,7 @@ import {
   isUpsGroundAvailableForZip,
   normalizeUpsServiceCode,
   type AtlantaZipDayConfig,
+  type FulfillmentBlackouts,
 } from "@lib/util/eligible-arrival-dates"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
@@ -34,6 +35,7 @@ type ShippingProps = {
   availableShippingMethods: HttpTypes.StoreCartShippingOption[] | null
   serverNowIso?: string
   atlantaZipConfig?: Record<string, AtlantaZipDayConfig>
+  fulfillmentBlackouts?: FulfillmentBlackouts
 }
 
 type ShippingOptionAddress = {
@@ -98,6 +100,7 @@ const Shipping: React.FC<ShippingProps> = ({
   availableShippingMethods,
   serverNowIso,
   atlantaZipConfig,
+  fulfillmentBlackouts,
 }) => {
   const cartTitleMap = useCartTitleMap(cart?.items)
   const [isLoading, setIsLoading] = useState(false)
@@ -665,6 +668,7 @@ const Shipping: React.FC<ShippingProps> = ({
                   availableShippingMethods={_shippingMethods}
                   serverNowIso={serverNowIso}
                   atlantaZipConfig={atlantaZipConfig}
+                  fulfillmentBlackouts={fulfillmentBlackouts}
                 />
               </div>
             </div>

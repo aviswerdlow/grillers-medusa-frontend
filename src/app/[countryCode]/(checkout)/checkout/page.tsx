@@ -15,6 +15,7 @@ import {
   type ShippingSettingData,
   type SoutheastPickupLocationsData,
   type PickupCreditConfig,
+  getFulfillmentBlackouts,
 } from "@lib/data/strapi/checkout"
 import { getAtlantaDeliveryZipConfig } from "@lib/data/strapi/fulfillment"
 import { ATLANTA_DELIVERY_ZIP_DAYS } from "@lib/util/atlanta-delivery-zips"
@@ -395,6 +396,7 @@ export default async function Checkout({ params, searchParams }: PageProps) {
     shippingSettings,
     availableFulfillmentTypes,
     productDetailsMap,
+    fulfillmentBlackouts,
   ] = await Promise.all([
     getFulfillmentConfig(),
     getCheckoutShippingSettings(),
@@ -405,6 +407,7 @@ export default async function Checkout({ params, searchParams }: PageProps) {
       {},
       "checkout product details"
     ),
+    getFulfillmentBlackouts(),
   ])
   const pickupCreditConfig = shippingSettings.pickupCredit
 
@@ -430,6 +433,7 @@ export default async function Checkout({ params, searchParams }: PageProps) {
                 fulfillmentConfig={fulfillmentConfig}
                 availableFulfillmentTypes={availableFulfillmentTypes}
                 pickupCreditConfig={pickupCreditConfig}
+                fulfillmentBlackouts={fulfillmentBlackouts}
                 currentStep={resolvedSearchParams?.step as string | undefined}
               />
             </PaymentWrapper>

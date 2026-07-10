@@ -25,6 +25,10 @@ import {
 } from "@lib/util/free-shipping-codes"
 import { getFreeDeliveryEligibleSubtotal } from "@lib/util/free-delivery-eligibility"
 import type { FulfillmentConfigData, PickupCreditConfig } from "@lib/data/strapi/checkout"
+import {
+  hasRegionalPickupForAddress,
+  regionalPickupPresentation,
+} from "@lib/util/southeast-pickup"
 import { useFulfillmentEdit } from "@modules/checkout/context/fulfillment-edit-context"
 import PlantPickupScheduling from "@modules/checkout/components/fulfillment-selector/scheduling/plant-pickup"
 import SoutheastPickupScheduling from "@modules/checkout/components/fulfillment-selector/scheduling/southeast-pickup"
@@ -240,6 +244,7 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
   )
   const shipZip = (activeAddress?.postal_code || "").trim()
   const shipCity = (activeAddress?.city || "").trim()
+  const shipState = (activeAddress?.province || "").trim()
   const savedAddresses = customer?.addresses || []
   const canSwitchAddress = savedAddresses.length > 1
   const activeAddressId = (() => {
@@ -267,18 +272,24 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
   const isAtlantaZip = (zip: string) =>
     sharedIsAtlantaZip(zip, atlantaZipCodes)
 
-  const isSoutheastPickupCity = (zip: string, city: string) => {
-    if (!config?.SoutheastPickupLocations) return false
-    return config.SoutheastPickupLocations.some(
-      (loc) =>
-        (loc.ZipCode && loc.ZipCode === zip) ||
-        (loc.City && city && loc.City.toLowerCase() === city.toLowerCase())
-    )
-  }
+  const isSoutheastPickupAddress = (
+    zip: string,
+    city: string,
+    state: string
+  ) =>
+    hasRegionalPickupForAddress(config?.SoutheastPickupLocations, {
+      zip,
+      city,
+      state,
+    })
 
   const availability = useMemo(() => {
     const inAtlanta = isAtlantaZip(shipZip)
-    const nearSoutheastPickup = isSoutheastPickupCity(shipZip, shipCity)
+    const nearSoutheastPickup = isSoutheastPickupAddress(
+      shipZip,
+      shipCity,
+      shipState
+    )
     const haveAddress = Boolean(shipZip)
 
     return {
@@ -310,7 +321,7 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
           ? "Available near Southeast partner cities only"
           : null,
     }
-  }, [cartTotal, minimums, shipZip, shipCity, config])
+  }, [cartTotal, minimums, shipZip, shipCity, shipState, config])
 
   // Re-validate the SAVED fulfillment method against the cart's CURRENT
   // address. A customer can choose UPS for an out-of-region address, then edit
@@ -325,8 +336,13 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
     shipZip,
     { atlantaZipCodes }
   )
+  const savedRegionalPickupValid =
+    fulfillmentType !== "southeast_pickup" ||
+    isSoutheastPickupAddress(shipZip, shipCity, shipState)
   const regionMismatch =
-    hasFulfillment && Boolean(shipZip) && !savedTypeRegionValid
+    hasFulfillment &&
+    Boolean(shipZip) &&
+    (!savedTypeRegionValid || !savedRegionalPickupValid)
   // Guard so the clear fires at most once per (type, ZIP) — after the refresh
   // `fulfillmentType` is blank so the condition is false anyway, but this also
   // protects against a re-render race re-triggering the server mutation.
@@ -360,6 +376,8 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
       setIsResettingFulfillment(false)
     })()
   }, [regionMismatch, fulfillmentType, shipZip, shipCity, cart.id, router])
+
+  const regionalPickup = regionalPickupPresentation(shipState)
 
   const pickupCreditQualifies = cartSubtotal >= pickupCreditConfig.threshold
   const pickupCreditAmountAway = Math.max(0, pickupCreditConfig.threshold - cartSubtotal)
@@ -403,8 +421,8 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
     },
     {
       id: "southeast_pickup" as FulfillmentType,
-      title: "Southeast Pickup",
-      subtitle: "Free over $350 + $20 credit",
+      title: regionalPickup.title,
+      subtitle: regionalPickup.subtitle,
       icon: <MapPinIcon />,
       available: availability.southeastPickup,
       amountAway: availability.southeastAmountAway,
@@ -1119,6 +1137,7 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
             ...loc,
             IsActive: true,
           })) || []}
+          preferredState={shipState}
           selectedLocationId={pendingSELocationId}
           selectedDate={pendingSEDate}
           onLocationChange={setPendingSELocationId}
@@ -1138,7 +1157,9 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
           
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-bold text-Charcoal mb-1 tracking-tight">
-              {fulfillmentLabels[fulfillmentType].label}
+              {fulfillmentType === "southeast_pickup"
+                ? regionalPickup.title
+                : fulfillmentLabels[fulfillmentType].label}
             </h3>
             
             {displayDate && (
@@ -1149,7 +1170,9 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
             )}
             
             <p className="text-sm text-Charcoal/55 leading-relaxed">
-              {fulfillmentLabels[fulfillmentType].description}
+              {fulfillmentType === "southeast_pickup"
+                ? regionalPickup.summary
+                : fulfillmentLabels[fulfillmentType].description}
             </p>
 
             {fulfillmentType === "southeast_pickup" && Boolean(cart.metadata?.pickupLocationId) && (() => {

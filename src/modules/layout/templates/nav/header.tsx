@@ -112,7 +112,13 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
           strokeWidth={1.75}
         />
         <span className="font-semibold">Kosher supervision shown by item</span>
-        {["OU", "Star-K", "CHK", "CRC"].map((cert) => (
+        {[
+          "OU",
+          "Chassidish",
+          "CHK",
+          "AgriStar / Weismandl",
+          "AgriStar Lubavich",
+        ].map((cert) => (
           <LocalizedClientLink
             key={cert}
             href="/kashruth/hechsherim"

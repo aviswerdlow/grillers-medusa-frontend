@@ -135,9 +135,12 @@ export const GetProductQuery = gql`
         Dairy
         CholovYisroel
         ChassidishShchita
+        ChassidishRecognized
         CHK
         RabbiWeissmandl
         OU
+        AgriStarLamedKLubavitchOrRabbiWeissmandl
+        AgriStarLamedKLubavitch
         StarK
         RabbiTeitelbaum
         CRC
@@ -370,12 +373,10 @@ function hechsherValue(metadata: Record<string, any> | null | undefined) {
   const labels = [
     metadata.CHK && "CHK",
     metadata.OU && "OU",
-    metadata.StarK && "Star-K",
-    metadata.CRC && "CRC",
-    metadata.RabbiWeissmandl && "Rabbi Weissmandl",
-    metadata.RabbiTeitelbaum && "Rabbi Teitelbaum",
-    metadata.Lubavitch && "Lubavitch",
-    metadata.ChassidishShchita && "Chassidish shchita",
+    metadata.ChassidishRecognized && "Chassidish Recognized",
+    metadata.AgriStarLamedKLubavitchOrRabbiWeissmandl &&
+      "AgriStar Lamed-K (Lubavich or Rabbi Weismandl)",
+    metadata.AgriStarLamedKLubavitch && "AgriStar Lamed-K Lubavich",
     metadata.KosherForPassover && "Kosher for Passover",
   ].filter(Boolean)
 

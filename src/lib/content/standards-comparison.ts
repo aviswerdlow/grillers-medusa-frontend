@@ -71,7 +71,7 @@ export const growAndBeholdComparisonRows: CompetitorComparisonRow[] = [
   {
     area: "Kashruth detail",
     grillers:
-      "Griller's Pride product pages show item-level kashruth badges when available, including OU, Star-K, CHK, CRC, Rabbi Weissmandl, Rabbi Teitelbaum, Lubavitch, Chassidish shchita, and Kosher for Passover.",
+      "Griller's Pride product pages show the exact item-level legacy certification categories when available: OU, Chassidish Recognized, CHK Certification, AgriStar Lamed-K Lubavich or Rabbi Weismandl, and AgriStar Lamed-K Lubavich, plus Kosher for Passover status.",
     growAndBehold:
       "Grow & Behold is a kosher meat retailer with its own supervision and product labeling. Customers should verify the hechsher shown on the specific item before buying.",
     customerTakeaway:

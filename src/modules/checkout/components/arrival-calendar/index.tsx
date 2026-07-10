@@ -10,6 +10,7 @@ import {
   toIsoDate,
   type ArrivalMethod,
   type AtlantaZipDayConfig,
+  type FulfillmentBlackouts,
 } from "@lib/util/eligible-arrival-dates"
 import { ATLANTA_DELIVERY_ZIP_DAYS } from "@lib/data/strapi/checkout"
 
@@ -27,6 +28,7 @@ type ArriveFoodCalendarProps = {
   /** Server-derived "now" — passed from the parent so the client clock can't lie. */
   serverNowIso?: string
   atlantaZipConfig?: Record<string, AtlantaZipDayConfig>
+  fulfillmentBlackouts?: FulfillmentBlackouts
 }
 
 function deriveArrivalMethod(
@@ -243,6 +245,7 @@ export default function ArriveFoodCalendar({
   availableShippingMethods,
   serverNowIso,
   atlantaZipConfig = ATLANTA_DELIVERY_ZIP_DAYS,
+  fulfillmentBlackouts,
 }: ArriveFoodCalendarProps) {
   const [dateValue, setDateValue] = useState<Date | null>(null)
   const [showAll, setShowAll] = useState(false)
@@ -266,8 +269,9 @@ export default function ArriveFoodCalendar({
         destinationZip,
         now,
         atlantaZipConfig,
+        blackouts: fulfillmentBlackouts,
       }),
-    [method, destinationZip, now, atlantaZipConfig]
+    [method, destinationZip, now, atlantaZipConfig, fulfillmentBlackouts]
   )
 
   // Hydrate selection from cart metadata. If the stored date is no longer

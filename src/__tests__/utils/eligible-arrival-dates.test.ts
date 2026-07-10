@@ -120,18 +120,18 @@ describe("UPS Ground arrival eligibility — issue #72", () => {
     ).toBe("2026-04-29")
 
     expect(
-      computeQuickBooksDueDateForArrival("5/5/2026", {
+      computeQuickBooksDueDateForArrival("5/6/2026", {
         method: "ups_2day",
         destinationZip: "30340",
       })
-    ).toBe("2026-05-01")
+    ).toBe("2026-05-04")
 
     expect(
-      computeQuickBooksDueDateForArrival("5/6/2026", {
+      computeQuickBooksDueDateForArrival("5/7/2026", {
         method: "ups_3day",
         destinationZip: "90048",
       })
-    ).toBe("2026-05-01")
+    ).toBe("2026-05-04")
 
     expect(
       computeQuickBooksDueDateForArrival("5/14/2026", {
@@ -313,6 +313,72 @@ describe("Holiday + Shabbos exclusions", () => {
       atlantaZipConfig: { "30328": { weekdays: [2], cutoffHour: 12 } },
     })
     expect(result.isoSet.has("2026-09-21")).toBe(false)
+  })
+})
+
+describe("operator-managed fulfillment blackouts — issue #297", () => {
+  it("moves UPS dispatch when the carrier has a pickup blackout", () => {
+    const result = computeEligibleArrivalDates({
+      method: "ups_overnight",
+      destinationZip: "38120",
+      now: new Date(2026, 6, 6, 10, 0), // Monday before cutoff
+      blackouts: { upsPickupIso: ["2026-07-06"] },
+    })
+
+    expect(result.isoSet.has("2026-07-07")).toBe(false)
+    expect(result.isoSet.has("2026-07-08")).toBe(true)
+  })
+
+  it("removes a UPS delivery blackout without blocking local delivery", () => {
+    const blackouts = { upsDeliveryIso: ["2026-07-08"] }
+    const ups = computeEligibleArrivalDates({
+      method: "ups_overnight",
+      destinationZip: "38120",
+      now: new Date(2026, 6, 6, 10, 0),
+      blackouts,
+    })
+    const local = computeEligibleArrivalDates({
+      method: "atlanta_delivery",
+      destinationZip: "30328",
+      now: new Date(2026, 6, 6, 10, 0),
+      atlantaZipConfig: { "30328": { weekdays: [3], cutoffHour: 12 } },
+      blackouts,
+    })
+
+    expect(ups.isoSet.has("2026-07-08")).toBe(false)
+    expect(local.isoSet.has("2026-07-08")).toBe(true)
+  })
+
+  it("blocks plant operations across local and Southeast route calendars", () => {
+    const blackouts = { operationsIso: ["2026-07-14"] }
+    const local = computeEligibleArrivalDates({
+      method: "atlanta_delivery",
+      destinationZip: "30328",
+      now: new Date(2026, 6, 9, 10, 0),
+      atlantaZipConfig: { "30328": { weekdays: [2], cutoffHour: 12 } },
+      blackouts,
+    })
+    const southeast = computeEligibleArrivalDates({
+      method: "southeast_pickup",
+      now: new Date(2026, 6, 9, 10, 0),
+      southeastAvailableIso: ["2026-07-14", "2026-07-21"],
+      blackouts,
+    })
+
+    expect(local.isoSet.has("2026-07-14")).toBe(false)
+    expect(local.isoSet.has("2026-07-21")).toBe(true)
+    expect(southeast.isoSet.has("2026-07-14")).toBe(false)
+    expect(southeast.isoSet.has("2026-07-21")).toBe(true)
+  })
+
+  it("rejects a QBD ready-by date that falls on a pickup blackout", () => {
+    expect(
+      computeQuickBooksDueDateForArrival("7/8/2026", {
+        method: "ups_overnight",
+        destinationZip: "38120",
+        blackouts: { upsPickupIso: ["2026-07-07"] },
+      })
+    ).toBeNull()
   })
 })
 

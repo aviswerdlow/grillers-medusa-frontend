@@ -17,6 +17,7 @@ import type {
   FulfillmentConfigData,
   PickupCreditConfig,
 } from "@lib/data/strapi/checkout"
+import type { FulfillmentBlackouts } from "@lib/util/eligible-arrival-dates"
 
 function needsShippingMethodSelection(cart: HttpTypes.StoreCart): boolean {
   const fulfillmentType = cart.metadata?.fulfillmentType as
@@ -31,6 +32,7 @@ export default async function CheckoutForm({
   fulfillmentConfig,
   availableFulfillmentTypes,
   pickupCreditConfig,
+  fulfillmentBlackouts,
   currentStep,
 }: {
   cart: HttpTypes.StoreCart | null
@@ -38,6 +40,7 @@ export default async function CheckoutForm({
   fulfillmentConfig: FulfillmentConfigData["checkout"]
   availableFulfillmentTypes: FulfillmentType[]
   pickupCreditConfig: PickupCreditConfig
+  fulfillmentBlackouts: FulfillmentBlackouts
   currentStep?: string
 }) {
   if (!cart) {
@@ -113,6 +116,7 @@ export default async function CheckoutForm({
                   availableShippingMethods={shippingMethods}
                   serverNowIso={new Date().toISOString()}
                   atlantaZipConfig={fulfillmentConfig.AtlantaDeliveryZipDays}
+                  fulfillmentBlackouts={fulfillmentBlackouts}
                 />
               )}
 
