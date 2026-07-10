@@ -377,12 +377,6 @@ function hechsherValue(metadata: Record<string, any> | null | undefined) {
     metadata.AgriStarLamedKLubavitchOrRabbiWeissmandl &&
       "AgriStar Lamed-K (Lubavich or Rabbi Weismandl)",
     metadata.AgriStarLamedKLubavitch && "AgriStar Lamed-K Lubavich",
-    metadata.StarK && "Star-K",
-    metadata.CRC && "CRC",
-    metadata.RabbiWeissmandl && "Rabbi Weissmandl",
-    metadata.RabbiTeitelbaum && "Rabbi Teitelbaum",
-    metadata.Lubavitch && "Lubavitch",
-    metadata.ChassidishShchita && "Chassidish shchita",
     metadata.KosherForPassover && "Kosher for Passover",
   ].filter(Boolean)
 

@@ -75,13 +75,22 @@ const PREPARATION_TEXT_ATTRIBUTES: TextDefinition[] = [
   },
 ]
 
-const HECHSHER_FLAGS: FlagDefinition[] = [
+const KASHRUTH_STATUS_FLAGS: FlagDefinition[] = [
   {
     key: "KosherForPassover",
     label: "Kosher for Passover",
     slug: "kosher-for-passover",
     priority: 20,
   },
+  {
+    key: "ChassidishShchita",
+    label: "Chassidish shchita",
+    slug: "hechsher-chassidish-shchita",
+    priority: 26,
+  },
+]
+
+const HECHSHER_FLAGS: FlagDefinition[] = [
   {
     key: "CHK",
     label: "CHK Certification",
@@ -106,32 +115,6 @@ const HECHSHER_FLAGS: FlagDefinition[] = [
     label: "AgriStar Lamed-K · Lubavich",
     slug: "hechsher-agristar-lubavitch",
     priority: 25,
-  },
-  { key: "StarK", label: "Star-K", slug: "hechsher-star-k", priority: 26 },
-  { key: "CRC", label: "CRC", slug: "hechsher-crc", priority: 27 },
-  {
-    key: "RabbiWeissmandl",
-    label: "Rabbi Weissmandl",
-    slug: "hechsher-rabbi-weissmandl",
-    priority: 28,
-  },
-  {
-    key: "RabbiTeitelbaum",
-    label: "Rabbi Teitelbaum",
-    slug: "hechsher-rabbi-teitelbaum",
-    priority: 29,
-  },
-  {
-    key: "Lubavitch",
-    label: "Lubavitch",
-    slug: "hechsher-lubavitch",
-    priority: 30,
-  },
-  {
-    key: "ChassidishShchita",
-    label: "Chassidish shchita",
-    slug: "hechsher-chassidish-shchita",
-    priority: 31,
   },
 ]
 
@@ -293,6 +276,7 @@ const TEXT_ATTRIBUTE_DEFINITIONS = [
 ]
 
 const BOOLEAN_ATTRIBUTE_DEFINITIONS = [
+  ...KASHRUTH_STATUS_FLAGS,
   ...HECHSHER_FLAGS,
   ...DIETARY_FLAGS,
   ...PREP_FLAGS,
@@ -414,8 +398,12 @@ export function buildProductFactHighlights({
 }
 
 function hasKashruthSignal(highlights: ProductFactHighlight[]) {
-  const hechsherKeys = new Set(HECHSHER_FLAGS.map((flag) => String(flag.key)))
-  return highlights.some((highlight) => hechsherKeys.has(highlight.key))
+  const kashruthKeys = new Set(
+    [...KASHRUTH_STATUS_FLAGS, ...HECHSHER_FLAGS].map((flag) =>
+      String(flag.key)
+    )
+  )
+  return highlights.some((highlight) => kashruthKeys.has(highlight.key))
 }
 
 function FactList({ highlights }: { highlights: ProductFactHighlight[] }) {
