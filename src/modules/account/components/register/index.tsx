@@ -35,7 +35,15 @@ const Register = ({ setCurrentView }: Props) => {
         last_name: customer.last_name,
         phone: customer.phone,
         sms_consent: customer.metadata?.sms_consent === true,
+        sms_consent_at: customer.metadata?.sms_consent_at,
         sms_consent_source: customer.metadata?.sms_consent_source,
+        sms_consent_version: customer.metadata?.sms_consent_version,
+        sms_consent_text: customer.metadata?.sms_consent_text,
+        sms_consent_phone: customer.metadata?.sms_consent_phone,
+        sms_consent_provider: customer.metadata?.sms_consent_provider,
+        sms_program: customer.metadata?.sms_program,
+        sms_consent_purpose: customer.metadata?.sms_consent_purpose,
+        sms_consent_method: customer.metadata?.sms_consent_method,
       })
     }
   }, [message])

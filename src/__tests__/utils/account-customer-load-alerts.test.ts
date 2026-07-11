@@ -490,6 +490,51 @@ describe("customer signup alerts", () => {
     mockCreateCustomer.mockResolvedValue({ customer: { id: "cus_123" } } as any)
   })
 
+  it("creates a checkout account without requiring SMS marketing consent", async () => {
+    await expect(
+      signupWithCredentials({
+        email: "shopper@example.com",
+        password: "password123",
+        first_name: "Shopper",
+        last_name: "Example",
+      })
+    ).resolves.toEqual({ success: true, error: null })
+
+    expect(mockCreateCustomer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phone: "",
+        metadata: undefined,
+      }),
+      {},
+      expect.any(Object)
+    )
+  })
+
+  it("stores current marketing-only provenance for checkout opt-in", async () => {
+    await signupWithCredentials({
+      email: "shopper@example.com",
+      password: "password123",
+      first_name: "Shopper",
+      last_name: "Example",
+      phone: "(404) 555-1212",
+      sms_marketing_opt_in: true,
+    })
+
+    expect(mockCreateCustomer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          sms_consent_source: "checkout_account_creation",
+          sms_consent_version: "sms-v3-2026-07-10",
+          sms_program: "grillers_pride_marketing",
+          sms_consent_purpose: "marketing",
+          sms_consent_method: "customer_checkbox",
+        }),
+      }),
+      {},
+      expect.any(Object)
+    )
+  })
+
   it("alerts when account registration fails before customer creation", async () => {
     mockAuthRegister.mockRejectedValueOnce(
       new Error("Auth register timeout for shopper@example.com auth_123")

@@ -102,8 +102,7 @@ const ContactVerification = ({
             </h2>
           </div>
           <p className="mt-2 text-small-regular text-ui-fg-subtle">
-            Which of these is the best mobile number to reach you? We use it
-            for delivery questions about your orders.
+            Which of these is the best mobile number for your customer profile?
           </p>
 
           <div className="mt-4 flex flex-col gap-y-2" data-testid="phone-candidates">

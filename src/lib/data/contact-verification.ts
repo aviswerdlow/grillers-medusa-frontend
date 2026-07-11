@@ -251,7 +251,7 @@ export async function submitContactVerification(
       ...(smsOptIn
         ? buildSmsMarketingConsentMetadata({
             phone: primaryPhone,
-            source: "first_login_contact_verification",
+            source: "first_login_verification",
           })
         : {}),
     }

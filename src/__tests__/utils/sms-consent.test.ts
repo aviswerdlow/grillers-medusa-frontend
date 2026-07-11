@@ -1,12 +1,29 @@
 import {
   SMS_MARKETING_CONSENT_VERSION,
   SMS_MARKETING_DISCLOSURE,
+  SMS_MARKETING_OPT_IN_LABEL,
+  SMS_MARKETING_PROGRAM,
   SMS_MARKETING_PROVIDER,
   buildSmsMarketingConsentMetadata,
   formWantsSmsMarketing,
 } from "@lib/util/sms-consent"
 
 describe("sms consent helpers", () => {
+  it("defines one explicit marketing-only v3 program", () => {
+    expect(SMS_MARKETING_CONSENT_VERSION).toBe("sms-v3-2026-07-10")
+    expect(SMS_MARKETING_PROGRAM).toBe("grillers_pride_marketing")
+    expect(SMS_MARKETING_OPT_IN_LABEL).toMatch(/deals and promotional updates/i)
+    expect(SMS_MARKETING_DISCLOSURE).toMatch(
+      /recurring automated marketing and promotional text messages/i
+    )
+    expect(SMS_MARKETING_DISCLOSURE).toMatch(
+      /consent is not a condition of purchase/i
+    )
+    expect(SMS_MARKETING_DISCLOSURE).toMatch(/message frequency varies/i)
+    expect(SMS_MARKETING_DISCLOSURE).toMatch(/reply STOP to opt out/i)
+    expect(SMS_MARKETING_DISCLOSURE).not.toMatch(/order|delivery|pickup/i)
+  })
+
   it("requires an affirmative checkbox value", () => {
     const optedIn = new FormData()
     optedIn.set("sms_marketing_opt_in", "on")
@@ -33,7 +50,9 @@ describe("sms consent helpers", () => {
       sms_consent_text: SMS_MARKETING_DISCLOSURE,
       sms_consent_phone: "4045550100",
       sms_consent_provider: SMS_MARKETING_PROVIDER,
-      sms_program: "grillers_pride_text_updates",
+      sms_program: SMS_MARKETING_PROGRAM,
+      sms_consent_purpose: "marketing",
+      sms_consent_method: "customer_checkbox",
     })
   })
 })

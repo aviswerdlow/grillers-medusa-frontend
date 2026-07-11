@@ -16,6 +16,7 @@ import {
 import { HttpTypes } from "@medusajs/types"
 import { useStorefrontSession } from "@modules/layout/components/storefront-session"
 import { useExitStaffContext } from "@modules/staff/hooks/use-exit-staff-context"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 const SmallSpinner = () => (
   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
@@ -530,6 +531,20 @@ const CheckoutLoginBanner: React.FC<Props> = ({ customer }) => {
                 </span>
               </span>
             </label>
+            {/* Legal links sit outside the checkbox label so following one
+                never changes the customer's consent choice. */}
+            <p className="-mt-1 text-xs text-Charcoal/55">
+              <LocalizedClientLink href="/page/sms-terms" className="underline">
+                SMS Terms
+              </LocalizedClientLink>{" "}
+              ·{" "}
+              <LocalizedClientLink
+                href="/page/privacy-policy"
+                className="underline"
+              >
+                Privacy Policy
+              </LocalizedClientLink>
+            </p>
             <input
               type="password"
               value={password}

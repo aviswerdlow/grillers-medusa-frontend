@@ -451,7 +451,7 @@ export async function signupWithCredentials(data: {
         metadata: data.sms_marketing_opt_in
           ? buildSmsMarketingConsentMetadata({
               phone,
-              source: "checkout_account_signup",
+              source: "checkout_account_creation",
             })
           : undefined,
       },

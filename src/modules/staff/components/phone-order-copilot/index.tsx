@@ -70,10 +70,6 @@ import {
   staffAccessRole,
 } from "@lib/util/staff-access"
 import {
-  SMS_MARKETING_DISCLOSURE,
-  SMS_MARKETING_STAFF_OPT_IN_LABEL,
-} from "@lib/util/sms-consent"
-import {
   startStaffImpersonation,
   stopStaffImpersonation,
 } from "@lib/data/staff/impersonation"
@@ -392,7 +388,6 @@ export default function PhoneOrderCopilot({
   })
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false)
   const [sendAccountInvite, setSendAccountInvite] = useState(true)
-  const [smsMarketingOptIn, setSmsMarketingOptIn] = useState(false)
   const [shippingAddress, setShippingAddress] =
     useState<StaffAddressInput>(emptyAddress)
   const [sameAsShipping, setSameAsShipping] = useState(true)
@@ -804,7 +799,6 @@ export default function PhoneOrderCopilot({
         const customer = await createStaffCustomer({
           ...draftCustomer,
           sendAccountInvite,
-          smsMarketingOptIn,
           defaultAddress: {
             ...shippingAddress,
             firstName: shippingAddress.firstName || draftCustomer.firstName,
@@ -824,7 +818,6 @@ export default function PhoneOrderCopilot({
             : "Customer profile created."
         )
         setShowNewCustomerForm(false)
-        setSmsMarketingOptIn(false)
         selectCustomer(customer, { preserveStatus: true })
         const contextResult = await activateCustomerContext(customer)
         if (!contextResult.ok || !contextResult.session) {
@@ -872,7 +865,6 @@ export default function PhoneOrderCopilot({
     })
     setCustomerVerified(false)
     setSendAccountInvite(true)
-    setSmsMarketingOptIn(false)
     resetCustomerAccountAction()
     resetOrderDraft()
     setShowNewCustomerForm(true)
@@ -897,7 +889,6 @@ export default function PhoneOrderCopilot({
 
   function cancelNewCustomer() {
     setShowNewCustomerForm(false)
-    setSmsMarketingOptIn(false)
     if (activeWorkspace === "new_customer") {
       selectWorkspace("phone_order")
     }
@@ -1275,29 +1266,6 @@ export default function PhoneOrderCopilot({
 
   const workspaceItemClass =
     "group flex h-full min-h-[132px] w-full flex-col justify-between rounded-md border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-Gold focus:ring-offset-2"
-
-  function renderStaffSmsOptInControl() {
-    return (
-      <label className="flex items-start gap-3 rounded-md border border-gray-200 bg-white px-3 py-3 text-sm font-maison-neue text-Charcoal shadow-sm">
-        <input
-          checked={smsMarketingOptIn}
-          className="mt-1 h-4 w-4 shrink-0 accent-Gold"
-          data-testid="staff-sms-marketing-opt-in"
-          onChange={(event) => setSmsMarketingOptIn(event.target.checked)}
-          type="checkbox"
-        />
-        <span className="min-w-0">
-          <span className="block font-semibold">
-            {SMS_MARKETING_STAFF_OPT_IN_LABEL}
-          </span>
-          <span className="mt-1 block text-xs leading-relaxed text-Charcoal/60">
-            Only check this after the customer agrees to texts at the phone
-            number above. {SMS_MARKETING_DISCLOSURE}
-          </span>
-        </span>
-      </label>
-    )
-  }
 
   function renderWorkspaceAction(action: StaffWorkspaceAction) {
     const Icon = action.icon
@@ -1991,7 +1959,6 @@ export default function PhoneOrderCopilot({
                       Send the customer an account-claim email so they can set
                       their own password later.
                     </label>
-                    <div className="mt-3">{renderStaffSmsOptInControl()}</div>
                     <div className="mt-4 flex flex-wrap gap-3">
                       <Button
                         className="min-h-[44px] rounded-md bg-Gold px-4 text-sm font-rexton font-bold uppercase text-Charcoal"
@@ -2229,17 +2196,14 @@ export default function PhoneOrderCopilot({
                   </div>
 
                   {!draftCustomer.id && (
-                    <>
-                      <div className="mt-4">{renderStaffSmsOptInControl()}</div>
-                      <Button
-                        className="mt-4 min-h-[44px] rounded-md border border-Charcoal px-4 text-sm font-rexton font-bold uppercase text-Charcoal"
-                        isLoading={isPending}
-                        onClick={createCustomer}
-                        type="button"
-                      >
-                        Create Customer
-                      </Button>
-                    </>
+                    <Button
+                      className="mt-4 min-h-[44px] rounded-md border border-Charcoal px-4 text-sm font-rexton font-bold uppercase text-Charcoal"
+                      isLoading={isPending}
+                      onClick={createCustomer}
+                      type="button"
+                    >
+                      Create Customer
+                    </Button>
                   )}
 
                   {draftCustomer.id && (

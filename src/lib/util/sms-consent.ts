@@ -1,15 +1,12 @@
-export const SMS_MARKETING_CONSENT_VERSION = "sms-v2-2026-07-09"
-export const SMS_MARKETING_PROGRAM = "grillers_pride_text_updates"
+export const SMS_MARKETING_CONSENT_VERSION = "sms-v3-2026-07-10"
+export const SMS_MARKETING_PROGRAM = "grillers_pride_marketing"
 export const SMS_MARKETING_PROVIDER = "twilio"
 
 export const SMS_MARKETING_OPT_IN_LABEL =
-  "Text me order reminders and occasional Griller's Pride updates"
-
-export const SMS_MARKETING_STAFF_OPT_IN_LABEL =
-  "Customer agreed to receive text messages"
+  "Send me Griller's Pride deals and promotional updates"
 
 export const SMS_MARKETING_DISCLOSURE =
-  "By checking this box, you agree to receive recurring automated marketing and order-notification text messages from Griller's Pride at the mobile number provided. Consent is not required to buy. Message frequency varies. Msg & data rates may apply. Reply STOP to unsubscribe or HELP for help. See our SMS Terms and Privacy Policy."
+  "By checking this box, I agree to receive recurring automated marketing and promotional text messages from Griller's Pride, including specials, holiday promotions, and product availability announcements, at the mobile number provided. Consent is not a condition of purchase. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help."
 
 function truthy(value: unknown): boolean {
   return value === true || value === "true" || value === "on" || value === "1"
@@ -37,5 +34,7 @@ export function buildSmsMarketingConsentMetadata(input: {
     sms_consent_phone: input.phone,
     sms_consent_provider: SMS_MARKETING_PROVIDER,
     sms_program: SMS_MARKETING_PROGRAM,
+    sms_consent_purpose: "marketing",
+    sms_consent_method: "customer_checkbox",
   }
 }
