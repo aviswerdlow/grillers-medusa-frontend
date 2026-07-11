@@ -329,7 +329,7 @@ const PLACEHOLDER_CONTENT: Record<LegalSlug, any[]> = {
   // Strapi entry rather than render filler if Strapi is unavailable.
   "sms-terms": [
     LATIN_PARAGRAPH(
-      "Griller's Pride Marketing Texts is a recurring SMS marketing program operated by Grillerspride, LLC (\"Griller's Pride\") that sends promotional messages such as specials, holiday promotions, and product availability announcements."
+      "Griller's Pride Marketing Texts is a recurring SMS marketing program operated by Grillerspride, LLC (\"Griller's Pride\") that sends seasonal specials, product announcements, promotional offers, and holiday sales deadlines."
     ),
     LATIN_HEADING("Enrollment & Consent"),
     LATIN_PARAGRAPH(
@@ -337,16 +337,31 @@ const PLACEHOLDER_CONTENT: Record<LegalSlug, any[]> = {
     ),
     LATIN_HEADING("Message Frequency & Cost"),
     LATIN_PARAGRAPH(
-      "Message frequency varies, typically 2 to 6 promotional messages per month. Message and data rates may apply according to your mobile plan. Carriers are not liable for delayed or undelivered messages."
+      "Message frequency varies, up to 6 messages per month. Message and data rates may apply according to your mobile plan. Carriers are not liable for delayed or undelivered messages."
     ),
     LATIN_HEADING("Opt Out & Help"),
     LATIN_PARAGRAPH(
       "Reply STOP to any message to unsubscribe at any time; you will receive a single confirmation message. Reply HELP for help, or contact us at (770) 454-8108 or peter@grillerspride.com."
     ),
     LATIN_HEADING("Privacy"),
-    LATIN_PARAGRAPH(
-      "Your mobile number and consent records are handled as described in our Privacy Policy. We do not sell your phone number, and text messaging originator opt-in data and consent are not shared with third parties for their own marketing purposes."
-    ),
+    {
+      type: "paragraph",
+      children: [
+        {
+          type: "text",
+          text: "Your mobile number and consent records are handled as described in our ",
+        },
+        {
+          type: "link",
+          url: "/page/privacy-policy",
+          children: [{ type: "text", text: "Privacy Policy" }],
+        },
+        {
+          type: "text",
+          text: ". We do not sell your phone number, and text messaging originator opt-in data and consent are not shared with third parties for their own marketing purposes.",
+        },
+      ],
+    },
   ],
 }
 

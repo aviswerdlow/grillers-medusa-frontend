@@ -1,5 +1,8 @@
+import { createElement } from "react"
+import { render, screen } from "@testing-library/react"
 import { getLegalPage } from "@lib/data/strapi/legal"
 import strapiClient from "@lib/strapi"
+import { StructuredInfoContent } from "@modules/info/templates/structured-content"
 
 jest.mock("@lib/strapi", () => ({
   __esModule: true,
@@ -36,9 +39,24 @@ describe("SMS terms fallback", () => {
     const copy = flattenText(page?.Content)
 
     expect(copy).toMatch(/recurring SMS marketing program/i)
+    expect(copy).toMatch(
+      /seasonal specials, product announcements, promotional offers, and holiday sales deadlines/i
+    )
     expect(copy).toMatch(/unchecked by default/i)
+    expect(copy).toMatch(
+      /message frequency varies, up to 6 messages per month/i
+    )
     expect(copy).toMatch(/reply STOP/i)
     expect(copy).not.toMatch(/order|delivery|pickup|shipped/i)
     expect(copy).not.toMatch(/manage your text preferences/i)
+
+    render(
+      createElement(StructuredInfoContent, {
+        content: page?.Content,
+      })
+    )
+    expect(
+      screen.getByRole("link", { name: "Privacy Policy" })
+    ).toHaveAttribute("href", "/us/page/privacy-policy")
   })
 })

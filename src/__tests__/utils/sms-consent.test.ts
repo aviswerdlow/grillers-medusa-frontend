@@ -13,14 +13,9 @@ describe("sms consent helpers", () => {
     expect(SMS_MARKETING_CONSENT_VERSION).toBe("sms-v3-2026-07-10")
     expect(SMS_MARKETING_PROGRAM).toBe("grillers_pride_marketing")
     expect(SMS_MARKETING_OPT_IN_LABEL).toMatch(/deals and promotional updates/i)
-    expect(SMS_MARKETING_DISCLOSURE).toMatch(
-      /recurring automated marketing and promotional text messages/i
+    expect(SMS_MARKETING_DISCLOSURE).toBe(
+      "By checking this box, I agree to receive recurring automated marketing and promotional text messages from Griller's Pride, including seasonal specials, product announcements, promotional offers, and holiday sales deadlines, at the mobile number provided. Consent is not a condition of purchase. Message frequency varies, up to 6 messages per month. Msg & data rates may apply. Reply STOP to opt out or HELP for help."
     )
-    expect(SMS_MARKETING_DISCLOSURE).toMatch(
-      /consent is not a condition of purchase/i
-    )
-    expect(SMS_MARKETING_DISCLOSURE).toMatch(/message frequency varies/i)
-    expect(SMS_MARKETING_DISCLOSURE).toMatch(/reply STOP to opt out/i)
     expect(SMS_MARKETING_DISCLOSURE).not.toMatch(/order|delivery|pickup/i)
   })
 
