@@ -68,4 +68,27 @@ describe("PDP ingredient disclosure alert seam", () => {
       expect.objectContaining({ reason: "missing_config" })
     )
   })
+
+  it("uses the product cache tag for successful REST recovery reads", async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [{ IngredientDisclosures: [] }] }),
+    })) as any
+
+    await expect(getProductIngredientDisclosures("prod_123")).resolves.toEqual(
+      []
+    )
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("filters%5BMedusaProduct%5D"),
+      expect.objectContaining({
+        cache: "force-cache",
+        next: {
+          tags: ["strapi:model:product"],
+          revalidate: 3600,
+        },
+      })
+    )
+  })
 })

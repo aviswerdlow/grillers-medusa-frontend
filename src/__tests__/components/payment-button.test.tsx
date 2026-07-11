@@ -51,7 +51,10 @@ const readyCart = {
   shipping_address: { address_1: "220 Glen Meadow Ct" },
   billing_address: { address_1: "220 Glen Meadow Ct" },
   shipping_methods: [{ id: "ship_pickup" }],
-  metadata: { fulfillmentType: "plant_pickup" },
+  metadata: {
+    fulfillmentType: "plant_pickup",
+    fulfillmentSelectionStatus: "settled",
+  },
 } as any
 
 describe("PaymentButton", () => {
@@ -89,6 +92,73 @@ describe("PaymentButton", () => {
     })
   })
 
+  it("treats a saved-card NEXT_REDIRECT message as successful navigation", async () => {
+    const user = userEvent.setup()
+    mockPlaceOrder.mockRejectedValue(new Error("NEXT_REDIRECT"))
+
+    render(
+      <PaymentButton
+        cart={readyCart}
+        savedPaymentMethodId="pm_test_123"
+        data-testid="submit-order-button"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: /place order/i }))
+
+    await waitFor(() => {
+      expect(mockPlaceOrder).toHaveBeenCalledTimes(1)
+      expect(screen.getByRole("button", { name: /place order/i })).toBeEnabled()
+    })
+    expect(mockReportClientOpsAlert).not.toHaveBeenCalled()
+    expect(screen.queryByText("NEXT_REDIRECT")).not.toBeInTheDocument()
+  })
+
+  it("treats a new-card NEXT_REDIRECT digest as successful navigation", async () => {
+    const user = userEvent.setup()
+    const confirmCardSetup = jest.fn().mockResolvedValue({
+      setupIntent: {
+        id: "seti_123",
+        status: "succeeded",
+        payment_method: "pm_new_card",
+      },
+    })
+    mockUseStripe.mockReturnValue({ confirmCardSetup } as any)
+    mockUseElements.mockReturnValue({ getElement: jest.fn(() => ({})) } as any)
+    mockPlaceOrder.mockRejectedValue({
+      digest: "NEXT_REDIRECT;replace;/us/order/order_123/confirmed;307;",
+    })
+
+    render(
+      <PaymentButton
+        cart={readyCart}
+        cardComplete
+        setupIntentClientSecret="seti_secret"
+        data-testid="submit-order-button"
+      />
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: /save card & place order/i })
+    )
+
+    await waitFor(() => {
+      expect(mockPlaceOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          paymentMethodId: "pm_new_card",
+          setupIntentId: "seti_123",
+        })
+      )
+      expect(
+        screen.getByRole("button", { name: /save card & place order/i })
+      ).toBeEnabled()
+    })
+    expect(mockReportClientOpsAlert).not.toHaveBeenCalled()
+    expect(
+      screen.queryByText(/could not place the order/i)
+    ).not.toBeInTheDocument()
+  })
+
   it("does not place an order while an external checkout requirement is pending", async () => {
     const user = userEvent.setup()
 
@@ -96,6 +166,31 @@ describe("PaymentButton", () => {
       <PaymentButton
         cart={readyCart}
         disabled
+        savedPaymentMethodId="pm_test_123"
+        data-testid="submit-order-button"
+      />
+    )
+
+    const placeOrder = screen.getByRole("button", { name: /place order/i })
+    expect(placeOrder).toBeDisabled()
+
+    await user.click(placeOrder)
+    expect(mockVerifyInventory).not.toHaveBeenCalled()
+    expect(mockPlaceOrder).not.toHaveBeenCalled()
+  })
+
+  it("does not place an order while fulfillment attachment is pending", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <PaymentButton
+        cart={{
+          ...readyCart,
+          metadata: {
+            ...readyCart.metadata,
+            fulfillmentSelectionStatus: "pending",
+          },
+        }}
         savedPaymentMethodId="pm_test_123"
         data-testid="submit-order-button"
       />

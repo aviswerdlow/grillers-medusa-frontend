@@ -1,13 +1,14 @@
 import { GraphQLClient } from "graphql-request"
 import { unstable_cache } from "next/cache"
+import { strapiCacheTagsForRequest, type StrapiCacheTag } from "./cache-tags"
 
 // Strapi content is editor-managed and edits must reflect on the site
-// immediately on publish. Every fetch is tagged "strapi"; a Strapi
+// immediately on publish. Result caches use model-specific tags; a Strapi
 // webhook POSTs to /api/revalidate on entry.publish / entry.update /
-// entry.unpublish / media events, which calls revalidateTag("strapi")
-// and busts every cached Strapi response. Between publishes, responses
-// stay in the Data Cache and are reused across requests — one Strapi
-// round-trip per published change instead of one per page render.
+// entry.unpublish / media events and busts only the affected model caches.
+// Between publishes, responses stay in the Data Cache and are reused across
+// requests — one Strapi round-trip per relevant published change instead of
+// one per page render.
 //
 // Setup is in two places:
 //   - Strapi admin → Settings → Webhooks → "Next.js cache revalidation"
@@ -39,18 +40,22 @@ const strapiClient = new GraphQLClient(
       Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}`,
     },
     fetch: (url, init) => {
-      const reqInit = (init as RequestInit) || {}
+      const reqInit =
+        (init as RequestInit & { next?: Record<string, unknown> }) || {}
+      const {
+        cache: _callerCache,
+        next: _callerNext,
+        ...uncachedInit
+      } = reqInit
       return fetch(url as string, {
-        ...reqInit,
-        cache: reqInit.cache || "force-cache",
+        ...uncachedInit,
+        // unstable_cache below is the sole cache owner for result-level reads.
+        // The raw GraphQL POST must never retain an independently stale value;
+        // direct strapiClient callers intentionally trade caching for freshness.
+        cache: "no-store",
         // Preserve a caller-supplied signal if one ever appears; today no
         // call-site passes one, so the timeout signal is the bound.
         signal: reqInit.signal || AbortSignal.timeout(STRAPI_FETCH_TIMEOUT_MS),
-        next: {
-          ...((reqInit as RequestInit & { next?: Record<string, unknown> })
-            ?.next || {}),
-          tags: ["strapi"],
-        },
       })
     },
   }
@@ -66,25 +71,74 @@ export default strapiClient
  * straddling the client's 10s abort bound: every cache-miss render was
  * a coin flip that paged ops (~200 alerts/12h on 2026-07-08).
  *
- * unstable_cache stores the RESULT keyed by (name + variables), tagged
- * "strapi" so the existing publish webhook (revalidateTag("strapi"))
- * still busts it instantly; the TTL is a safety net between publishes.
+ * unstable_cache stores the RESULT keyed by (query name + query text hash +
+ * variables), tagged by the owning Strapi model. The TTL is a safety net
+ * between publishes.
  */
+type CachedRequestOptions = {
+  revalidateSeconds?: number
+  tags?: StrapiCacheTag[]
+}
+
+type CachedFetcher = (serializedVariables: string) => Promise<unknown>
+
+const cachedFetchers = new Map<string, CachedFetcher>()
+
+function queryHash(query: string) {
+  let hash = 0
+  for (let i = 0; i < query.length; i += 1) {
+    hash = ((hash << 5) - hash + query.charCodeAt(i)) | 0
+  }
+  return (hash >>> 0).toString(36)
+}
+
+function normalizeCachedRequestOptions(
+  name: string,
+  options?: number | CachedRequestOptions
+) {
+  if (typeof options === "number") {
+    return {
+      revalidateSeconds: options,
+      tags: strapiCacheTagsForRequest(name),
+    }
+  }
+
+  return {
+    revalidateSeconds: options?.revalidateSeconds ?? 3600,
+    tags: options?.tags || strapiCacheTagsForRequest(name),
+  }
+}
+
 export function cachedStrapiRequest<T>(
   name: string,
   query: string,
   variables?: Record<string, unknown>,
-  // Freshness comes from the publish webhook's revalidateTag("strapi"), not
+  // Freshness comes from the publish webhook's model tag revalidation, not
   // this TTL — it only bounds how long a key can serve if a webhook is missed.
   // Kept long deliberately: every expiry re-runs the underlying query live,
   // and the big primary queries cost 8-11s against Strapi Cloud.
-  revalidateSeconds = 3600
+  options?: number | CachedRequestOptions
 ): Promise<T> {
-  const keyed = unstable_cache(
-    async (vars: string) =>
-      strapiClient.request<T>(query, JSON.parse(vars) as Record<string, unknown>),
-    ["strapi-gql", name],
-    { tags: ["strapi"], revalidate: revalidateSeconds }
+  const { revalidateSeconds, tags } = normalizeCachedRequestOptions(
+    name,
+    options
   )
-  return keyed(JSON.stringify(variables || {}))
+  const hash = queryHash(query)
+  const fetcherKey = [name, hash, revalidateSeconds, ...tags].join("|")
+  let keyed = cachedFetchers.get(fetcherKey)
+
+  if (!keyed) {
+    keyed = unstable_cache(
+      async (vars: string) =>
+        strapiClient.request(
+          query,
+          JSON.parse(vars) as Record<string, unknown>
+        ),
+      ["strapi-gql", name, hash],
+      { tags, revalidate: revalidateSeconds }
+    )
+    cachedFetchers.set(fetcherKey, keyed)
+  }
+
+  return keyed(JSON.stringify(variables || {})) as Promise<T>
 }

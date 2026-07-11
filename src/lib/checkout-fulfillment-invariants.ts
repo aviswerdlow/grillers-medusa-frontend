@@ -9,11 +9,16 @@ import { isFulfillmentTypeRegionValid } from "@lib/util/fulfillment-eligibility"
 import { normalizeFulfillmentAddress } from "@lib/util/fulfillment-address"
 import type { FulfillmentType } from "@lib/data/cart"
 import type { HttpTypes } from "@medusajs/types"
+import { isFulfillmentSelectionSettled } from "@lib/checkout-payment-readiness"
 
 type CheckoutFulfillmentInvariantInput = {
   cart: HttpTypes.StoreCart
   atlantaZipCodes?: string[] | null
   path?: string
+  readiness: {
+    addressComplete: boolean
+    fulfillmentSelectionSettled: boolean
+  }
 }
 
 type CheckoutFulfillmentInvariantPlan = {
@@ -104,7 +109,19 @@ function metadata(input: {
 export function buildCheckoutFulfillmentInvariantAlerts({
   cart,
   atlantaZipCodes,
+  readiness,
 }: CheckoutFulfillmentInvariantInput): CheckoutFulfillmentInvariantPlan[] {
+  // Checkout writes fulfillment metadata, the address, and the shipping method
+  // in separate server actions. Inspect only a customer-visible settled state;
+  // the deliberate intermediate states are neither incidents nor actionable.
+  if (
+    !readiness.addressComplete ||
+    !readiness.fulfillmentSelectionSettled ||
+    !isFulfillmentSelectionSettled(cart)
+  ) {
+    return []
+  }
+
   const fulfillmentType = fulfillmentTypeFromCart(cart)
   if (!fulfillmentType) return []
 

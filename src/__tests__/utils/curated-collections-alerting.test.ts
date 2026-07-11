@@ -50,6 +50,25 @@ function curatedCollection(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function curatedProduct(handle: string) {
+  return {
+    documentId: `document_${handle}`,
+    Title: handle,
+    MedusaProduct: {
+      ProductId: `product_${handle}`,
+      Handle: handle,
+      Variants: [{ VariantId: `variant_${handle}`, Sku: `SKU-${handle}` }],
+    },
+  }
+}
+
+function curatedItems(slug: string, count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    Quantity: 1,
+    Product: curatedProduct(`${slug}-${index + 1}`),
+  }))
+}
+
 describe("curated collection Strapi alerting", () => {
   beforeEach(() => {
     jest.resetModules()
@@ -57,38 +76,79 @@ describe("curated collection Strapi alerting", () => {
     mockEmitCuratedCollectionsStrapiFailureAlert.mockResolvedValue(undefined)
   })
 
-  it("alerts when the primary list query fails and the legacy query recovers", async () => {
-    const primaryError = new Error("Cannot query field SubstitutionPolicyCopy")
-    mockStrapiRequest
-      .mockRejectedValueOnce(primaryError)
-      .mockResolvedValueOnce({
-        curatedCollections: [curatedCollection()],
+  it("tops up invalid ranked details until three usable collections are found", async () => {
+    mockStrapiRequest.mockImplementation(
+      async (_query: unknown, variables?: { slug?: string }) => ({
+        curatedCollections: [
+          curatedCollection({
+            documentId: `curated_${variables?.slug}`,
+            Name: variables?.slug,
+            Slug: variables?.slug,
+            Items: curatedItems(
+              variables?.slug || "missing",
+              variables?.slug === "first" ? 1 : 2
+            ),
+          }),
+        ],
       })
+    )
 
-    const { getCuratedCollections } = await import(
+    const { getCuratedCollectionsBySlugs } = await import(
       "@lib/data/strapi/curated-collections"
     )
 
-    const result = await getCuratedCollections({
+    const result = await getCuratedCollectionsBySlugs({
+      slugs: ["first", "second", "third", "fourth", "fifth"],
       countryCode: "us",
-      surface: "homepage",
-      customerState: "all",
-      limit: 4,
-      enrichPrices: false,
+      currentProductHandle: "current-product",
+      targetCount: 3,
     })
 
-    expect(result).toHaveLength(1)
-    expect(mockEmitCuratedCollectionsStrapiFailureAlert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        operation: "list",
-        stage: "primary",
-        surface: "homepage",
-        countryCode: "us",
-        customerState: "all",
-        limit: 4,
-        recovered: true,
-        error: primaryError,
+    expect(result.map((collection) => collection.Slug)).toEqual([
+      "second",
+      "third",
+      "fourth",
+    ])
+    expect(mockStrapiRequest).toHaveBeenCalledTimes(5)
+    expect(mockStrapiRequest.mock.calls.map((call) => call[1])).toEqual([
+      { slug: "first" },
+      { slug: "second" },
+      { slug: "third" },
+      { slug: "fourth" },
+      { slug: "fifth" },
+    ])
+    expect(mockEmitCuratedCollectionsStrapiFailureAlert).not.toHaveBeenCalled()
+  })
+
+  it("never reads more than the six-candidate hard bound", async () => {
+    mockStrapiRequest.mockImplementation(
+      async (_query: unknown, variables?: { slug?: string }) => ({
+        curatedCollections: [
+          curatedCollection({
+            Slug: variables?.slug,
+            Items: curatedItems(variables?.slug || "missing", 1),
+          }),
+        ],
       })
+    )
+
+    const { getCuratedCollectionsBySlugs } = await import(
+      "@lib/data/strapi/curated-collections"
+    )
+
+    const result = await getCuratedCollectionsBySlugs({
+      slugs: ["one", "two", "three", "four", "five", "six", "seven"],
+      countryCode: "us",
+      currentProductHandle: "current-product",
+      targetCount: 3,
+    })
+
+    expect(result).toEqual([])
+    expect(mockStrapiRequest).toHaveBeenCalledTimes(6)
+    expect(mockStrapiRequest.mock.calls.map((call) => call[1])).toEqual(
+      ["one", "two", "three", "four", "five", "six"].map((slug) => ({
+        slug,
+      }))
     )
   })
 

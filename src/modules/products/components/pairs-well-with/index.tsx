@@ -4,7 +4,9 @@ import AddBundleButton from "./add-bundle-button"
 import { sanitizeProductCopy } from "@lib/util/product-claims"
 import {
   getCollectionProducts,
-  getCuratedCollections,
+  getCuratedCollectionCards,
+  getCuratedCollectionsBySlugs,
+  MAX_CURATED_COLLECTION_CANDIDATES,
   type CuratedCollection,
 } from "@lib/data/strapi/curated-collections"
 import {
@@ -20,6 +22,12 @@ import {
   productPriceDisplay,
 } from "@lib/util/collection-substitutions"
 import { isVariantPurchasable } from "@lib/util/product-availability"
+
+// The card read plus one lean-detail wave measures below ~2.8s on cold
+// production Strapi runs. An invalid top card can add one bounded top-up wave
+// before the Medusa price overlay. Because this rail streams behind Suspense,
+// 5.5s preserves a meaningful outage bound without paging on normal cache fill.
+const PDP_CURATED_COLLECTIONS_TIMEOUT_MS = 5500
 
 function normalize(value?: unknown) {
   if (value == null) return ""
@@ -77,6 +85,28 @@ function scoreCollection(collection: CuratedCollection, currentText: string) {
   return score
 }
 
+export function rankPdpCollectionCards(
+  collections: CuratedCollection[],
+  product: HttpTypes.StoreProduct,
+  strapiProductData?: any,
+  limit = 3
+) {
+  const currentText = currentProductText(product, strapiProductData)
+
+  return asArray(collections)
+    .map((collection) => ({
+      collection,
+      score: scoreCollection(collection, currentText),
+    }))
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        (a.collection.SortOrder || 999) - (b.collection.SortOrder || 999)
+    )
+    .slice(0, limit)
+    .map(({ collection }) => collection)
+}
+
 function prepareCollections(
   collections: CuratedCollection[],
   product: HttpTypes.StoreProduct,
@@ -119,19 +149,35 @@ export default async function PairsWellWith({
   let collections: ReturnType<typeof prepareCollections> = []
   try {
     const curatedCollections = await withCuratedCollectionsTimeoutAlert({
-      promise: getCuratedCollections({
-        countryCode,
-        surface: "pdp",
-        customerState: "all",
-        limit: 12,
-      }),
+      promise: (async () => {
+        const cards = await getCuratedCollectionCards({
+          surface: "pdp",
+          customerState: "all",
+          limit: 12,
+        })
+        const detailLimit =
+          recommendationVariant === "single_best_match" ? 1 : 3
+        const selectedCards = rankPdpCollectionCards(
+          cards,
+          product,
+          strapiProductData,
+          MAX_CURATED_COLLECTION_CANDIDATES
+        )
+        return getCuratedCollectionsBySlugs({
+          slugs: selectedCards.map((collection) => collection.Slug),
+          countryCode,
+          currentProductHandle: product.handle,
+          targetCount: detailLimit,
+          alertSurface: "pdp",
+        })
+      })(),
       fallback: [],
       operation: "list",
       surface: "pdp",
       countryCode,
       customerState: "all",
       limit: 12,
-      timeoutMs: 1800,
+      timeoutMs: PDP_CURATED_COLLECTIONS_TIMEOUT_MS,
     })
     collections = prepareCollections(
       curatedCollections,
@@ -342,16 +388,16 @@ export default async function PairsWellWith({
                       ${total.toFixed(2)}
                     </span>
                   </div>
-	                  <AddBundleButton
-	                    items={items}
-	                    countryCode={countryCode}
-	                    bundleId={collection.documentId}
-	                    bundleTitle={collection.Name}
-	                    bundleSlug={collection.Slug}
-	                    disabledReason={
-	                      quickAddDisabledReason || availabilityDisabledReason
-	                    }
-	                  />
+                  <AddBundleButton
+                    items={items}
+                    countryCode={countryCode}
+                    bundleId={collection.documentId}
+                    bundleTitle={collection.Name}
+                    bundleSlug={collection.Slug}
+                    disabledReason={
+                      quickAddDisabledReason || availabilityDisabledReason
+                    }
+                  />
                 </div>
               </article>
             )

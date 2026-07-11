@@ -1,5 +1,6 @@
 import { gql } from "graphql-request"
 import type { IngredientDisclosure } from "types/strapi"
+import { STRAPI_CACHE_TAGS } from "@lib/strapi/cache-tags"
 
 export type ProductIngredientDisclosureFailure = {
   reason: "missing_config" | "non_2xx" | "request_failed"
@@ -226,7 +227,11 @@ export async function getProductIngredientDisclosures(
       headers: process.env.STRAPI_API_TOKEN
         ? { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}` }
         : undefined,
-      next: { tags: ["strapi"] },
+      cache: "force-cache",
+      next: {
+        tags: [STRAPI_CACHE_TAGS.products],
+        revalidate: 3600,
+      },
     })
 
     if (!res.ok) {

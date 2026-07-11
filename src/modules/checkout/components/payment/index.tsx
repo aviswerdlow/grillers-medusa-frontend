@@ -22,6 +22,7 @@ import {
 } from "@modules/checkout/utils/analytics"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { isCheckoutFulfillmentReadyForPayment } from "@lib/checkout-payment-readiness"
 
 // Net-weight final charge disclosure
 const NetWeightDisclaimer = () => (
@@ -204,27 +205,21 @@ const Payment = ({
     selectedSavedPaymentMethodId || (setupIntentClientSecret && cardComplete)
   )
 
-  // All fulfillment types (including pickup) now set a shipping method on the cart,
-  // so we always require shipping_methods to be present.
+  // All fulfillment types attach a shipping method in a two-step write. Do not
+  // expose or enable payment until the method exists and that write is settled.
+  const fulfillmentReady = isCheckoutFulfillmentReadyForPayment(cart)
   const paymentReady =
-    (hasPreparedCardForFinalCharge &&
-      (cart?.shipping_methods?.length ?? 0) > 0) ||
-    paidByGiftcard
+    fulfillmentReady && (hasPreparedCardForFinalCharge || paidByGiftcard)
 
   // #283: invoice path needs no card — just a shipping method on the cart.
-  const invoiceReady =
-    payByInvoice && (cart?.shipping_methods?.length ?? 0) > 0
+  const invoiceReady = payByInvoice && fulfillmentReady
 
   // Check if address step is complete (required before payment)
   const addressComplete = !!(
     cart?.shipping_address?.first_name && cart?.shipping_address?.address_1
   )
 
-  // For UPS shipping, also require a shipping method before showing payment
-  const fulfillmentType = cart?.metadata?.fulfillmentType as string | undefined
-  const hasShippingMethod = (cart?.shipping_methods?.length ?? 0) > 0
-  const isOpen =
-    addressComplete && (fulfillmentType !== "ups_shipping" || hasShippingMethod)
+  const isOpen = addressComplete && fulfillmentReady
 
   const createQueryString = useCallback(
     (name: string, value: string) => {
@@ -503,7 +498,7 @@ const Payment = ({
           )}
 
           {/* Place Order section - shown when payment is set up */}
-          {(paymentReady || paidByGiftcard || invoiceReady) && (
+          {(paymentReady || invoiceReady) && (
             <div className="mt-6 pt-6 border-t border-gray-200">
               <InventoryResolutionNotice cart={cart} />
               {payByInvoice ? (

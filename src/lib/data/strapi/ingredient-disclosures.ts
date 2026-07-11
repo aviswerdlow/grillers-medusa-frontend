@@ -1,5 +1,6 @@
 import type { StrapiCollectionProduct } from "@lib/data/strapi/collections"
 import { isApprovedIngredientDisclosure } from "@lib/util/product-allergens"
+import { STRAPI_CACHE_TAGS } from "@lib/strapi/cache-tags"
 import type { IngredientDisclosure } from "types/strapi"
 
 export type ProductIngredientDisclosureMap = Record<
@@ -58,7 +59,11 @@ export async function getProductIngredientDisclosureMap(
     try {
       const res = await fetch(url.toString(), {
         headers,
-        next: { revalidate: 300, tags: ["strapi"] },
+        cache: "force-cache",
+        next: {
+          revalidate: 300,
+          tags: [STRAPI_CACHE_TAGS.products],
+        },
       })
       if (!res.ok) return disclosureMap
 
@@ -93,7 +98,7 @@ export async function getProductIngredientDisclosureMap(
 }
 
 export async function enrichProductsWithIngredientDisclosures<
-  T extends StrapiCollectionProduct,
+  T extends StrapiCollectionProduct
 >(products: T[]): Promise<T[]> {
   const missingDisclosureIds = products
     .filter((product) => !product.IngredientDisclosures?.length)

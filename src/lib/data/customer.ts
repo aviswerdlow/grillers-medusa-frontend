@@ -26,6 +26,10 @@ import {
   reportPasswordResetRequestFailure,
 } from "@lib/account-ops-alerts"
 import { emitCartTransferRecoveryFailureAlert } from "@lib/cart-transfer-ops-alerts"
+import {
+  clearedCheckoutFulfillmentMetadata,
+  shouldResetFulfillmentForAddressChange,
+} from "@lib/checkout-fulfillment-state"
 import { HttpTypes } from "@medusajs/types"
 import { revalidateTag } from "next/cache"
 import { redirect } from "next/navigation"
@@ -955,9 +959,7 @@ export const addCustomerAddress = async (
     if (active) {
       staffContext = true
       stage = "staff_customer_load"
-      const current = await retrieveAdminCustomer(
-        active.session.targetCustomerId
-      )
+      const current = await retrieveAdminCustomer(active.session.targetCustomerId)
       if (!current) throw new Error("Could not load impersonated customer.")
 
       stage = "staff_address_create"
@@ -1172,16 +1174,31 @@ export async function saveAddressToProfileAndCart(input: {
       stage = "staff_cart_lookup"
       cartId = (await getStaffImpersonationCartId(active.session)) || null
       if (cartId) {
+        const { cart } = await sdk.client.fetch<HttpTypes.StoreCartResponse>(
+          `/store/carts/${cartId}`,
+          {
+            method: "GET",
+            headers: staffCartHeaders,
+            cache: "no-store",
+          }
+        )
+        const fulfillmentResetMetadata = shouldResetFulfillmentForAddressChange(
+          cart,
+          addressPayload
+        )
+          ? clearedCheckoutFulfillmentMetadata()
+          : {}
+
         stage = "staff_cart_update"
         await sdk.store.cart.update(
           cartId,
           {
             shipping_address: addressPayload,
             billing_address: addressPayload,
-            metadata: staffAuditFields(
-              active.session,
-              "checkout_address_saved"
-            ),
+            metadata: {
+              ...fulfillmentResetMetadata,
+              ...staffAuditFields(active.session, "checkout_address_saved"),
+            },
           },
           {},
           staffCartHeaders
@@ -1233,12 +1250,30 @@ export async function saveAddressToProfileAndCart(input: {
     stage = "store_cart_lookup"
     cartId = (await getCartId()) || null
     if (cartId) {
+      const { cart } = await sdk.client.fetch<HttpTypes.StoreCartResponse>(
+        `/store/carts/${cartId}`,
+        {
+          method: "GET",
+          headers,
+          cache: "no-store",
+        }
+      )
+      const fulfillmentResetMetadata = shouldResetFulfillmentForAddressChange(
+        cart,
+        addressPayload
+      )
+        ? clearedCheckoutFulfillmentMetadata()
+        : null
+
       stage = "store_cart_update"
       await sdk.store.cart.update(
         cartId,
         {
           shipping_address: addressPayload,
           billing_address: addressPayload,
+          ...(fulfillmentResetMetadata
+            ? { metadata: fulfillmentResetMetadata }
+            : {}),
         },
         {},
         headers
@@ -1285,7 +1320,9 @@ export const deleteCustomerAddress = async (
     if (active) {
       staffContext = true
       stage = "staff_customer_load"
-      const current = await retrieveAdminCustomer(active.session.targetCustomerId)
+      const current = await retrieveAdminCustomer(
+        active.session.targetCustomerId
+      )
 
       stage = "staff_address_delete"
       await adminFetch(

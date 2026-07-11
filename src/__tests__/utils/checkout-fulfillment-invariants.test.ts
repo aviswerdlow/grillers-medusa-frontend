@@ -13,6 +13,11 @@ jest.mock("@lib/ops-alert", () => ({
 const emitStorefrontOpsAlertMock =
   emitStorefrontOpsAlert as jest.MockedFunction<typeof emitStorefrontOpsAlert>
 
+const settledReadiness = {
+  addressComplete: true,
+  fulfillmentSelectionSettled: true,
+}
+
 function cart(
   overrides: Partial<HttpTypes.StoreCart> & {
     fulfillmentType?: FulfillmentType | string | null
@@ -25,7 +30,11 @@ function cart(
     metadata: {
       ...(overrides.metadata || {}),
       ...(overrides.fulfillmentType
-        ? { fulfillmentType: overrides.fulfillmentType }
+        ? {
+            fulfillmentType: overrides.fulfillmentType,
+            fulfillmentSelectionStatus:
+              overrides.metadata?.fulfillmentSelectionStatus || "settled",
+          }
         : {}),
     },
     shipping_address:
@@ -61,6 +70,7 @@ describe("checkout fulfillment invariant alerts", () => {
         serviceCode: "GROUND",
       }),
       atlantaZipCodes: ["30328"],
+      readiness: settledReadiness,
     })
 
     expect(plans).toEqual([
@@ -81,6 +91,28 @@ describe("checkout fulfillment invariant alerts", () => {
     ])
   })
 
+  it("monitors legacy carts whose attached method predates the state marker", () => {
+    const legacyCart = cart({
+      fulfillmentType: "ups_shipping",
+      zip: "30328",
+      serviceCode: "GROUND",
+    })
+    delete (legacyCart.metadata as Record<string, unknown>)
+      .fulfillmentSelectionStatus
+
+    expect(
+      buildCheckoutFulfillmentInvariantAlerts({
+        cart: legacyCart,
+        atlantaZipCodes: ["30328"],
+        readiness: settledReadiness,
+      })
+    ).toEqual([
+      expect.objectContaining({
+        alertKind: "checkout_fulfillment_region_mismatch",
+      }),
+    ])
+  })
+
   it("plans a missing shipping method alert for non-UPS fulfillment", () => {
     const plans = buildCheckoutFulfillmentInvariantAlerts({
       cart: cart({
@@ -88,6 +120,7 @@ describe("checkout fulfillment invariant alerts", () => {
         zip: "30328",
       }),
       atlantaZipCodes: ["30328"],
+      readiness: settledReadiness,
     })
 
     expect(plans).toEqual([
@@ -113,6 +146,7 @@ describe("checkout fulfillment invariant alerts", () => {
         serviceCode: "ATLANTA_DELIVERY",
       }),
       atlantaZipCodes: ["30328"],
+      readiness: settledReadiness,
     })
 
     expect(plans).toEqual([
@@ -141,6 +175,49 @@ describe("checkout fulfillment invariant alerts", () => {
           serviceCode: "ATLANTA_DELIVERY",
         }),
         atlantaZipCodes: ["30328"],
+        readiness: settledReadiness,
+      })
+    ).toEqual([])
+  })
+
+  it("does not inspect deliberate address and fulfillment transition states", () => {
+    const staleCart = cart({
+      fulfillmentType: "atlanta_delivery",
+      zip: "02453",
+    })
+
+    expect(
+      buildCheckoutFulfillmentInvariantAlerts({
+        cart: staleCart,
+        atlantaZipCodes: ["30328"],
+        readiness: {
+          addressComplete: false,
+          fulfillmentSelectionSettled: true,
+        },
+      })
+    ).toEqual([])
+
+    expect(
+      buildCheckoutFulfillmentInvariantAlerts({
+        cart: staleCart,
+        atlantaZipCodes: ["30328"],
+        readiness: {
+          addressComplete: true,
+          fulfillmentSelectionSettled: false,
+        },
+      })
+    ).toEqual([])
+
+    expect(
+      buildCheckoutFulfillmentInvariantAlerts({
+        cart: cart({
+          fulfillmentType: "atlanta_delivery",
+          zip: "02453",
+          serviceCode: "ATLANTA_DELIVERY",
+          metadata: { fulfillmentSelectionStatus: "pending" },
+        }),
+        atlantaZipCodes: ["30328"],
+        readiness: settledReadiness,
       })
     ).toEqual([])
   })
@@ -154,6 +231,7 @@ describe("checkout fulfillment invariant alerts", () => {
       }),
       atlantaZipCodes: ["30328"],
       path: "test/path.tsx",
+      readiness: settledReadiness,
     })
 
     expect(emitStorefrontOpsAlertMock).toHaveBeenCalledWith(

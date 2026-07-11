@@ -4,9 +4,9 @@
 //
 // Why this exists: the `(main)` route is force-dynamic, so the home query
 // runs live on every request with a 3s timeout + `.catch(() => null)`. Every
-// Strapi publish fires `revalidateTag("strapi")`, purging the cached query;
-// the next request must re-fetch live, and a slow/errored fetch produced a
-// null `Sections` -> the page rendered an empty <section> (JSON-LD survived).
+// A Strapi home publish purges the home-model cache; the next request must
+// re-fetch live, and a slow/errored fetch produced a null `Sections` -> the
+// page rendered an empty <section> (JSON-LD survived).
 // That looked like "homepage blank on normal load, fine after hard reload".
 // Failing open here removes the blank state entirely.
 

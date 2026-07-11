@@ -11,6 +11,8 @@ import { HttpTypes } from "@medusajs/types"
 import { useElements, useStripe } from "@stripe/react-stripe-js"
 import React, { useRef, useState } from "react"
 import Spinner from "@modules/common/icons/spinner"
+import { isExpectedNextRedirect } from "@lib/util/next-redirect"
+import { isCheckoutFulfillmentReadyForPayment } from "@lib/checkout-payment-readiness"
 
 // Custom gold button matching btn-primary style
 const GoldButton = ({
@@ -97,6 +99,8 @@ function reportCheckoutPaymentFailure({
   error: unknown
   extra?: Record<string, unknown>
 }) {
+  if (isExpectedNextRedirect(error)) return
+
   const message = redactCheckoutMessage(checkoutErrorMessage(error))
 
   reportClientOpsAlert({
@@ -133,7 +137,7 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
     !cart.shipping_address ||
     !cart.billing_address ||
     !cart.email ||
-    (cart.shipping_methods?.length ?? 0) < 1
+    !isCheckoutFulfillmentReadyForPayment(cart)
 
   if (payByInvoice) {
     return (
@@ -196,6 +200,8 @@ async function verifyAndPlaceOrder({
       consentText: FINAL_CHARGE_CONSENT_TEXT,
     })
   } catch (err) {
+    if (isExpectedNextRedirect(err)) return
+
     reportCheckoutPaymentFailure({
       cart,
       paymentMode: setupIntentId ? "new_card" : "saved_card",
@@ -258,6 +264,7 @@ const SavedPaymentMethodButton = ({
         setErrorMessage,
       })
     } catch (err: any) {
+      if (isExpectedNextRedirect(err)) return
       setErrorMessage(err.message || "Some items need inventory review.")
     } finally {
       submittingRef.current = false
@@ -360,6 +367,8 @@ const NewCardSetupPaymentButton = ({
           },
         })
       } catch (err) {
+        if (isExpectedNextRedirect(err)) return
+
         reportCheckoutPaymentFailure({
           cart,
           paymentMode: "new_card",
@@ -442,6 +451,8 @@ const NewCardSetupPaymentButton = ({
         setErrorMessage(orderResult.error)
       }
     } catch (err: any) {
+      if (isExpectedNextRedirect(err)) return
+
       setErrorMessage(
         err?.message || "Could not place the order. Please try again."
       )
@@ -519,6 +530,8 @@ const InvoicePaymentButton = ({
         setErrorMessage(result.error)
       }
     } catch (err: any) {
+      if (isExpectedNextRedirect(err)) return
+
       reportCheckoutPaymentFailure({
         cart,
         paymentMode: "invoice",

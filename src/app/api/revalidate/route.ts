@@ -1,5 +1,9 @@
 import { revalidateTag } from "next/cache"
 import { NextResponse } from "next/server"
+import {
+  LEGACY_STRAPI_CACHE_TAG,
+  strapiCacheTagsForWebhook,
+} from "@lib/strapi/cache-tags"
 
 /**
  * Strapi → Next.js revalidation webhook.
@@ -13,11 +17,9 @@ import { NextResponse } from "next/server"
  * Set REVALIDATE_SECRET in Vercel env vars (Production + Preview).
  * Pick a long random value; rotate if leaked.
  *
- * When the webhook fires, this route calls `revalidateTag("strapi")`,
- * which busts every Next.js Data Cache entry tagged "strapi" by the
- * GraphQL client in src/lib/strapi/index.ts — i.e. every Strapi query
- * on the site. The next request after revalidation re-fetches fresh
- * content from Strapi.
+ * When the webhook fires, this route maps the Strapi model to the cache tags
+ * that consume it. A product publish refreshes product-backed surfaces without
+ * cold-starting header, footer, homepage, and every other Strapi query.
  */
 
 export async function POST(request: Request) {
@@ -38,10 +40,7 @@ export async function POST(request: Request) {
   const provided = authHeader.replace(/^Bearer\s+/i, "").trim()
 
   if (!provided || provided !== expected) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    )
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   let event: string | null = null
@@ -51,15 +50,21 @@ export async function POST(request: Request) {
     event = typeof body?.event === "string" ? body.event : null
     model = typeof body?.model === "string" ? body.model : null
   } catch {
-    // Strapi may POST an empty body for some events — that's fine, we
-    // revalidate everything anyway.
+    // Strapi may POST an empty body for some events. The tag mapper preserves
+    // the old fail-safe global behavior for that exceptional payload.
   }
 
-  revalidateTag("strapi")
+  const tags = [
+    ...strapiCacheTagsForWebhook({ event, model }),
+    LEGACY_STRAPI_CACHE_TAG,
+  ]
+  for (const tag of Array.from(new Set(tags))) {
+    revalidateTag(tag)
+  }
 
   return NextResponse.json({
     revalidated: true,
-    tag: "strapi",
+    tags,
     event,
     model,
     timestamp: Date.now(),

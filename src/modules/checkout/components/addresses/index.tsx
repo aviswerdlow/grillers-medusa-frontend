@@ -1,6 +1,10 @@
 "use client"
 
-import { setAddresses, setOrderNotes, clearFulfillmentDetails } from "@lib/data/cart"
+import {
+  setAddresses,
+  setOrderNotes,
+  clearFulfillmentDetails,
+} from "@lib/data/cart"
 import type { FulfillmentType } from "@lib/data/cart"
 import compareAddresses from "@lib/util/compare-addresses"
 import { unscrambleAddress } from "@lib/util/format-address"
@@ -130,15 +134,16 @@ const Addresses = ({
   const matchesAtlantaDelivery =
     normalizedPostalCode.length === 5 &&
     activeAtlantaZipCodes.includes(normalizedPostalCode)
-  // atlanta_delivery chosen but the ZIP isn't in the local area → hard block
-  // (also enforced server-side in setAddresses): the customer must fix the ZIP
-  // or change the method.
+  // A new out-of-region ZIP is a valid address edit. The server writes the new
+  // address and clears the old Atlanta selection atomically, then this client
+  // returns to fulfillment. The server remains authoritative for the rare
+  // case where an already-invalid cart is submitted without an address change.
   const addressMismatch =
     fulfillmentType === "atlanta_delivery" &&
     normalizedPostalCode.length === 5 &&
     !matchesAtlantaDelivery
   const addressMismatchMessage = addressMismatch
-    ? "Atlanta Metro Delivery is available only for eligible Atlanta-area ZIP codes. Please update your ZIP code or change your delivery method."
+    ? "This ZIP is outside the Atlanta delivery area. Continuing will save the changed address and return you to choose an available fulfillment method."
     : null
   // UPS chosen but the ZIP is inside our Atlanta delivery area → UPS isn't used
   // locally. We DON'T block here (the customer's own address is valid); on
@@ -158,7 +163,17 @@ const Addresses = ({
   // When server action succeeds, navigate to next step without a full page reload
   useEffect(() => {
     if (typeof message === "string" && message.startsWith("__SUCCESS__")) {
-      const countryCode = message.split(":")[1] || "us"
+      const [, countryCode = "us", outcome] = message.split(":")
+
+      // The server clears an address-dependent fulfillment choice in the same
+      // cart write as the new address. Route directly back to the selector;
+      // waiting for a client effect would briefly render stale metadata and
+      // can attach/report the old method against the new destination.
+      if (outcome === "fulfillment_reset") {
+        router.replace(`/${countryCode}/checkout`, { scroll: false })
+        router.refresh()
+        return
+      }
 
       // The just-saved address can invalidate the chosen method (e.g. UPS to an
       // Atlanta-area ZIP). Instead of advancing to a now-wrong delivery/payment
@@ -484,9 +499,9 @@ const Addresses = ({
           )}
 
           {addressMismatch && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex gap-2">
+            <div className="mt-4 p-3 rounded-lg flex gap-2 bg-amber-50 border border-amber-200">
               <svg
-                className="w-5 h-5 text-red-500 shrink-0 mt-0.5"
+                className="w-5 h-5 shrink-0 mt-0.5 text-amber-600"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -496,7 +511,9 @@ const Addresses = ({
                   clipRule="evenodd"
                 />
               </svg>
-              <p className="text-sm text-red-700">{addressMismatchMessage}</p>
+              <p className="text-sm text-amber-800">
+                {addressMismatchMessage}
+              </p>
             </div>
           )}
 
@@ -522,7 +539,6 @@ const Addresses = ({
           <div className="flex justify-end mt-6">
             <SubmitButton
               className="!w-auto px-8"
-              disabled={addressMismatch}
               data-testid="submit-address-button"
             >
               {fulfillmentType === "ups_shipping"

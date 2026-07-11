@@ -289,11 +289,14 @@ const sections: GuideSection[] = [
       "Use SKU as customer-safe subtext where it helps staff or customers confirm the item.",
       "Use QuickBooks ListID, also called the item hex or item name id, as the stable accounting identity.",
       "When QuickBooks SKUs change for seasonal sorting, do not remap by SKU first. Confirm the ListID.",
+      "For item Hechshers, use the five exact Strapi fields sourced from Peter's Item Manager categories by QuickBooks ListID: OU, Chassidish Recognized, CHK Certification, AgriStar Lamed-K Lubavitch or Rabbi Weissmandl, and AgriStar Lamed-K Lubavitch.",
+      "Keep item Hechshers separate from other kashruth facts such as Chassidish shchita and Kosher for Passover. One does not imply the other.",
       "Treat QuickBooks items beginning with RM- as raw materials or internal production inputs unless Peter explicitly confirms they are sellable.",
     ],
     watch: [
       "A matching SKU can be misleading during Passover or other seasonal list management.",
       "A missing ListID on a product or variant can block QuickBooks posting.",
+      "If a Hechsher badge is wrong, correct the item-level source mapping; do not infer certification from a product title or description.",
       "ListID is operational data. Do not show it to customers in storefront UI or emails.",
     ],
   },
@@ -314,6 +317,7 @@ const sections: GuideSection[] = [
     howTo: [
       "Start from the cart and continue to /us/checkout. The old fulfillment-only checkout route redirects into the unified checkout.",
       "Confirm the fulfillment type first. This affects dates, addresses, shipping method, thresholds, and inventory availability.",
+      "If the customer changes the shipping address, checkout clears address-dependent delivery or UPS selections and asks for a valid method again. Plant pickup can remain selected because it is not tied to the customer's ZIP.",
       "Use the inventory notice before payment. Customers may substitute an item, remove it, join the waitlist, move the order date, or complete only the available quantity.",
       "For UPS shipping, the payment step shows a separate unchecked shipping and tracking text box. It is optional, covers one enrollment confirmation plus later UPS shipping or tracking updates up to six total messages for that order, and is separate from marketing-text consent.",
       "Stripe is the card processor. During test mode, use Stripe test cards only.",

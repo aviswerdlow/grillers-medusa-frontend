@@ -13,6 +13,11 @@ import CheckoutLoginBanner from "@modules/checkout/components/checkout-login-ban
 import CheckoutStepsGate from "@modules/checkout/components/checkout-steps-gate"
 import { FulfillmentEditProvider } from "@modules/checkout/context/fulfillment-edit-context"
 import type { FulfillmentType } from "@lib/data/cart"
+import { hasCompleteFulfillmentAddress } from "@lib/util/fulfillment-address"
+import {
+  isCheckoutFulfillmentReadyForPayment,
+  isFulfillmentSelectionSettled,
+} from "@lib/checkout-payment-readiness"
 import type {
   FulfillmentConfigData,
   PickupCreditConfig,
@@ -65,14 +70,27 @@ export default async function CheckoutForm({
 
   const isLoggedIn = Boolean(customer)
 
-  const addressComplete = !!(
-    cart.shipping_address?.first_name && cart.shipping_address?.address_1
+  const addressComplete = Boolean(
+    cart.shipping_address?.first_name &&
+      hasCompleteFulfillmentAddress(cart.shipping_address)
   )
-  const hasShippingMethod = (cart.shipping_methods?.length ?? 0) > 0
+  const checkoutFulfillmentReady =
+    isCheckoutFulfillmentReadyForPayment(cart)
+
+  const fulfillmentSelectionSettled = Boolean(
+    hasFulfillment &&
+      isFulfillmentSelectionSettled(cart) &&
+      currentStep !== "address" &&
+      currentStep !== "delivery"
+  )
 
   void emitCheckoutFulfillmentInvariantAlerts({
     cart,
     atlantaZipCodes: fulfillmentConfig.AtlantaDeliveryZipCodes,
+    readiness: {
+      addressComplete,
+      fulfillmentSelectionSettled,
+    },
   }).catch(() => {
     // Fail-open: observability must never block checkout rendering.
   })
@@ -119,7 +137,7 @@ export default async function CheckoutForm({
             {/* Step 4: Payment — only after all previous steps complete and delivery step is closed */}
             {hasFulfillment &&
               addressComplete &&
-              (!showShippingMethodSelection || hasShippingMethod) &&
+              checkoutFulfillmentReady &&
               currentStep !== "delivery" && (
                 <Payment
                   cart={cart}

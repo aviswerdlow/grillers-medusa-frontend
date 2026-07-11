@@ -1,5 +1,5 @@
 import { gql } from "graphql-request"
-import strapiClient, { cachedStrapiRequest } from "@lib/strapi"
+import { cachedStrapiRequest } from "@lib/strapi"
 import { enrichStrapiProductsWithMedusaPrices } from "@lib/data/products"
 import { emitCuratedCollectionsStrapiFailureAlert } from "@lib/curated-collections-ops-alerts"
 import { compactCollectionProduct } from "@lib/util/collection-product"
@@ -299,19 +299,6 @@ const CuratedCollectionFields = gql`
   }
 `
 
-export const GetCuratedCollectionsQuery = gql`
-  ${CuratedCollectionFields}
-  query GetCuratedCollections($limit: Int = 50) {
-    curatedCollections(
-      filters: { IsActive: { eq: true } }
-      sort: ["SortOrder:asc", "Name:asc"]
-      pagination: { limit: $limit, start: 0 }
-    ) {
-      ...CuratedCollectionFields
-    }
-  }
-`
-
 export const GetCuratedCollectionBySlugQuery = gql`
   ${CuratedCollectionFields}
   query GetCuratedCollectionBySlug($slug: String!) {
@@ -489,19 +476,6 @@ const LegacyCuratedCollectionFields = gql`
   }
 `
 
-const LegacyCuratedCollectionsQuery = gql`
-  ${LegacyCuratedCollectionFields}
-  query LegacyCuratedCollections($limit: Int = 50) {
-    curatedCollections(
-      filters: { IsActive: { eq: true } }
-      sort: ["SortOrder:asc", "Name:asc"]
-      pagination: { limit: $limit, start: 0 }
-    ) {
-      ...LegacyCuratedCollectionFields
-    }
-  }
-`
-
 const LegacyCuratedCollectionBySlugQuery = gql`
   ${LegacyCuratedCollectionFields}
   query LegacyCuratedCollectionBySlug($slug: String!) {
@@ -510,6 +484,155 @@ const LegacyCuratedCollectionBySlugQuery = gql`
       pagination: { limit: 1, start: 0 }
     ) {
       ...LegacyCuratedCollectionFields
+    }
+  }
+`
+
+const PdpCuratedProductFields = gql`
+  fragment PdpCuratedProductFields on Product {
+    documentId
+    Title
+    FeaturedImage {
+      url
+    }
+    Metadata {
+      AvgPackSize
+      AvgPackWeight
+      QualifiesForFreeDeliveryOffers
+      FreeDeliveryExclusionReason
+    }
+    MedusaProduct {
+      ProductId
+      Handle
+      ShortDescription
+      Variants {
+        VariantId
+        Sku
+        QualifiesForFreeDeliveryOffers
+        FreeDeliveryExclusionReason
+        Price {
+          CalculatedPriceNumber
+        }
+      }
+    }
+  }
+`
+
+const PdpCuratedCollectionFields = gql`
+  ${PdpCuratedProductFields}
+  fragment PdpCuratedCollectionFields on CuratedCollection {
+    documentId
+    Name
+    Slug
+    Eyebrow
+    ShortDescription
+    CollectionType
+    Occasion
+    SortOrder
+    IsFeatured
+    IsActive
+    PdpMatchKeywords
+    RecommendationRules {
+      Surface
+      Trigger
+      MatchKeywords
+      CustomerState
+      Priority
+    }
+    Items(pagination: { limit: 100 }) {
+      Quantity
+      Required
+      Role
+      Notes
+      ProductHandle
+      OriginalProductName
+      Product {
+        ...PdpCuratedProductFields
+      }
+    }
+  }
+`
+
+const GetPdpCuratedCollectionBySlugQuery = gql`
+  ${PdpCuratedCollectionFields}
+  query GetPdpCuratedCollectionBySlug($slug: String!) {
+    curatedCollections(
+      filters: { Slug: { eq: $slug }, IsActive: { eq: true } }
+      pagination: { limit: 1, start: 0 }
+    ) {
+      ...PdpCuratedCollectionFields
+    }
+  }
+`
+
+const LegacyPdpCuratedProductFields = gql`
+  fragment LegacyPdpCuratedProductFields on Product {
+    documentId
+    Title
+    FeaturedImage {
+      url
+    }
+    Metadata {
+      AvgPackSize
+      AvgPackWeight
+    }
+    MedusaProduct {
+      ProductId
+      Handle
+      ShortDescription
+      Variants {
+        VariantId
+        Sku
+        Price {
+          CalculatedPriceNumber
+        }
+      }
+    }
+  }
+`
+
+const LegacyPdpCuratedCollectionFields = gql`
+  ${LegacyPdpCuratedProductFields}
+  fragment LegacyPdpCuratedCollectionFields on CuratedCollection {
+    documentId
+    Name
+    Slug
+    Eyebrow
+    ShortDescription
+    CollectionType
+    Occasion
+    SortOrder
+    IsFeatured
+    IsActive
+    PdpMatchKeywords
+    RecommendationRules {
+      Surface
+      Trigger
+      MatchKeywords
+      CustomerState
+      Priority
+    }
+    Items(pagination: { limit: 100 }) {
+      Quantity
+      Required
+      Role
+      Notes
+      ProductHandle
+      Product {
+        ...LegacyPdpCuratedProductFields
+      }
+    }
+  }
+`
+
+const LegacyGetPdpCuratedCollectionBySlugQuery = gql`
+  ${LegacyPdpCuratedCollectionFields}
+  query LegacyGetPdpCuratedCollectionBySlug($slug: String!) {
+    curatedCollections(
+      filters: { Slug: { eq: $slug }, IsActive: { eq: true } }
+      pagination: { limit: 1, start: 0 }
+    ) {
+      ...LegacyPdpCuratedCollectionFields
     }
   }
 `
@@ -534,6 +657,14 @@ const CuratedCollectionCardFields = gql`
     IsFeatured
     IsActive
     SurfacePlacements
+    PdpMatchKeywords
+    RecommendationRules {
+      Surface
+      Trigger
+      MatchKeywords
+      CustomerState
+      Priority
+    }
   }
 `
 
@@ -654,90 +785,6 @@ async function enrichCollections(
   return replaceProducts(collections, enriched)
 }
 
-export async function getCuratedCollections({
-  countryCode,
-  surface,
-  customerState = "all",
-  limit = 50,
-  enrichPrices = true,
-}: {
-  countryCode: string
-  surface?: string
-  customerState?: "guest_or_no_orders" | "returning" | "all" | "any"
-  limit?: number
-  enrichPrices?: boolean
-}): Promise<CuratedCollection[]> {
-  const applyFilters = (collections: CuratedCollection[]) =>
-    (collections || [])
-      .filter((collection) => isVisibleNow(collection))
-      .filter((collection) => !surface || matchesSurface(collection, surface))
-      .filter((collection) => matchesCustomerState(collection, customerState))
-      .slice(0, limit)
-
-  // Strapi pagination runs before the app-level surface/customer filters above.
-  // Fetch a wider window so "homepage" and other narrower surfaces are not
-  // accidentally starved by earlier SortOrder records intended for PDP/cart.
-  const queryLimit = Math.max(limit, 100)
-  let primaryError: unknown
-
-  try {
-    const data = await cachedStrapiRequest<{
-      curatedCollections: CuratedCollection[]
-    }>("curated-collections-list", GetCuratedCollectionsQuery, {
-      limit: queryLimit,
-    })
-
-    const collections = applyFilters(data.curatedCollections)
-    return enrichPrices
-      ? enrichCollections(collections, countryCode)
-      : compactCuratedCollections(collections)
-  } catch (error) {
-    primaryError = error
-    console.error("Error fetching curated collections:", error)
-  }
-
-  try {
-    const data = await cachedStrapiRequest<{
-      curatedCollections: CuratedCollection[]
-    }>("curated-collections-list-legacy", LegacyCuratedCollectionsQuery, {
-      limit: queryLimit,
-    })
-    const collections = applyFilters(data.curatedCollections)
-    if (primaryError) {
-      void emitCuratedCollectionsStrapiFailureAlert({
-        operation: "list",
-        stage: "primary",
-        surface,
-        countryCode,
-        customerState,
-        limit,
-        recovered: true,
-        error: primaryError,
-      }).catch(() => {
-        // Fail open: alerting should never block merchandising content.
-      })
-    }
-    return enrichPrices
-      ? enrichCollections(collections, countryCode)
-      : compactCuratedCollections(collections)
-  } catch (error) {
-    console.error("Error fetching legacy curated collections:", error)
-    void emitCuratedCollectionsStrapiFailureAlert({
-      operation: "list",
-      stage: primaryError ? "legacy" : "primary",
-      surface,
-      countryCode,
-      customerState,
-      limit,
-      recovered: false,
-      error,
-    }).catch(() => {
-      // Fail open: alerting should never block merchandising content.
-    })
-    return []
-  }
-}
-
 export async function getCuratedCollectionCards({
   surface,
   alertSurface,
@@ -783,25 +830,34 @@ export async function getCuratedCollectionCards({
   }
 }
 
-export async function getCuratedCollectionBySlug(
+async function loadCuratedCollectionBySlug(
   slug: string,
   countryCode: string,
-  alertSurface = "collection_page"
+  alertSurface = "collection_page",
+  profile: "full" | "pdp" = "full"
 ): Promise<CuratedCollection | null> {
-  const enrichVisibleCollection = async (
+  const visibleCollection = (
     collection: CuratedCollection | null | undefined
-  ) => {
-    if (!collection || !isVisibleNow(collection)) return null
-    const [enriched] = await enrichCollections([collection], countryCode)
-    return enriched || null
-  }
+  ) => (collection && isVisibleNow(collection) ? collection : null)
   let primaryError: unknown
+  const primaryQuery =
+    profile === "pdp"
+      ? GetPdpCuratedCollectionBySlugQuery
+      : GetCuratedCollectionBySlugQuery
+  const legacyQuery =
+    profile === "pdp"
+      ? LegacyGetPdpCuratedCollectionBySlugQuery
+      : LegacyCuratedCollectionBySlugQuery
+  const cacheName =
+    profile === "pdp"
+      ? "curated-collection-by-slug-pdp"
+      : "curated-collection-by-slug"
 
   try {
     const data = await cachedStrapiRequest<{
       curatedCollections: CuratedCollection[]
-    }>("curated-collection-by-slug", GetCuratedCollectionBySlugQuery, { slug })
-    return enrichVisibleCollection(data.curatedCollections?.[0])
+    }>(cacheName, primaryQuery, { slug })
+    return visibleCollection(data.curatedCollections?.[0])
   } catch (error) {
     primaryError = error
     console.error("Error fetching curated collection:", error)
@@ -810,7 +866,7 @@ export async function getCuratedCollectionBySlug(
   try {
     const data = await cachedStrapiRequest<{
       curatedCollections: CuratedCollection[]
-    }>("curated-collection-by-slug-legacy", LegacyCuratedCollectionBySlugQuery, {
+    }>(`${cacheName}-legacy`, legacyQuery, {
       slug,
     })
     if (primaryError) {
@@ -826,7 +882,7 @@ export async function getCuratedCollectionBySlug(
         // Fail open: alerting should never block merchandising content.
       })
     }
-    return enrichVisibleCollection(data.curatedCollections?.[0])
+    return visibleCollection(data.curatedCollections?.[0])
   } catch (error) {
     console.error("Error fetching legacy curated collection:", error)
     void emitCuratedCollectionsStrapiFailureAlert({
@@ -842,6 +898,110 @@ export async function getCuratedCollectionBySlug(
     })
     return null
   }
+}
+
+export async function getCuratedCollectionBySlug(
+  slug: string,
+  countryCode: string,
+  alertSurface = "collection_page"
+): Promise<CuratedCollection | null> {
+  const collection = await loadCuratedCollectionBySlug(
+    slug,
+    countryCode,
+    alertSurface
+  )
+  if (!collection) return null
+  const [enriched] = await enrichCollections([collection], countryCode)
+  return enriched || null
+}
+
+export const MAX_CURATED_COLLECTION_DETAILS = 3
+export const MAX_CURATED_COLLECTION_CANDIDATES = 6
+
+function hasEnoughPdpProducts(
+  collection: CuratedCollection,
+  currentProductHandle?: string | null
+) {
+  return (
+    (collection.Items || []).filter(({ Product }) => {
+      const handle = Product?.MedusaProduct?.Handle
+      return Boolean(
+        Product &&
+          handle &&
+          handle !== currentProductHandle &&
+          !strapiProductHasInternalRawMaterialSku(Product)
+      )
+    }).length >= 2
+  )
+}
+
+/**
+ * Load an already-ranked, hard-bounded candidate window. Candidates are read
+ * in small batches and topped up only when an earlier detail is missing or has
+ * fewer than two usable non-current products. Prices are enriched once after
+ * the target is filled. This avoids both the former unbounded list query and a
+ * blank rail when the highest-scoring card has stale/incomplete detail data.
+ */
+export async function getCuratedCollectionsBySlugs({
+  slugs,
+  countryCode,
+  currentProductHandle,
+  targetCount = MAX_CURATED_COLLECTION_DETAILS,
+  alertSurface = "pdp",
+}: {
+  slugs: string[]
+  countryCode: string
+  currentProductHandle?: string | null
+  targetCount?: number
+  alertSurface?: string
+}): Promise<CuratedCollection[]> {
+  const candidateSlugs = Array.from(
+    new Set(slugs.map((slug) => slug.trim()).filter(Boolean))
+  ).slice(0, MAX_CURATED_COLLECTION_CANDIDATES)
+  const boundedTarget = Math.max(
+    1,
+    Math.min(MAX_CURATED_COLLECTION_DETAILS, Math.floor(targetCount))
+  )
+
+  if (!candidateSlugs.length) return []
+
+  const selected: CuratedCollection[] = []
+  let cursor = 0
+
+  while (selected.length < boundedTarget && cursor < candidateSlugs.length) {
+    // First pay only for the requested number. If one is unusable, load the
+    // rest of the six-card window concurrently so top-up adds at most one
+    // additional Strapi round trip rather than a serial request waterfall.
+    const batchSize =
+      cursor === 0 ? boundedTarget : candidateSlugs.length - cursor
+    const batchSlugs = candidateSlugs.slice(cursor, cursor + batchSize)
+    cursor += batchSlugs.length
+
+    const batch = await Promise.all(
+      batchSlugs.map((slug) =>
+        loadCuratedCollectionBySlug(slug, countryCode, alertSurface, "pdp")
+      )
+    )
+
+    for (const collection of batch) {
+      if (
+        collection &&
+        hasEnoughPdpProducts(collection, currentProductHandle)
+      ) {
+        selected.push(collection)
+        if (selected.length === boundedTarget) break
+      }
+    }
+  }
+
+  const enriched = await enrichCollections(selected, countryCode)
+  const bySlug = new Map(
+    enriched.map((collection) => [collection.Slug, collection])
+  )
+  return selected.flatMap(({ Slug }) => {
+    const collection = bySlug.get(Slug)
+    return collection ? [collection] : []
+  })
 }
 
 export function getCollectionProducts(collection: CuratedCollection) {

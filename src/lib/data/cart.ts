@@ -37,6 +37,11 @@ import {
   reportCheckoutAddressRepair,
 } from "@lib/checkout-address-quality"
 import { buildOrderSmsConsentMetadata } from "@lib/util/order-sms-consent"
+import { isExpectedNextRedirect } from "@lib/util/next-redirect"
+import {
+  clearedCheckoutFulfillmentMetadata,
+  planCheckoutAddressFulfillmentTransition,
+} from "@lib/checkout-fulfillment-state"
 
 type ActiveStaffContext = Awaited<
   ReturnType<typeof getActiveStaffImpersonation>
@@ -832,6 +837,9 @@ export async function setFulfillmentDetails({
     pickupLocationName: pickupLocationName || "",
     pickupLocationCity: pickupLocationCity || "",
     pickupLocationState: pickupLocationState || "",
+    // The method is attached in a second server action. Invariant monitoring
+    // must not inspect the cart in the deliberate gap between these writes.
+    fulfillmentSelectionStatus: "pending",
   }
 
   return sdk.store.cart
@@ -956,14 +964,7 @@ export async function clearFulfillmentDetails(cartId: string) {
       cartId,
       withStaffCartMetadata(
         {
-          metadata: {
-            fulfillmentType: "",
-            fulfillmentZip: "",
-            scheduledDate: "",
-            qbdDueDate: "",
-            scheduledTimeWindow: "",
-            pickupLocationId: "",
-          },
+          metadata: clearedCheckoutFulfillmentMetadata(),
         },
         active,
         "fulfillment_details_clear"
@@ -1046,6 +1047,20 @@ export async function setShippingMethod({
   return sdk.store.cart
     .addShippingMethod(cartId, { option_id: shippingMethodId }, {}, headers)
     .then(async (result) => {
+      // Mark the two-step selection complete only after Medusa accepted the
+      // shipping method. A failed attachment must remain visibly pending.
+      await sdk.store.cart.update(
+        cartId,
+        withStaffCartMetadata(
+          { metadata: { fulfillmentSelectionStatus: "settled" } },
+          active,
+          "shipping_method_settled",
+          { shippingMethodId }
+        ),
+        {},
+        headers
+      )
+
       const cartCacheTag = await getCacheTag("carts")
       revalidateTag(cartCacheTag)
       // Recompute free-shipping promo after a new method is attached so the
@@ -1182,6 +1197,8 @@ export async function submitPromotionForm(
 
 // TODO: Pass a POJO instead of a form entity here
 export async function setAddresses(currentState: unknown, formData: FormData) {
+  let fulfillmentWasReset = false
+
   try {
     if (!formData) {
       throw new Error("No form data found when setting addresses")
@@ -1252,15 +1269,40 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
       })
     }
 
-    // Validate address matches the selected fulfillment type
-    const selectedFulfillment = formData.get("fulfillmentType") as string
     const postalCode = normalizeDeliveryZip(
       data.shipping_address.postal_code as string
     )
 
-    if (selectedFulfillment === "atlanta_delivery" && postalCode) {
+    // Decide whether the new address retires the old fulfillment choice before
+    // validating that choice. An Atlanta -> non-Atlanta address edit is a valid
+    // transition: the address and cleared fulfillment metadata are persisted in
+    // one cart update, then the customer reselects a service for the new region.
+    const currentCart = await retrieveCart(cartId, {
+      fresh: true,
+      throwOnFetchError: true,
+    })
+    if (!currentCart) {
+      throw new Error(
+        "The active cart could not be loaded. Refresh checkout and try again."
+      )
+    }
+    const fulfillmentTransition = planCheckoutAddressFulfillmentTransition(
+      currentCart,
+      data.shipping_address
+    )
+    fulfillmentWasReset = fulfillmentTransition.reset
+    if (fulfillmentTransition.metadata) {
+      data.metadata = fulfillmentTransition.metadata
+    }
+
+    // Only validate a selection that will survive this address write. This
+    // remains a fail-closed guard for an already-invalid retained Atlanta cart.
+    if (
+      !fulfillmentWasReset &&
+      fulfillmentTransition.retainedFulfillmentType === "atlanta_delivery"
+    ) {
       const atlantaZipCodes = await getActiveAtlantaDeliveryZipCodes()
-      if (!atlantaZipCodes.includes(postalCode)) {
+      if (postalCode.length !== 5 || !atlantaZipCodes.includes(postalCode)) {
         throw new Error(
           "Atlanta Metro Delivery is only available for eligible Atlanta-area ZIP codes. Please update your address or select a different delivery method."
         )
@@ -1379,10 +1421,12 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
 
     // Now that the address is saved, attach the shipping method
     // Medusa requires an address on the cart before a shipping method can be validated
-    if (selectedFulfillment) {
+    const retainedFulfillmentType =
+      fulfillmentTransition.retainedFulfillmentType
+    if (retainedFulfillmentType) {
       const shippingOption = await findShippingOptionByType(
         cartId,
-        selectedFulfillment as FulfillmentType
+        retainedFulfillmentType
       )
       if (shippingOption) {
         await setShippingMethod({ cartId, shippingMethodId: shippingOption.id })
@@ -1399,7 +1443,9 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
   revalidateTag(cartCacheTag)
 
   const countryCode = formData.get("shipping_address.country_code") || "us"
-  return `__SUCCESS__:${countryCode}`
+  return `__SUCCESS__:${countryCode}${
+    fulfillmentWasReset ? ":fulfillment_reset" : ""
+  }`
 }
 
 /**
@@ -1564,7 +1610,7 @@ export async function submitOrderWithSavedPaymentMethod(
     }
     return { error: null }
   } catch (err: any) {
-    if (err?.digest?.startsWith?.("NEXT_REDIRECT")) {
+    if (isExpectedNextRedirect(err)) {
       throw err
     }
 
@@ -1662,7 +1708,7 @@ export async function submitOrderByInvoice(
     }
     return { error: null }
   } catch (err: any) {
-    if (err?.digest?.startsWith?.("NEXT_REDIRECT")) {
+    if (isExpectedNextRedirect(err)) {
       throw err
     }
 

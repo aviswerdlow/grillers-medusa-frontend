@@ -89,12 +89,30 @@ describe("checkout address customer context", () => {
     jest.clearAllMocks()
     mockedGetAuthHeaders.mockResolvedValue({ authorization: "Bearer staff" })
     mockedGetCacheTag.mockImplementation(async (tag) => tag)
-    mockedClientFetch.mockResolvedValue({
-      customer: {
-        id: "cus_staff",
-        email: "staff@example.com",
-        metadata: { gp_staff_role: "office" },
-      },
+    mockedClientFetch.mockImplementation(async (path: string) => {
+      if (path.startsWith("/store/carts/")) {
+        return {
+          cart: {
+            id: "cart_staff",
+            metadata: {},
+            shipping_address: {
+              address_1: "143 South Hayworth Avenue",
+              city: "Los Angeles",
+              province: "CA",
+              postal_code: "90048",
+              country_code: "us",
+            },
+          },
+        }
+      }
+
+      return {
+        customer: {
+          id: "cus_staff",
+          email: "staff@example.com",
+          metadata: { gp_staff_role: "office" },
+        },
+      }
     })
     mockedReadStaffImpersonationCookie.mockResolvedValue({
       staffCustomerId: "cus_staff",
@@ -233,6 +251,66 @@ describe("checkout address customer context", () => {
           normalized_postal_code: "30328",
         }),
       })
+    )
+  })
+
+  it("clears an address-dependent fulfillment choice in the address cart write", async () => {
+    mockedClientFetch.mockImplementation(async (path: string) => {
+      if (path.startsWith("/store/carts/")) {
+        return {
+          cart: {
+            id: "cart_staff",
+            metadata: {
+              fulfillmentType: "atlanta_delivery",
+              fulfillmentZip: "30328",
+              scheduledDate: "2026-07-15",
+              fulfillmentSelectionStatus: "settled",
+            },
+            shipping_address: {
+              address_1: "220 Glen Meadow Ct",
+              city: "Sandy Springs",
+              province: "GA",
+              postal_code: "30328",
+              country_code: "us",
+            },
+          },
+        }
+      }
+
+      return {
+        customer: {
+          id: "cus_staff",
+          email: "staff@example.com",
+          metadata: { gp_staff_role: "office" },
+        },
+      }
+    })
+
+    const result = await saveAddressToProfileAndCart({
+      address_id: "addr_1",
+      first_name: "Meyer",
+      last_name: "Greenberg",
+      address_1: "143 South Hayworth Avenue",
+      city: "Waltham",
+      province: "MA",
+      postal_code: "02453",
+      phone: "(404) 643-1567",
+    })
+
+    expect(result).toEqual({ success: true, error: null })
+    expect(mockedCartUpdate).toHaveBeenCalledWith(
+      "cart_staff",
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          fulfillmentType: "",
+          fulfillmentZip: "",
+          scheduledDate: "",
+          requestedDeliveryDate: "",
+          fulfillmentSelectionStatus: "",
+        }),
+      }),
+      {},
+      expect.any(Object)
     )
   })
 

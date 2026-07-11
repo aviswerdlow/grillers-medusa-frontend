@@ -1,7 +1,11 @@
 "use client"
 
 import { RadioGroup, Radio } from "@headlessui/react"
-import { setFulfillmentDetails, setShippingMethod } from "@lib/data/cart"
+import {
+  clearFulfillmentDetails,
+  setFulfillmentDetails,
+  setShippingMethod,
+} from "@lib/data/cart"
 import { calculatePriceForShippingOption, findShippingOptionByType } from "@lib/data/fulfillment"
 import { convertToLocale } from "@lib/util/money"
 import { trackAddShippingInfo } from "@lib/gtm"
@@ -353,6 +357,17 @@ const Shipping: React.FC<ShippingProps> = ({
     setError(null)
     setIsLoading(true)
     try {
+      if (nextType === "atlanta_delivery") {
+        // Atlanta delivery requires an explicit delivery date and time window.
+        // Retire the unusable UPS choice and return to the normal selector so
+        // the customer completes that scheduling flow; never synthesize a
+        // pending Atlanta selection from this dead-end shortcut.
+        await clearFulfillmentDetails(cart.id)
+        router.replace(pathname, { scroll: false })
+        router.refresh()
+        return
+      }
+
       const today = new Date().toLocaleDateString("en-US", {
         month: "numeric",
         day: "numeric",
@@ -361,15 +376,18 @@ const Shipping: React.FC<ShippingProps> = ({
       await setFulfillmentDetails({
         cartId: cart.id,
         fulfillmentType: nextType,
-        fulfillmentZip: nextType === "atlanta_delivery" ? cart.shipping_address?.postal_code || "" : "00000",
+        fulfillmentZip: "00000",
         scheduledDate: today,
       })
-      if (nextType === "plant_pickup") {
-        const option = await findShippingOptionByType(cart.id, "plant_pickup")
-        if (option) {
-          await setShippingMethod({ cartId: cart.id, shippingMethodId: option.id })
-        }
+
+      const option = await findShippingOptionByType(cart.id, "plant_pickup")
+      if (!option) {
+        throw new Error(
+          "Plant pickup is unavailable right now. Please choose another fulfillment method."
+        )
       }
+      await setShippingMethod({ cartId: cart.id, shippingMethodId: option.id })
+
       router.replace(pathname, { scroll: false })
       router.refresh()
     } catch (err: any) {
@@ -439,7 +457,7 @@ const Shipping: React.FC<ShippingProps> = ({
                   disabled={isLoading}
                   className="px-4 py-2 text-xs font-semibold text-white bg-Gold rounded-lg hover:bg-Gold/90 transition-colors disabled:opacity-50"
                 >
-                  Switch to Atlanta Delivery
+                  Choose Atlanta Delivery
                 </button>
                 <button
                   type="button"

@@ -103,19 +103,21 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   // Use Strapi SEO data if available, otherwise fallback to Medusa
   const seo = strapiProduct?.SEO
   const socialMeta = strapiProduct?.SocialMeta
-  
+
   // Build title - always append " | Grillers Pride" if not already present
   const baseTitle = seo?.metaTitle || strapiProduct?.Title || product.title
-  const title = baseTitle.includes("Grillers Pride") 
-    ? baseTitle 
+  const title = baseTitle.includes("Grillers Pride")
+    ? baseTitle
     : `${baseTitle} | Grillers Pride`
-  
+
   const description =
     seo?.metaDescription ||
     strapiProduct?.MedusaProduct?.Description ||
     product.description ||
-    `Shop ${strapiProduct?.Title || product.title} at Grillers Pride. Premium kosher meats delivered fresh to your door.`
-  
+    `Shop ${
+      strapiProduct?.Title || product.title
+    } at Grillers Pride. Premium kosher meats delivered fresh to your door.`
+
   const imageUrl = strapiProduct?.FeaturedImage?.url || product.thumbnail
 
   return {
@@ -137,7 +139,8 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
         ? [
             {
               url: socialMeta.ogImage.url,
-              alt: socialMeta.ogImageAlt || strapiProduct?.Title || product.title,
+              alt:
+                socialMeta.ogImageAlt || strapiProduct?.Title || product.title,
             },
           ]
         : imageUrl
@@ -214,31 +217,6 @@ export default async function ProductPage(props: Props) {
       medusaProductId: pricedProduct.id,
     }
   )
-  const ingredientDisclosuresPromise = withPdpStrapiFallback(
-    getProductIngredientDisclosures(pricedProduct.id, {
-      onLoadFailure: (failure) => {
-        void emitPdpStrapiLoadFailureAlert({
-          stage: "ingredient_disclosures",
-          reason: failure.reason,
-          handle: params.handle,
-          countryCode: params.countryCode,
-          medusaProductId: pricedProduct.id,
-          status: failure.status,
-          error: failure.error,
-        }).catch(() => {
-          // Fail open: disclosure fallbacks should not block PDP rendering.
-        })
-      },
-    }),
-    [],
-    {
-      stage: "ingredient_disclosures",
-      timeoutMs: 1200,
-      handle: params.handle,
-      countryCode: params.countryCode,
-      medusaProductId: pricedProduct.id,
-    }
-  )
   const purchaseHistoryItemPromise = customer
     ? withTimeout(
         listPurchaseHistory()
@@ -268,18 +246,15 @@ export default async function ProductPage(props: Props) {
 
   const [
     strapiProductData,
-    ingredientDisclosures,
     purchaseHistoryItem,
     pdpExperiment,
     pdpRecommendationExperiment,
-  ] =
-    await Promise.all([
-      strapiProductDataPromise,
-      ingredientDisclosuresPromise,
-      purchaseHistoryItemPromise,
-      pdpExperimentPromise,
-      pdpRecommendationExperimentPromise,
-    ])
+  ] = await Promise.all([
+    strapiProductDataPromise,
+    purchaseHistoryItemPromise,
+    pdpExperimentPromise,
+    pdpRecommendationExperimentPromise,
+  ])
   const productFromStrapi = strapiProductData?.products?.[0]
   if (strapiProductData && !productFromStrapi) {
     await emitPdpStrapiLoadFailureAlert({
@@ -292,6 +267,39 @@ export default async function ProductPage(props: Props) {
       // Fail open: PDP should still render from Medusa fallbacks.
     })
   }
+  // Ingredient disclosures are already part of GetProductQuery. The REST read
+  // is a recovery path only when that product query failed or returned an
+  // older shape; issuing both requests on every PDP doubled Strapi cold-start
+  // load and repeatedly tripped the disclosure timeout canary.
+  const ingredientDisclosures = Array.isArray(
+    productFromStrapi?.IngredientDisclosures
+  )
+    ? productFromStrapi.IngredientDisclosures
+    : await withPdpStrapiFallback(
+        getProductIngredientDisclosures(pricedProduct.id, {
+          onLoadFailure: (failure) => {
+            void emitPdpStrapiLoadFailureAlert({
+              stage: "ingredient_disclosures",
+              reason: failure.reason,
+              handle: params.handle,
+              countryCode: params.countryCode,
+              medusaProductId: pricedProduct.id,
+              status: failure.status,
+              error: failure.error,
+            }).catch(() => {
+              // Fail open: disclosure fallbacks should not block PDP rendering.
+            })
+          },
+        }),
+        [],
+        {
+          stage: "ingredient_disclosures",
+          timeoutMs: 1200,
+          handle: params.handle,
+          countryCode: params.countryCode,
+          medusaProductId: pricedProduct.id,
+        }
+      )
   const resolvedIngredientDisclosures = Array.isArray(
     productFromStrapi?.IngredientDisclosures
   )
