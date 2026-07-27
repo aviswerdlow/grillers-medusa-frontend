@@ -388,11 +388,13 @@ const sections: GuideSection[] = [
       "The source of truth for who may pay by invoice is moving into QuickBooks. Peter flags the account and sets its credit limit on the QuickBooks customer record, and the website reads that. Until that sync is wired, the approval set in Medusa Admin is what gates checkout.",
       "Once approved, that customer sees a How would you like to pay choice at checkout with Pay with card and Pay by invoice. Choosing invoice places the order with no card and no final-charge card hold.",
       "The order still goes through Pack and Finalize for picking and weighing. The final weighed total is invoiced, not charged to a card.",
+      "If checkout holds an invoice order because its projected exposure exceeds the saved credit limit, the approval pager shows an Approve & release action. Only a Slack user listed as a designated credit approver can clear that credit hold; everyone else receives a private denial and the order stays held.",
     ],
     watch: [
       "Only approved accounts can pay by invoice. A regular customer never sees the option, and the checkout backend rejects an invoice attempt from a non-approved account.",
       "There is no card on file for invoice accounts by design. Do not ask an invoice customer for a card as a backup.",
       "Approving an account is a credit decision. Confirm the business and the credit limit before approving, and keep the limit and terms matched to what Peter set in QuickBooks.",
+      "The credit-review card's exposure is currently the website's invoice-order snapshot, not a live authoritative QuickBooks open-A/R balance. Confirm the customer's current QuickBooks receivables before granting the second approval.",
       "The unpaid invoice sits in the QuickBooks accounts receivable and is collected by Zelle, check, or wire on the account's terms. Collection is manual in QuickBooks for now.",
       "Approvals and declines are audited to the staff member who made them.",
     ],
