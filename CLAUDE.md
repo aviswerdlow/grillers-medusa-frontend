@@ -88,8 +88,8 @@ Uses in-memory region map with 1-hour TTL. Skips static assets (files with dots)
 1. **Medusa Backend** — Product catalog, cart, checkout, customer accounts, orders, region/country management
 2. **Strapi CMS** (GraphQL via `graphql-request`) — Homepage, collections metadata, recipes, PDP enriched content, header/footer, SEO, analytics config, testimonials, announcements, cookie consent
 3. **Algolia** — Product search with faceted filtering, collection page search
-4. **Stripe** — Multiple payment methods: credit card, iDeal, Bancontact (plus PayPal and manual payment). Payment provider helpers (`isStripe()`, `isPaypal()`, `isManual()`) in `src/modules/checkout/components/payment/constants.tsx`
-5. **GTM/Analytics** — Comprehensive event tracking in `src/lib/util/gtm.ts` (page views, add to cart, purchase, checkout steps, search, etc.)
+4. **Stripe** — Launch checkout exposes Stripe credit cards only. Do not add iDEAL, Bancontact, PayPal, manual/offline payment, or wallet messaging unless the backend contract and launch decision explicitly change. The current provider gate is `isStripe()` in `src/lib/constants.tsx`.
+5. **Jitsu + GTM/Analytics** — First-party Jitsu eventing lives in `src/lib/jitsu.ts`; GTM/GA4 helpers live in `src/lib/gtm.ts`. Preserve server-side `order_completed` as the purchase source rather than firing it from confirmation-page client code.
 
 ### Module Organization
 
