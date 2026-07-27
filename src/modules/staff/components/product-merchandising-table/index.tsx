@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   ArrowDown,
   ArrowUp,
@@ -30,6 +30,8 @@ type SortKey =
 
 type SortDirection = "asc" | "desc"
 
+const TABLE_STATE_KEY = "gp_staff_merchandising_table_state:v1"
+
 const sortLabels: Record<SortKey, string> = {
   name: "Name",
   productCount: "Products",
@@ -54,6 +56,15 @@ function metricClass(kind: "neutral" | "good" | "warn" | "info") {
   return "border-gray-200 bg-white text-Charcoal"
 }
 
+function ariaSortValue(
+  key: SortKey,
+  activeKey: SortKey,
+  direction: SortDirection
+): "ascending" | "descending" | undefined {
+  if (key !== activeKey) return undefined
+  return direction === "asc" ? "ascending" : "descending"
+}
+
 function SortButton({
   label,
   sortKey,
@@ -74,7 +85,14 @@ function SortButton({
     <button
       type="button"
       onClick={() => onSort(sortKey)}
-      className="inline-flex min-h-[34px] items-center gap-1.5 rounded-md px-2 text-left text-xs font-maison-neue-mono uppercase text-Charcoal/55 transition hover:bg-Scroll hover:text-Charcoal"
+      aria-label={
+        active
+          ? `Sort by ${label}, currently ${
+              direction === "asc" ? "ascending" : "descending"
+            }`
+          : `Sort by ${label}`
+      }
+      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-md px-2 text-left text-xs font-maison-neue-mono uppercase text-Charcoal/55 transition hover:bg-Scroll hover:text-Charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-Gold focus-visible:ring-offset-2"
     >
       {label}
       {active && <Icon className="h-3.5 w-3.5 text-Gold" aria-hidden />}
@@ -84,8 +102,45 @@ function SortButton({
 
 export default function ProductMerchandisingTable({ tags }: Props) {
   const [query, setQuery] = useState("")
-  const [sortKey, setSortKey] = useState<SortKey>("notReviewedImageCount")
-  const [direction, setDirection] = useState<SortDirection>("desc")
+  const [sortKey, setSortKey] = useState<SortKey>("name")
+  const [direction, setDirection] = useState<SortDirection>("asc")
+  const [stateRestored, setStateRestored] = useState(false)
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(TABLE_STATE_KEY)
+      if (raw) {
+        const saved = JSON.parse(raw) as Partial<{
+          query: string
+          sortKey: SortKey
+          direction: SortDirection
+        }>
+        if (typeof saved.query === "string") setQuery(saved.query)
+        if (saved.sortKey && saved.sortKey in sortLabels) {
+          setSortKey(saved.sortKey)
+        }
+        if (saved.direction === "asc" || saved.direction === "desc") {
+          setDirection(saved.direction)
+        }
+      }
+    } catch {
+      // Resume state is a convenience only; a bad browser value must not block work.
+    } finally {
+      setStateRestored(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!stateRestored) return
+    try {
+      window.sessionStorage.setItem(
+        TABLE_STATE_KEY,
+        JSON.stringify({ direction, query, sortKey })
+      )
+    } catch {
+      // Browser storage is best-effort only.
+    }
+  }, [direction, query, sortKey, stateRestored])
 
   const totals = useMemo(
     () =>
@@ -133,18 +188,28 @@ export default function ProductMerchandisingTable({ tags }: Props) {
 
     return [...rows].sort((a, b) => {
       const multiplier = direction === "asc" ? 1 : -1
+      const alphabetical = a.displayName.localeCompare(
+        b.displayName,
+        undefined,
+        {
+          numeric: true,
+          sensitivity: "base",
+        }
+      )
       if (sortKey === "name") {
-        return a.displayName.localeCompare(b.displayName) * multiplier
+        return alphabetical * multiplier
       }
       if (sortKey === "notReviewedImageCount") {
-        return (
+        const difference =
           (a.imageCount -
             a.reviewedImageCount -
             (b.imageCount - b.reviewedImageCount)) *
           multiplier
-        )
+        return difference || alphabetical
       }
-      return ((a[sortKey] as number) - (b[sortKey] as number)) * multiplier
+      const difference =
+        ((a[sortKey] as number) - (b[sortKey] as number)) * multiplier
+      return difference || alphabetical
     })
   }, [direction, query, sortKey, tags])
 
@@ -199,6 +264,7 @@ export default function ProductMerchandisingTable({ tags }: Props) {
         <div className="border-b border-gray-200 p-4">
           <div className="flex flex-col gap-3 large:flex-row large:items-center large:justify-between">
             <label className="relative block large:w-[420px]">
+              <span className="sr-only">Search image categories</span>
               <Search
                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-Charcoal/35"
                 aria-hidden
@@ -206,23 +272,31 @@ export default function ProductMerchandisingTable({ tags }: Props) {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search L3 tags, metadata, or parent groups"
+                placeholder="Search image categories or parent groups"
+                aria-describedby="merchandising-search-results"
                 className="min-h-[44px] w-full rounded-md border border-gray-200 bg-Scroll/35 pl-10 pr-3 text-sm font-maison-neue text-Charcoal outline-none transition focus:border-Gold focus:bg-white focus:ring-2 focus:ring-Gold/15"
               />
             </label>
 
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-maison-neue-mono uppercase text-Charcoal/55">
-                {tags.length} L3 groups / {totals.products} products
+              <span
+                id="merchandising-search-results"
+                role="status"
+                aria-live="polite"
+                className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-maison-neue-mono uppercase text-Charcoal/55"
+              >
+                {filtered.length} of {tags.length} categories /{" "}
+                {totals.products} products
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-2 text-xs font-maison-neue-mono uppercase text-Charcoal/55">
                 <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
                 Sort by {sortLabels[sortKey].toLowerCase()}
               </span>
               <select
+                aria-label="Sort image categories"
                 value={sortKey}
                 onChange={(event) => updateSort(event.target.value as SortKey)}
-                className="min-h-[36px] rounded-md border border-gray-200 bg-white px-2 text-sm font-maison-neue text-Charcoal outline-none focus:border-Gold"
+                className="min-h-[44px] rounded-md border border-gray-200 bg-white px-2 text-sm font-maison-neue text-Charcoal outline-none focus:border-Gold focus:ring-2 focus:ring-Gold/15"
               >
                 {Object.entries(sortLabels).map(([key, label]) => (
                   <option key={key} value={key}>
@@ -230,15 +304,89 @@ export default function ProductMerchandisingTable({ tags }: Props) {
                   </option>
                 ))}
               </select>
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="min-h-[44px] rounded-md border border-gray-200 bg-white px-3 text-xs font-rexton font-bold uppercase text-Charcoal transition hover:border-Charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-Gold focus-visible:ring-offset-2"
+                >
+                  Clear search
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div
+          className="divide-y divide-gray-100 medium:hidden"
+          data-testid="merchandising-mobile-list"
+        >
+          {filtered.map((tag) => {
+            const notReviewed = tag.imageCount - tag.reviewedImageCount
+            return (
+              <article key={tag.documentId} className="p-4">
+                <LocalizedClientLink
+                  href={`/account/staff/merchandising/${encodeURIComponent(
+                    tag.documentId
+                  )}`}
+                  className="group block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-Gold focus-visible:ring-offset-2"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-Charcoal text-white">
+                      <ImageIcon className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block break-words text-base font-maison-neue font-semibold text-Charcoal group-hover:text-Gold">
+                        {tag.displayName}
+                      </span>
+                      <span className="mt-1 block break-words text-xs font-maison-neue-mono uppercase text-Charcoal/45">
+                        {tag.l2Parents.length
+                          ? tag.l2Parents.join(" / ")
+                          : "No L2 parent detected"}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className="h-full rounded-full bg-Gold"
+                      style={{
+                        width: percent(tag.reviewedImageCount, tag.imageCount),
+                      }}
+                    />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-maison-neue text-Charcoal/65">
+                    <span>{tag.productCount} products</span>
+                    <span>{tag.imageCount} images</span>
+                    <span className="text-emerald-700">
+                      {tag.approvedImageCount} approved
+                    </span>
+                    <span className={notReviewed ? "text-amber-800" : ""}>
+                      {notReviewed} not reviewed
+                    </span>
+                    {tag.rejectedImageCount > 0 && (
+                      <span className="text-red-700">
+                        {tag.rejectedImageCount} rejected
+                      </span>
+                    )}
+                    <span>
+                      {percent(tag.reviewedImageCount, tag.imageCount)} done
+                    </span>
+                  </div>
+                </LocalizedClientLink>
+              </article>
+            )
+          })}
+        </div>
+
+        <div className="hidden overflow-x-auto medium:block">
           <table className="w-full min-w-[1080px] border-collapse">
             <thead>
               <tr className="border-b border-gray-200 bg-Scroll/45">
-                <th className="px-4 py-3 text-left">
+                <th
+                  aria-sort={ariaSortValue("name", sortKey, direction)}
+                  className="px-4 py-3 text-left"
+                >
                   <SortButton
                     label="Name"
                     sortKey="name"
@@ -247,7 +395,10 @@ export default function ProductMerchandisingTable({ tags }: Props) {
                     onSort={updateSort}
                   />
                 </th>
-                <th className="px-4 py-3 text-center">
+                <th
+                  aria-sort={ariaSortValue("productCount", sortKey, direction)}
+                  className="px-4 py-3 text-center"
+                >
                   <SortButton
                     label="Products"
                     sortKey="productCount"
@@ -256,7 +407,10 @@ export default function ProductMerchandisingTable({ tags }: Props) {
                     onSort={updateSort}
                   />
                 </th>
-                <th className="px-4 py-3 text-center">
+                <th
+                  aria-sort={ariaSortValue("imageCount", sortKey, direction)}
+                  className="px-4 py-3 text-center"
+                >
                   <SortButton
                     label="Total images"
                     sortKey="imageCount"
@@ -265,7 +419,14 @@ export default function ProductMerchandisingTable({ tags }: Props) {
                     onSort={updateSort}
                   />
                 </th>
-                <th className="px-4 py-3 text-center">
+                <th
+                  aria-sort={ariaSortValue(
+                    "approvedImageCount",
+                    sortKey,
+                    direction
+                  )}
+                  className="px-4 py-3 text-center"
+                >
                   <SortButton
                     label="Approved"
                     sortKey="approvedImageCount"
@@ -274,7 +435,14 @@ export default function ProductMerchandisingTable({ tags }: Props) {
                     onSort={updateSort}
                   />
                 </th>
-                <th className="px-4 py-3 text-center">
+                <th
+                  aria-sort={ariaSortValue(
+                    "rejectedImageCount",
+                    sortKey,
+                    direction
+                  )}
+                  className="px-4 py-3 text-center"
+                >
                   <SortButton
                     label="Rejected"
                     sortKey="rejectedImageCount"
@@ -283,7 +451,14 @@ export default function ProductMerchandisingTable({ tags }: Props) {
                     onSort={updateSort}
                   />
                 </th>
-                <th className="px-4 py-3 text-center">
+                <th
+                  aria-sort={ariaSortValue(
+                    "claimedImageCount",
+                    sortKey,
+                    direction
+                  )}
+                  className="px-4 py-3 text-center"
+                >
                   <SortButton
                     label="Claimed"
                     sortKey="claimedImageCount"
@@ -292,7 +467,14 @@ export default function ProductMerchandisingTable({ tags }: Props) {
                     onSort={updateSort}
                   />
                 </th>
-                <th className="px-4 py-3 text-center">
+                <th
+                  aria-sort={ariaSortValue(
+                    "notReviewedImageCount",
+                    sortKey,
+                    direction
+                  )}
+                  className="px-4 py-3 text-center"
+                >
                   <SortButton
                     label="Not reviewed"
                     sortKey="notReviewedImageCount"

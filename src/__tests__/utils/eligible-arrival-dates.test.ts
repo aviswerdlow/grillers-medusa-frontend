@@ -11,6 +11,7 @@ import {
   normalizeUpsServiceCode,
   toIsoDate,
   UPS_GROUND_TRANSIT_DAYS_BY_PREFIX,
+  UPS_HOLIDAYS_ISO,
 } from "@lib/util/eligible-arrival-dates"
 
 describe("UPS Ground transit lookup", () => {
@@ -279,6 +280,12 @@ describe("isArrivalDateValid server-side check", () => {
 })
 
 describe("Holiday + Shabbos exclusions", () => {
+  it("matches the official 2026 UPS full-closure dates", () => {
+    expect(UPS_HOLIDAYS_ISO.has("2026-01-19")).toBe(true)
+    expect(UPS_HOLIDAYS_ISO.has("2026-07-04")).toBe(true)
+    expect(UPS_HOLIDAYS_ISO.has("2026-07-03")).toBe(false)
+  })
+
   it("excludes UPS holidays from arrival eligibility", () => {
     // 2026-12-25 Christmas — UPS does not deliver
     const now = new Date(2026, 11, 18, 10, 0) // Dec 18 2026

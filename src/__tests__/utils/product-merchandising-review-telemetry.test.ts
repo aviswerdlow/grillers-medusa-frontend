@@ -313,6 +313,133 @@ describe("product merchandising review telemetry", () => {
     )
   })
 
+  it("requires a fresh comparison when a reviewed image changes before an intentional overwrite", async () => {
+    const loadedCaption = reviewCaption({
+      review: {
+        status: "rejected",
+        reason: "other",
+        note: "Loaded rejection",
+        reviewerName: "Red",
+        reviewedAt: "2026-06-28T12:00:00.000Z",
+      },
+      auditHistory: [],
+    })
+    const latestCaption = reviewCaption({
+      review: {
+        status: "approved",
+        note: "A newer decision",
+        reviewerName: "Peter",
+        reviewedAt: "2026-06-29T12:00:00.000Z",
+      },
+      auditHistory: [],
+    })
+    const fetchMock = jest.fn(async (url: string) => {
+      if (url.includes("/api/upload/files?")) {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              id: 123,
+              documentId: "img_doc",
+              url: "/uploads/img_doc.jpg",
+              caption: latestCaption,
+            },
+          ],
+        } as unknown as Response
+      }
+
+      throw new Error(`Unexpected write during stale overwrite: ${url}`)
+    })
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await reviewMerchandisingImage({
+      imageId: 123,
+      imageDocumentId: "img_doc",
+      countryCode: "us",
+      status: "approved",
+      note: "My proposed decision",
+      currentCaption: loadedCaption,
+      overwriteExistingReview: true,
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.conflict).toBe(true)
+    expect(result.canOverwrite).toBe(true)
+    expect(result.latestReview).toEqual(
+      expect.objectContaining({
+        status: "approved",
+        note: "A newer decision",
+        reviewerName: "Peter",
+      })
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(emitReviewTelemetryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "conflict",
+        imageId: 123,
+        previousStatus: "approved",
+        conflictReason: "caption_changed_with_review",
+        overwriteExistingReview: true,
+      })
+    )
+  })
+
+  it("does not fall back to non-atomic upload routes for an intentional overwrite", async () => {
+    const latestCaption = reviewCaption({
+      review: {
+        status: "rejected",
+        reason: "other",
+        note: "Confirmed rejection",
+        reviewerName: "Red",
+        reviewedAt: "2026-06-28T12:00:00.000Z",
+      },
+      auditHistory: [],
+    })
+    const fetchMock = jest.fn(async (url: string) => {
+      if (url.includes("/api/upload/files?")) {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              id: 123,
+              documentId: "img_doc",
+              url: "/uploads/img_doc.jpg",
+              caption: latestCaption,
+            },
+          ],
+        } as unknown as Response
+      }
+
+      if (url.endsWith("/api/gp-upload-files/123/caption")) {
+        return {
+          ok: false,
+          status: 404,
+          json: async () => ({ error: { message: "Not Found" } }),
+        } as unknown as Response
+      }
+
+      throw new Error(`Unsafe legacy overwrite attempt: ${url}`)
+    })
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const result = await reviewMerchandisingImage({
+      imageId: 123,
+      imageDocumentId: "img_doc",
+      countryCode: "us",
+      status: "approved",
+      currentCaption: latestCaption,
+      overwriteExistingReview: true,
+    })
+
+    expect(result.ok).toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "https://strapi.example.test/api/upload?id=123",
+      expect.anything()
+    )
+    expect(emitActionFailureMock).toHaveBeenCalled()
+  })
+
   it("keeps hard Strapi write failures on the page-level action alert", async () => {
     const latestCaption = reviewCaption({
       review: { status: "unreviewed" },

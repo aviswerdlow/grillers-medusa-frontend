@@ -710,7 +710,8 @@ async function requireSuccessfulStrapiWrite(response: Response) {
 function strapiUploadCaptionWriteAttempts(
   imageId: number,
   caption: string,
-  expectedCaption: string | null
+  expectedCaption: string | null,
+  requireCompareAndSwap = false
 ) {
   const endpoint = strapiEndpoint()
   const rewriteHeaders = strapiRewriteHeaders()
@@ -720,7 +721,7 @@ function strapiUploadCaptionWriteAttempts(
     },
   })
 
-  return [
+  const attempts = [
     {
       name: "gp upload caption JSON",
       run: () =>
@@ -786,19 +787,25 @@ function strapiUploadCaptionWriteAttempts(
       },
     },
   ]
+
+  return requireCompareAndSwap ? attempts.slice(0, 1) : attempts
 }
 
 async function writeStrapiUploadCaption(
   imageId: number,
   caption: string,
-  expectedCaption: string | null
+  expectedCaption: string | null,
+  options: {
+    requireCompareAndSwap?: boolean
+  } = {}
 ) {
   const failures: string[] = []
 
   for (const attempt of strapiUploadCaptionWriteAttempts(
     imageId,
     caption,
-    expectedCaption
+    expectedCaption,
+    options.requireCompareAndSwap
   )) {
     try {
       const response = await attempt.run()
@@ -1363,10 +1370,7 @@ export async function reviewMerchandisingImage(
       }
     }
 
-    if (
-      latestCaption !== (input.currentCaption || null) &&
-      !input.overwriteExistingReview
-    ) {
+    if (latestCaption !== (input.currentCaption || null)) {
       void emitStaffMerchandisingReviewTelemetry({
         event: "conflict",
         imageId,
@@ -1417,7 +1421,12 @@ export async function reviewMerchandisingImage(
       auditEntry,
     })
 
-    await writeStrapiUploadCaption(imageId, caption, latestCaption)
+    await writeStrapiUploadCaption(imageId, caption, latestCaption, {
+      // A deliberate review change is safe only through the Strapi endpoint
+      // that compares the caption the reviewer confirmed with the latest
+      // stored value. Legacy upload routes cannot provide that guarantee.
+      requireCompareAndSwap: Boolean(input.overwriteExistingReview),
+    })
 
     revalidatePath(`/${input.countryCode}/account/staff/merchandising`)
     void emitStaffMerchandisingReviewTelemetry({

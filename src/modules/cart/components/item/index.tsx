@@ -107,6 +107,9 @@ const Item = ({
   )
   const isNetWeight =
     pricingMode === "per_lb" && Boolean(metadata?.AvgPackWeight)
+  const sku = String(
+    item.variant?.sku || (item as { variant_sku?: string }).variant_sku || ""
+  ).trim()
 
   return (
     <Table.Row className="w-full" data-testid="product-row">
@@ -135,6 +138,14 @@ const Item = ({
           {productTitle}
         </Text>
         <LineItemOptions variant={item.variant} data-testid="product-variant" />
+        {sku && (
+          <p
+            className="mt-1 text-xs font-maison-neue-mono uppercase text-ui-fg-muted"
+            data-testid="product-sku"
+          >
+            SKU {sku}
+          </p>
+        )}
         {isNetWeight && (
           <div className="mt-2 space-y-1">
             <NetWeightBadge />

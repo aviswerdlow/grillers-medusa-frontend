@@ -1,5 +1,5 @@
 "use client"
-import React, { Fragment, useState, useRef } from "react"
+import React, { Fragment, useEffect, useRef, useState } from "react"
 import { Dialog, DialogPanel, Transition } from "@headlessui/react"
 import classNames from "classnames"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
@@ -318,29 +318,42 @@ const DesktopNavMenu = ({
   navCounts?: NavCounts
 }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
-  const [isAnimating, setIsAnimating] = useState(false)
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
-  const handleMouseEnter = (menuId: string) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
-    if (activeMenu !== menuId) {
-      setIsAnimating(true)
-      setActiveMenu(menuId)
-      setTimeout(() => setIsAnimating(false), 50)
-    }
-  }
+  useEffect(() => {
+    if (!activeMenu) return
 
-  const handleMouseLeave = () => {
-    timeoutRef.current = setTimeout(() => {
+    const openMenu = activeMenu
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target
+      if (target instanceof Node && !rootRef.current?.contains(target)) {
+        setActiveMenu(null)
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return
+      event.preventDefault()
       setActiveMenu(null)
-      setIsAnimating(false)
-    }, 100)
+      triggerRefs.current[openMenu]?.focus()
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [activeMenu])
+
+  function toggleMenu(menuId: string) {
+    setActiveMenu((current) => (current === menuId ? null : menuId))
   }
 
   return (
-    <div className="hidden md:block sticky top-0 inset-x-0 z-30">
+    <div ref={rootRef} className="hidden md:block sticky top-0 inset-x-0 z-30">
       {/* Navigation Bar */}
       <nav
         className="bg-Charcoal border-b border-white/10"
@@ -351,16 +364,17 @@ const DesktopNavMenu = ({
           role="list"
         >
           {navLinks.map((item) => (
-            <li
-              key={item.id}
-              className="relative"
-              onMouseEnter={() => handleMouseEnter(item.id)}
-              onMouseLeave={handleMouseLeave}
-            >
+            <li key={item.id} className="relative">
               <button
+                ref={(node) => {
+                  triggerRefs.current[item.id] = node
+                }}
                 type="button"
+                id={`desktop-nav-trigger-${item.id}`}
                 className="flex items-center text-p-sm-mono font-maison-neue-mono uppercase text-white hover:text-Gold gap-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold focus-visible:ring-offset-2 rounded group"
+                onClick={() => toggleMenu(item.id)}
                 aria-expanded={activeMenu === item.id}
+                aria-controls={`desktop-mega-menu-${item.id}`}
               >
                 {item.title}
                 <svg
@@ -387,16 +401,12 @@ const DesktopNavMenu = ({
       {/* Mega Menu Overlay */}
       {activeMenu && (
         <div
+          id={`desktop-mega-menu-${activeMenu}`}
+          role="region"
+          aria-labelledby={`desktop-nav-trigger-${activeMenu}`}
           className="absolute top-full left-0 w-full bg-gray-100 shadow-xl border-t border-gray-300 z-50"
-          onMouseEnter={() => handleMouseEnter(activeMenu)}
-          onMouseLeave={handleMouseLeave}
         >
-          <div
-            className={classNames("transition-all duration-300 ease-out", {
-              "opacity-0 translate-y-[-10px]": isAnimating,
-              "opacity-100 translate-y-0": !isAnimating,
-            })}
-          >
+          <div className="opacity-100 translate-y-0">
             {navLinks
               .filter((item) => item.id === activeMenu)
               .map((item) => (

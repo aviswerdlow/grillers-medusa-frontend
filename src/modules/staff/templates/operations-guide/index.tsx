@@ -172,6 +172,12 @@ const publicSurfaces = [
       "Use for customer timelines, direct staff notes, lifecycle flows, campaign drafts, audience segments, suppressions, and Postmark delivery status.",
   },
   {
+    route: "/us/account/staff/merchandising",
+    name: "Product image review",
+    staffUse:
+      "Use to review Strapi product images by category, read the latest rejection comment, reserve open work, and deliberately change a prior decision without losing its audit history.",
+  },
+  {
     route: "/us/account/staff/operations-guide",
     name: "This guide",
     staffUse: "Use as the staff operating manual and training link.",
@@ -265,12 +271,43 @@ const sections: GuideSection[] = [
       "Use /us/search when a customer is looking for a product by name or SKU. Search is live and should surface customer-safe titles.",
       "Use /us/collections for curated shopping paths. Individual collection pages may be Strapi product collections, product tags, or curated collections.",
       "Use a product page when confirming exact packaging, price mode, ingredient disclosure, kosher status, shipping eligibility, and whether a waitlist is offered.",
+      "On desktop, click a main navigation label to open its menu. Moving the pointer across the navigation does not open a menu; click the same label again, click outside, or press Escape to close it.",
+      "In the cart, each line shows its customer-safe SKU, quantity, and discount-aware extended Total so a customer can adjust quantities against a budget. Larger screens also show the per-pack Price in its own column.",
       "Use /us/navigation as a plain index of products and collections when staff need a fast reference page.",
     ],
     watch: [
       "Do not promise a product fact unless it appears in Strapi, Medusa, or current staff guidance.",
       "If a page shows a QuickBooks accounting title to customers, treat that as a bug. Customer-facing names should come from Strapi or Medusa.",
+      "For catch-weight items, the cart line Total is still an estimate until staff record the actual weight. Do not promise it as the final charge.",
       "If a product is intentionally inactive, customers should not see a normal back-in-stock promise for it.",
+    ],
+  },
+  {
+    id: "merchandising-review",
+    eyebrow: "Merchandising",
+    title: "Reviewing product images",
+    summary:
+      "The product image workspace records staff approvals, rejections, comments, reservations, and review changes in Strapi against the media record. Prior decisions remain available as an audit trail.",
+    useFor: [
+      "Working through product image categories in alphabetical order.",
+      "Approving a customer-safe product image or rejecting one that needs replacement.",
+      "Reading the latest rejection reason and comment, including after a later approval.",
+      "Correcting a prior approval or rejection while preserving who made the earlier decision and when.",
+    ],
+    howTo: [
+      "Open Product image review from the staff console. Categories start in A–Z order; use search to find a category or parent group. Your search and chosen sort stay available when you open a category and return during the same browser session.",
+      "Open a category, then review each image card. The card shows the current decision and the latest rejection note when one exists. Open the image or View audit history for the full-size image and every recorded action.",
+      "For an unreviewed image, choose Approve or Reject. A rejection needs a reason; add a clear note telling the replacement team what is wrong.",
+      "Reserve while reviewing only when you need to signal temporary ownership. A reservation is optional and does not count as a completed review.",
+      "For a reviewed image, choose Change review. Select the new decision, update the note or rejection reason, continue to confirmation, and compare the current and new decisions before confirming.",
+      "After a review change, verify the card shows the new current decision and open Audit history to confirm the earlier decision and comment remain recorded.",
+    ],
+    watch: [
+      "Change review makes a new decision current; it does not delete or edit the prior audit entry.",
+      "A latest rejection note can describe an earlier decision even when the current decision is Approved. Read the current decision and the note label separately.",
+      "Do not override an image reserved by another staff member. Coordinate with that reviewer or wait for the reservation to be released or expire.",
+      "Approval changes review state only. Replacing the actual product image is a separate Strapi media task.",
+      "Image review data is associated with the Strapi media record. If the same media is reused, its review history follows that image.",
     ],
   },
   {

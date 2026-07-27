@@ -213,7 +213,8 @@ export const UPS_GROUND_TRANSIT_DAYS_BY_PREFIX: Record<string, number> = {
 }
 
 /**
- * Observed UPS holidays (US). Source: ups.com/us/en/help-center/holiday-schedule.page
+ * UPS holidays (US). Source:
+ * https://www.ups.com/us/en/support/shipping-support/shipping-services/holiday-shipping-schedule
  * On these dates UPS does not pick up or deliver — neither pack-out nor arrival.
  *
  * TODO: Refresh annually each Q4 for the next calendar year.
@@ -221,8 +222,9 @@ export const UPS_GROUND_TRANSIT_DAYS_BY_PREFIX: Record<string, number> = {
 export const UPS_HOLIDAYS_ISO: ReadonlySet<string> = new Set([
   // 2026
   "2026-01-01", // New Year's Day
+  "2026-01-19", // Martin Luther King Jr. Day
   "2026-05-25", // Memorial Day
-  "2026-07-03", // Independence Day (observed)
+  "2026-07-04", // Independence Day
   "2026-09-07", // Labor Day
   "2026-11-26", // Thanksgiving
   "2026-12-25", // Christmas Day
