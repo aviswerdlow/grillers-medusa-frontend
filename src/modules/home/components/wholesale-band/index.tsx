@@ -44,7 +44,7 @@ const WholesaleBand: React.FC = () => {
               simchas, we&apos;d love to talk.
             </p>
             <p className="font-maison-neue text-p-md text-Charcoal/60">
-              Volume pricing &middot; Standing orders &middot; Net-30 terms
+              Volume pricing &middot; Standing orders &middot; Terms for approved accounts
               &middot; Custom packaging
             </p>
           </div>
