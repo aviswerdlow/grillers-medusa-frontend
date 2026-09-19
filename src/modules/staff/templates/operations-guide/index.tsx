@@ -845,6 +845,7 @@ const sections: GuideSection[] = [
     ],
     watch: [
       "Green progress bars mean the session completed, not necessarily that every order posted correctly.",
+      "The bridge can check website orders and customers through a separate read connection while product and inventory changes remain disabled. A successful connection check does not prove that QuickBooks received an order or payment. If reads fail, ask the sync operator to check the read connection; do not enable broader writes or requeue payments to fix it.",
       "Tax uses its own QuickBooks item selected from the order address. Product ListIDs do not fix a missing or wrong tax item.",
       "If a taxed order is blocked before QuickBooks, check the order ZIP, county, tax rate, and whether the matching QuickBooks sales-tax item was imported.",
       "A row can be waiting for Web Connector without being broken. A stuck or error row has a reason and should be fixed or deliberately requeued.",
