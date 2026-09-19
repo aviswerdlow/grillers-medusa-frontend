@@ -9,7 +9,7 @@ import {
   staffAccessRole,
   staffDisplayName,
 } from "@lib/util/staff-access"
-import { adminFetch, appendStaffAuditLog } from "./admin"
+import { adminFetch } from "./admin"
 import {
   actionIsBlockedByOperationalState,
   actionIsAuditOnly,
@@ -203,6 +203,10 @@ export type StaffExceptionLegacyDocument = {
 }
 
 export type StaffExceptionOrderDetail = StaffExceptionOrderSummary & {
+  accountingActions?: Array<{ id: string; request_key: string; action: string; status: string; amount_minor: number;
+    currency_code: string; depends_on_request_key?: string; last_error?: string; created_at: string;
+    receipt?: { no_effect_reason?: string; transactions?: Array<{ kind: string; txn_id: string }> } }>
+  accountingHistoryError?: string
   subtotal: number
   shippingTotal: number
   taxTotal: number
@@ -225,6 +229,8 @@ export type StaffExceptionOrderDetail = StaffExceptionOrderSummary & {
 }
 
 export type StaffExceptionActionInput = {
+  requestId?: string
+  accountingRequestKey?: string
   orderId: string
   action: StaffExceptionActionType
   reasonCode: StaffExceptionReasonCode
@@ -1333,6 +1339,8 @@ function detailOrder(order: AnyRecord): StaffExceptionOrderDetail {
 
   return {
     ...summary,
+    accountingActions: order.accountingActions || [],
+    accountingHistoryError: order.accountingHistoryError,
     subtotal: staffCurrencyAmount(order.subtotal),
     shippingTotal: staffCurrencyAmount(order.shipping_total),
     taxTotal: staffCurrencyAmount(order.tax_total),
@@ -1386,34 +1394,14 @@ async function retrieveOrder(orderId: string): Promise<AnyRecord> {
     }
   )
   if (!order) throw new Error("Order not found.")
-  return order
-}
-
-async function updateOrderMetadata(
-  orderId: string,
-  metadata: AnyRecord
-): Promise<AnyRecord> {
   try {
-    const { order } = await adminFetch<{ order: AnyRecord }>(
-      `/admin/orders/${orderId}`,
-      {
-        method: "POST",
-        body: JSON.stringify({ metadata }),
-        query: { fields: ORDER_DETAIL_FIELDS },
-      }
-    )
-    return order
+    const history = await adminFetch<{ actions: StaffExceptionOrderDetail["accountingActions"] }>(`/admin/grillers/orders/${orderId}/accounting-action`)
+    order.accountingActions = history?.actions || []
+    if (!Array.isArray(history?.actions)) order.accountingHistoryError = "Accounting history is unavailable. Do not assume pending work is complete."
   } catch {
-    const { order } = await adminFetch<{ order: AnyRecord }>(
-      `/admin/orders/${orderId}/metadata`,
-      {
-        method: "POST",
-        body: JSON.stringify({ metadata }),
-        query: { fields: ORDER_DETAIL_FIELDS },
-      }
-    )
-    return order
+    order.accountingHistoryError = "Accounting history is unavailable. Do not assume pending work is complete."
   }
+  return order
 }
 
 async function appendOrderAudit(
@@ -1421,14 +1409,23 @@ async function appendOrderAudit(
   entry: AnyRecord,
   patch: AnyRecord = {}
 ): Promise<AnyRecord> {
-  const order = await retrieveOrder(orderId)
-  const metadata = appendStaffAuditLog(order.metadata, entry)
-  return updateOrderMetadata(orderId, {
-    ...metadata,
-    ...patch,
-    staff_last_exception_action: entry.action,
-    staff_last_exception_at: new Date().toISOString(),
-  })
+  const safePatch = { ...patch }
+  const safeEntry = { ...entry }
+  // Refund posting is owned by the backend that received the provider refund ID.
+  // Other provider actions enter accounting only after their confirmed success.
+  if (entry.status === "requested" || entry.action === "refund_payment") {
+    for (const value of [safePatch, safeEntry]) {
+      for (const key of Object.keys(value)) if (key.startsWith("qbd_posting_")) delete value[key]
+    }
+  }
+  if (entry.action === "refund_payment") {
+    for (const key of Object.keys(safePatch)) if (key.startsWith("stripe_refund_") || key === "stripe_provider_refund_id") delete safePatch[key]
+  }
+  const response = await adminFetch<{ order: AnyRecord }>(
+    `/admin/grillers/orders/${orderId}/accounting-action`,
+    { method: "POST", body: JSON.stringify({ entry: safeEntry, patch: safePatch }) }
+  )
+  return response.order
 }
 
 function baseAuditEntry({
@@ -1551,6 +1548,7 @@ function downstreamRequestKey(
     amountValue || "",
     input.reasonCode,
     stableRequestKey([input.staffNote]),
+    ...(input.requestId ? [input.requestId] : []),
   ].join("-")
 }
 
@@ -1751,16 +1749,8 @@ function validateAction(
   }
 
   if (input.action === "retry_qbd_posting") {
-    if (order.metadata?.qbd_posting_status !== "failed") {
-      throw new Error(
-        "QuickBooks retry is only available after a failed QBD posting."
-      )
-    }
-    if (!order.metadata?.qbd_posting_request_key) {
-      throw new Error(
-        "This order does not have a retryable QuickBooks request key."
-      )
-    }
+    const selected = order.accountingActions?.find((row: AnyRecord) => row.request_key === input.accountingRequestKey)
+    if (!selected || !["failed", "blocked"].includes(selected.status)) throw new Error("Select a failed or blocked accounting action from this order's history. Legacy requests require reconciliation.")
   }
 
   if (input.action === "shipping_override") {
@@ -2573,7 +2563,7 @@ export async function applyStaffOrderException(
             qbd_posting_status: "pending_manual",
             qbd_posting_action: order.metadata?.qbd_posting_action,
             qbd_posting_amount: order.metadata?.qbd_posting_amount,
-            qbd_posting_request_key: order.metadata?.qbd_posting_request_key,
+            qbd_posting_request_key: input.accountingRequestKey,
             qbd_write_job_id: order.metadata?.qbd_write_job_id,
             previous_qbd_posting_status: order.metadata?.qbd_posting_status,
             previous_qbd_posting_error: order.metadata?.qbd_posting_error,
@@ -2651,8 +2641,12 @@ export async function applyStaffOrderException(
           })
           throw err
         }
-        // Medusa rejects order metadata updates after cancellation, so the
-        // pre-cancel audit row above is the durable accounting handoff marker.
+        // The backend audit/outbox endpoint can record the confirmed cancellation
+        // without attempting another native Medusa order mutation.
+        await appendOrderAudit(order.id, {
+          ...baseAuditEntry({ staff, input, order, status: "pending_manual" }),
+          ...qbdFields, downstream_request_key: requestKey,
+        }, { ...qbdFields, medusa_cancel_status: "completed", staff_exception_status: "cancel_qbd_pending" })
         return {
           ok: true,
           order: await getStaffExceptionOrderDetail(order.id),
