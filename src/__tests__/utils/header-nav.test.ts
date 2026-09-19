@@ -1,5 +1,6 @@
 import { augmentHeaderNav, sectionHref } from "@lib/util/header-nav"
 import type { HeaderNavLink } from "@lib/data/strapi/header"
+import { generatedSiteImages } from "@lib/content/generated-site-images"
 
 const baseNav: HeaderNavLink[] = [
   {
@@ -30,6 +31,46 @@ const baseNav: HeaderNavLink[] = [
 ]
 
 describe("header nav augmentation", () => {
+  it.each([
+    [
+      "deli-counter",
+      "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_nav_deli_counter_kosher_prepared_18964a40d0.png",
+      generatedSiteImages.navDeliFeature,
+    ],
+    [
+      "kitchen-counter",
+      "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_nav_kitchen_counter_ready_meals_54622d6e0b.png",
+      generatedSiteImages.navKitchenFeature,
+    ],
+  ])("replaces only the approved legacy image in %s", (slug, previousUrl, url) => {
+    const image = { url: previousUrl, alternativeText: "Existing description" }
+    const input = {
+      ...baseNav[0],
+      slug,
+      featured: { ...baseNav[0].featured, image },
+    }
+    const result = augmentHeaderNav([input]).find((item) => item.slug === slug)
+
+    expect(result?.featured.image).toEqual({ ...image, url })
+    expect(input.featured.image.url).toBe(previousUrl)
+
+    const customImage = { url: "https://example.com/editor-selected.jpg" }
+    const custom = augmentHeaderNav([
+      { ...input, featured: { ...input.featured, image: customImage } },
+    ]).find((item) => item.slug === slug)
+    expect(custom?.featured.image).toBe(customImage)
+
+    const otherSlot = augmentHeaderNav([{ ...input, slug: "provisions" }]).find(
+      (item) => item.slug === "provisions"
+    )
+    expect(otherSlot?.featured.image).toBe(image)
+
+    const missing = augmentHeaderNav([
+      { ...input, featured: { ...input.featured, image: undefined } },
+    ]).find((item) => item.slug === slug)
+    expect(missing?.featured.image?.url).toBe(url)
+  })
+
   it("promotes ways-to-shop to top-level filtered hub destinations and preserves beef cuts", () => {
     const navLinks = augmentHeaderNav(baseNav)
     const [waysToShop, nav] = navLinks

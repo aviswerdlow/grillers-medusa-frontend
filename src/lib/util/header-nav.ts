@@ -15,6 +15,22 @@ const FALLBACK_FEATURED_IMAGES: Record<string, string> = {
   provisions: generatedSiteImages.navProvisionsFeature,
 }
 
+const APPROVED_NAV_IMAGE_REPLACEMENTS: Record<
+  string,
+  { previousUrl: string; url: string }
+> = {
+  "deli-counter": {
+    previousUrl:
+      "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_nav_deli_counter_kosher_prepared_18964a40d0.png",
+    url: generatedSiteImages.navDeliFeature,
+  },
+  "kitchen-counter": {
+    previousUrl:
+      "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_nav_kitchen_counter_ready_meals_54622d6e0b.png",
+    url: generatedSiteImages.navKitchenFeature,
+  },
+}
+
 const BEEF_TOP_CUTS: NavItem[] = [
   { Text: "Ribeye", Url: "/search?q=ribeye" },
   { Text: "Strip Steak", Url: "/search?q=strip%20steak" },
@@ -319,12 +335,18 @@ function featuredWithFallback(
   featured: NavFeatured | null | undefined,
   link: HeaderNavLink
 ) {
+  const replacement = APPROVED_NAV_IMAGE_REPLACEMENTS[link.slug]
+  const currentImage = featured?.image
+  const image = currentImage?.url
+    ? replacement && currentImage.url === replacement.previousUrl
+      ? { ...currentImage, url: replacement.url }
+      : currentImage
+    : { url: featuredImageFallback(link) }
+
   return {
     ...FALLBACK_FEATURED,
     ...(featured || {}),
-    image: featured?.image?.url
-      ? featured.image
-      : { url: featuredImageFallback(link) },
+    image,
     url: featured?.url || FALLBACK_FEATURED.url,
   }
 }
