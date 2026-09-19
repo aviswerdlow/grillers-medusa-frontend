@@ -1,16 +1,16 @@
 export const generatedSiteImages = {
   homeHero:
-    "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_home_hero_kosher_beef_counter_6fad099452.png",
+    "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_kitchen_20260909_homepage_home_oskoiptrvc4mvfbl9h2rq2rh_upload_4296_a166bd892957_afdc139de9.jpg",
   navButcherFeature:
     "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_nav_holiday_freezer_bundles_dry_ice_styrofoam_6b5059652b.jpg",
   navDeliFeature:
-    "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_nav_deli_counter_kosher_prepared_18964a40d0.png",
+    "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_kitchen_20260909_other_shared_food_shared_upload_4300_b047caf1571f_5b3e178c5d.jpg",
   navKitchenFeature:
-    "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_nav_kitchen_counter_ready_meals_54622d6e0b.png",
+    "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_kitchen_20260909_other_shared_food_shared_upload_4301_c8ecd58ff361_b54d40a548.jpg",
   navProvisionsFeature:
     "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_nav_provisions_dry_ice_styrofoam_boxes_cffe95b246.jpg",
   comparisonHero:
-    "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_comparison_kosher_meat_selection_531b0c725d.png",
+    "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_kitchen_20260909_other_shared_food_shared_upload_4298_3d6baab30f3a_f2a269388f.jpg",
   recipeDiscovery:
-    "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_recipe_discovery_shabbos_table_88ddeee3de.png",
+    "https://helpful-nature-fab70f9c51.media.strapiapp.com/gp_kitchen_20260909_other_shared_food_shared_upload_4299_c5711a4846c9_ea1e50a8dc.jpg",
 } as const
