@@ -370,6 +370,7 @@ export function staffOrderSupportActionAvailability(
 
   if (action === "retry_qbd_posting") {
     return order?.metadata?.qbd_posting_status === "failed"
+      || order?.accountingActions?.some((row: AnyRecord) => ["failed", "blocked"].includes(row.status))
       ? { available: true, phase, reason: "" }
       : {
           available: false,

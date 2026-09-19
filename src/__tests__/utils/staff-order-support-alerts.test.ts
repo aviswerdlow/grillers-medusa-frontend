@@ -1,5 +1,6 @@
 import {
   applyStaffOrderException,
+  getStaffExceptionOrderDetail,
   searchStaffExceptionOrdersResult,
 } from "@lib/data/staff/order-exceptions"
 import { retrieveAuthenticatedCustomerForStaffAccess } from "@lib/data/customer"
@@ -128,6 +129,9 @@ describe("staff order-support ops alerts", () => {
       if (path === "/admin/orders/order_123") {
         return { order } as any
       }
+      if (path === "/admin/grillers/orders/order_123/accounting-action") {
+        return init.method === "POST" ? { order } as any : { actions: [] } as any
+      }
       throw new Error(`Unexpected adminFetch ${path} ${init.method || "GET"}`)
     })
 
@@ -165,5 +169,38 @@ describe("staff order-support ops alerts", () => {
         }),
       })
     )
+  })
+
+  it("keeps refund accounting in the backend and preserves one request identity per submitted action", async () => {
+    const paidOrder = { ...order, payment_status: "captured", payment_collections: [{ payments: [
+      { id: "pay_test", provider_id: "pp_stripe_stripe", amount: 75, captured_amount: 75, currency_code: "usd", refunds: [] },
+    ] }] }
+    mockAdminFetch.mockImplementation(async (path, init = {}) => {
+      if (path === "/admin/orders/order_123") return { order: paidOrder } as any
+      if (path === "/admin/grillers/orders/order_123/accounting-action") return init.method === "POST" ? { order: paidOrder } as any : { actions: [] } as any
+      if (path === "/admin/grillers/payments/pay_test/refund") return { payment: { id: "pay_test", refunds: [{ id: "refund_test", amount: 5 }] } } as any
+      throw new Error(`Unexpected path ${path}`)
+    })
+    const input = { orderId: "order_123", action: "refund_payment" as const, reasonCode: "customer_request" as const,
+      staffNote: "Synthetic refund", amount: 5, paymentId: "pay_test", customerConsentMethod: "phone" as const, typedConfirmation: "REFUND", requestId: "intent_one" }
+    expect((await applyStaffOrderException(input)).ok).toBe(true)
+    expect((await applyStaffOrderException(input)).ok).toBe(true)
+    expect((await applyStaffOrderException({ ...input, requestId: "intent_two" })).ok).toBe(true)
+    const refundCalls = mockAdminFetch.mock.calls.filter(([path]) => path.endsWith("/payments/pay_test/refund"))
+    const keys = refundCalls.map(([, init]) => (init?.headers as Record<string, string>)["Idempotency-Key"])
+    expect(keys[0]).toBe(keys[1])
+    expect(keys[2]).not.toBe(keys[0])
+    const audits = mockAdminFetch.mock.calls.filter(([path, init]) => path.endsWith("/accounting-action") && init?.method === "POST")
+    for (const [, init] of audits) {
+      const payload = JSON.parse(String(init?.body))
+      expect(Object.keys(payload.patch).some((key) => key.startsWith("qbd_posting_") || key.startsWith("stripe_refund_"))).toBe(false)
+    }
+    expect(mockAdminFetch.mock.calls.filter(([path, init]) => path === "/admin/orders/order_123" && init?.method === "POST")).toHaveLength(0)
+  })
+
+  it("returns the older action history independently of the latest order metadata", async () => {
+    const actions = [{ id: "action_old", request_key: "invoice:old", action: "invoice_ar_accounting_record", status: "failed", currency_code: "usd", amount_minor: 3000, created_at: "2026-09-19" }]
+    mockAdminFetch.mockImplementation(async (path) => path.endsWith("/accounting-action") ? { actions } as any : { order } as any)
+    expect((await getStaffExceptionOrderDetail(order.id)).accountingActions).toEqual(actions)
   })
 })
