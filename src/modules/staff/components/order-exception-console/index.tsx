@@ -1,5 +1,6 @@
 "use client"
 
+import AccountingHistory, { accountingActionLabel } from "./accounting-history"
 import {
   type FormEvent,
   useEffect,
@@ -344,7 +345,8 @@ function actionUnavailableReason(
 
   if (
     action === "retry_qbd_posting" &&
-    order.metadata?.qbd_posting_status !== "failed"
+    order.metadata?.qbd_posting_status !== "failed" &&
+    !order.accountingActions?.some((row) => ["failed", "blocked"].includes(row.status))
   ) {
     return "QuickBooks retry is available only after a failed QBD posting."
   }
@@ -375,6 +377,7 @@ function emptyAction(
   const plan = order?.fulfillmentPlan
   return {
     orderId,
+    requestId: globalThis.crypto.randomUUID(),
     action: "record_note",
     reasonCode: "customer_request",
     staffNote: "",
@@ -1804,6 +1807,7 @@ export default function StaffOrderExceptionConsole({
             <LegacyOrderReadOnlyPanel order={selectedOrder} />
           ) : (
             <div className="grid gap-6 p-5">
+              <AccountingHistory actions={selectedOrder.accountingActions} error={selectedOrder.accountingHistoryError} />
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]">
                 <div className="rounded-md border border-gray-100 p-4">
                   <div className="flex items-center gap-2">
@@ -2283,6 +2287,18 @@ export default function StaffOrderExceptionConsole({
                       </div>
                     )}
 
+                    {actionDraft.action === "retry_qbd_posting" && (
+                      <label className="flex flex-col gap-1">
+                        <span className={labelClass()}>Accounting action to retry</span>
+                        <select className={fieldClass()} value={actionDraft.accountingRequestKey || ""}
+                          onChange={(event) => updateActionDraft({ accountingRequestKey: event.target.value })}>
+                          <option value="">Select a failed or blocked action</option>
+                          {(selectedOrder.accountingActions || []).filter((row) => ["failed", "blocked"].includes(row.status)).map((row) => (
+                            <option key={row.id} value={row.request_key}>{accountingActionLabel(row.action)} · {row.request_key}</option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                     <label className="flex flex-col gap-1">
                       <span className={labelClass()}>Internal staff note</span>
                       <textarea
