@@ -40,5 +40,5 @@ export function verifiedStoredAssignment(experimentKey: string, value: StoredExp
   if (!secret || !/^[a-f0-9]{64}$/.test(value.version || "") || !/^[a-f0-9]{64}$/.test(value.evaluationVersion || "") || !/^[a-f0-9]{40}$/.test(value.releaseId || "")
     || !/^[a-f0-9]{64}$/.test(value.versionSignature || "")) return false
   const expected = createHmac("sha256", secret).update(payload(experimentKey, value)).digest()
-  return timingSafeEqual(expected, Buffer.from(value.versionSignature!, "hex"))
+  return timingSafeEqual(Uint8Array.from(expected), Uint8Array.from(Buffer.from(value.versionSignature!, "hex")))
 }
