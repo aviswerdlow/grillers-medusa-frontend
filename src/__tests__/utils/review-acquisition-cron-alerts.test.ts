@@ -56,7 +56,7 @@ describe("review acquisition cron alerting", () => {
       ...originalEnv,
       CRON_SECRET: "cron-secret",
       MEDUSA_BACKEND_URL: "https://medusa.example.com",
-      MEDUSA_ADMIN_API_TOKEN: "admin-token",
+      MEDUSA_READ_ONLY_API_TOKEN: "admin-token",
       STRAPI_ENDPOINT: "https://strapi.example.com",
       STRAPI_API_TOKEN: "strapi-token",
     }

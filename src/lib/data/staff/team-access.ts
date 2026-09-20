@@ -7,16 +7,15 @@ import { emitStorefrontOpsAlert } from "@lib/ops-alert"
 import {
   canChargeFinalOrders,
   canRoleReceiveFinalChargeAccess,
-  isBootstrapSuperAdminEmail,
+  isBootstrapStaffCustomer,
   isSuperAdminCustomer,
   staffAccessRole,
-  staffDisplayName,
   staffRoleConfirmation,
   type StaffAccessRole,
 } from "@lib/util/staff-access"
 import { revalidateTag } from "next/cache"
 import { getCacheTag } from "../cookies"
-import { adminFetch, appendStaffAuditLog } from "./admin"
+import { adminFetch } from "./admin"
 import { parseStaffAuditLog, type StaffAuditEntry } from "./exception-types"
 
 type AnyRecord = Record<string, any>
@@ -59,24 +58,6 @@ const VALID_ROLES = new Set<StaffAccessRole>([
   "merchandising_reviewer",
   "super_admin",
 ])
-const LEGACY_STAFF_ROLES = new Set([
-  "staff",
-  "office",
-  "picker",
-  "packer",
-  "manager",
-  "admin",
-  "ops",
-  "operator",
-  "customer_service",
-  "customer-service",
-  "phone_orders",
-  "phone-orders",
-  "super_admin",
-  "super-admin",
-  "owner",
-])
-
 async function requireSuperAdmin() {
   const customer = await retrieveAuthenticatedCustomerForStaffAccess()
   if (!customer || !isSuperAdminCustomer(customer)) {
@@ -112,7 +93,7 @@ function summarizeCustomer(customer: AnyRecord): StaffTeamUser {
     company: customer.company_name || "",
     role: staffAccessRole(customer),
     finalChargeEnabled: canChargeFinalOrders(customer),
-    isBootstrapSuperAdmin: isBootstrapSuperAdminEmail(customer.email),
+    isBootstrapSuperAdmin: isBootstrapStaffCustomer(customer),
     latestStaffAccessEvent: events[0],
     recentStaffAccessEvents: events,
   }
@@ -177,42 +158,6 @@ async function emitTeamAccessUpdateFailureAlert(
       error_message: teamAccessErrorMessage(error).slice(0, 300),
     },
   })
-}
-
-function roleMetadata(
-  current: AnyRecord | null | undefined,
-  role: StaffAccessRole,
-  options: { finalChargeEnabled?: boolean } = {}
-): AnyRecord {
-  const metadata = { ...(current || {}) }
-  const hasStaffAccess = role !== "customer"
-  const now = new Date().toISOString()
-
-  metadata.gp_staff_role = role
-  metadata.staff_role = role
-  metadata.staff_access = hasStaffAccess
-  metadata.is_staff = hasStaffAccess
-  metadata.gp_staff = hasStaffAccess
-  metadata.phone_order_staff = hasStaffAccess
-  metadata.staff_super_admin = role === "super_admin"
-  metadata.staff_access_revoked = role === "customer"
-  metadata.staff_access_updated_at = now
-  const finalChargeEnabled =
-    role === "super_admin" ||
-    (canRoleReceiveFinalChargeAccess(role) &&
-      Boolean(options.finalChargeEnabled))
-  metadata.final_charge_enabled =
-    finalChargeEnabled
-  metadata.can_charge_final_orders = metadata.final_charge_enabled
-
-  if (role === "customer") {
-    const roleValue = String(metadata.role || "").trim().toLowerCase()
-    const accountRoleValue = String(metadata.account_role || "").trim().toLowerCase()
-    if (LEGACY_STAFF_ROLES.has(roleValue)) metadata.role = "customer"
-    if (LEGACY_STAFF_ROLES.has(accountRoleValue)) metadata.account_role = "customer"
-  }
-
-  return metadata
 }
 
 export async function searchStaffTeamUsers(
@@ -305,39 +250,10 @@ export async function updateStaffTeamRole(
       throw new Error("Customer not found.")
     }
 
-    const targetEmail = String(customer.email || "").trim().toLowerCase()
-    const actorEmail = String(actor.email || "").trim().toLowerCase()
     const previousRole = staffAccessRole(customer)
-
-    if (isBootstrapSuperAdminEmail(targetEmail) && role !== "super_admin") {
-      throw new Error("Bootstrap super admins cannot be demoted in the UI.")
-    }
-
     if (customer.id === actor.id && role !== "super_admin") {
       throw new Error("You cannot remove your own super admin access.")
     }
-
-    const metadata = appendStaffAuditLog(
-      roleMetadata(customer.metadata, role, {
-        finalChargeEnabled: input.finalChargeEnabled,
-      }),
-      {
-        action: "staff_role_change",
-        staff_actor_customer_id: actor.id,
-        staff_actor_email: actorEmail,
-        staff_actor_name: staffDisplayName(actor),
-        target_customer_id: customer.id,
-        target_email: targetEmail,
-        target_name: formatCustomerName(customer),
-        previous_role: previousRole,
-        role,
-        final_charge_enabled:
-          role === "super_admin" ||
-          (canRoleReceiveFinalChargeAccess(role) &&
-            Boolean(input.finalChargeEnabled)),
-        reason,
-      }
-    )
 
     const nextFinalChargeEnabled =
       role === "super_admin" ||
@@ -346,22 +262,15 @@ export async function updateStaffTeamRole(
     let updated: { customer: AnyRecord }
 
     try {
-      await adminFetch(`/admin/customers/${customer.id}`, {
+      updated = await adminFetch<{ customer: AnyRecord }>(`/admin/grillers/staff-access/customers/${customer.id}`, {
         method: "POST",
-        body: JSON.stringify({ metadata }),
+        body: JSON.stringify({ role, final_charge_enabled: Boolean(input.finalChargeEnabled), reason,
+          confirmation: input.confirmation, expected_version: Number(customer.metadata?.staff_access_version || 0) }),
       })
 
       const customersTag = await getCacheTag("customers")
       revalidateTag(customersTag)
 
-      updated = await adminFetch<{ customer: AnyRecord }>(
-        `/admin/customers/${customer.id}`,
-        {
-          query: {
-            fields: "id,email,first_name,last_name,phone,company_name,metadata",
-          },
-        }
-      )
     } catch (err) {
       await emitTeamAccessUpdateFailureAlert(
         {
