@@ -1,5 +1,7 @@
 "use server"
 
+import { requestReceiptEmailCode } from "./receipt-email"
+
 import { revalidateTag } from "next/cache"
 import { sdk } from "@lib/config"
 import { getAuthHeaders, getCacheTag } from "@lib/data/cookies"
@@ -22,6 +24,7 @@ export type ContactVerificationState = {
   success: boolean
   error: string | null
   smsOptedIn?: boolean
+  receiptEmailPending?: boolean
 } | null
 
 function isPlausibleEmail(value: string): boolean {
@@ -263,11 +266,17 @@ export async function submitContactVerification(
       headers,
     })
 
+    if (preferredEmail) {
+      // Contact confirmation remains saved if delivery is unavailable. The profile
+      // shows pending/delivery problems and provides the resend/recovery action.
+      await requestReceiptEmailCode(preferredEmail, `receipt_${formData.get("contact_request_id")}`).catch(() => null)
+    }
+
     stage = "cache_revalidate"
     const cacheTag = await getCacheTag("customers")
     revalidateTag(cacheTag)
 
-    return { success: true, error: null, smsOptedIn: smsOptIn }
+    return { success: true, error: null, smsOptedIn: smsOptIn, receiptEmailPending: Boolean(preferredEmail) }
   } catch (error: any) {
     await emitStorefrontOpsAlert({
       alertKind: "contact_verification_failed",
