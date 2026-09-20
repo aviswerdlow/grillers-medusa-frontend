@@ -20,7 +20,7 @@ function missingBackInStockEnv(): string[] {
     "STRAPI_ENDPOINT",
     "STRAPI_API_TOKEN",
     "MEDUSA_BACKEND_URL",
-    "MEDUSA_ADMIN_API_TOKEN",
+    "MEDUSA_READ_ONLY_API_TOKEN",
     "POSTMARK_SERVER_TOKEN",
   ]
   return required.filter((name) => !process.env[name])

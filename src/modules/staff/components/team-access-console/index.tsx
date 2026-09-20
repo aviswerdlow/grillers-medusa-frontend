@@ -90,9 +90,6 @@ export default function StaffTeamAccessConsole() {
     (roleCanReceiveFinalCharge && finalChargeDraft)
   const submitBlockReason = useMemo(() => {
     if (!selected) return "Select a customer first."
-    if (selected.isBootstrapSuperAdmin && roleDraft !== "super_admin") {
-      return "Bootstrap super admins cannot be demoted in the UI."
-    }
     if (reason.trim().length < 8) {
       return "Add a short audit reason before updating staff access."
     }
@@ -332,8 +329,9 @@ export default function StaffTeamAccessConsole() {
                     aria-hidden
                   />
                   <p>
-                    Avi and Peter are bootstrap super admins. Their access is
-                    code-managed so the store cannot lose every super admin.
+                    This account is an initial administrator. Changes here take
+                    effect and require a fresh sign-in, including after access is restored.
+                    A separate recovery administrator can restore access with an audit reason.
                   </p>
                 </div>
               )}
@@ -352,10 +350,6 @@ export default function StaffTeamAccessConsole() {
                     <input
                       checked={roleDraft === option.value}
                       className="mt-1"
-                      disabled={
-                        selected.isBootstrapSuperAdmin &&
-                        option.value !== "super_admin"
-                      }
                       onChange={() => {
                         setRoleDraft(option.value)
                         if (!canRoleReceiveFinalChargeAccess(option.value)) {

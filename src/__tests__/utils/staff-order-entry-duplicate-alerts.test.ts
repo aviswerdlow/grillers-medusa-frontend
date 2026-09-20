@@ -1,3 +1,8 @@
+jest.mock("@lib/data/cookies", () => ({
+  ...jest.requireActual("@lib/data/cookies"),
+  getAuthHeaders: jest.fn(async () => ({ authorization: "Bearer signed.fixture.staff" })),
+}))
+
 import { createStaffCustomer } from "@lib/data/staff/order-entry"
 import { retrieveAuthenticatedCustomerForStaffAccess } from "@lib/data/customer"
 import { emitStorefrontOpsAlert } from "@lib/ops-alert"
