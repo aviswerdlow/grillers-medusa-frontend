@@ -22,6 +22,7 @@ export type FulfillmentCalendarPage = {
   contextRevision: string
   shippingOptionId: string
   replacementQuote?: string
+  regionalLocations?: { id: string; city: string; state: string }[]
 }
 export type FulfillmentCalendarDraft = {
   arrivalDate: string
@@ -30,6 +31,7 @@ export type FulfillmentCalendarDraft = {
   shippingOptionId: string
   routeId?: string
   replacementQuote?: string
+  staffOverrideConfirmed?: boolean
 }
 export type CalendarActionResult<T> =
   | { ok: true; data: T }
