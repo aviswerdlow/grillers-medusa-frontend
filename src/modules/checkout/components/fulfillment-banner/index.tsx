@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCalendarDate, calendarWindowLabel } from "@lib/fulfillment-calendar"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { HttpTypes } from "@medusajs/types"
@@ -56,15 +57,6 @@ const fulfillmentConfig: Record<
   },
 }
 
-const formatTimeWindow = (windowId: string) => {
-  const windows: Record<string, string> = {
-    morning: "9:00 AM - 12:00 PM",
-    afternoon: "12:00 PM - 5:00 PM",
-    evening: "5:00 PM - 9:00 PM",
-  }
-  return windows[windowId] || windowId
-}
-
 /**
  * Displays the selected fulfillment method at the top of checkout.
  * Professional gold banner with fulfillment details and option to change.
@@ -78,7 +70,7 @@ export default function FulfillmentBanner({ cart }: FulfillmentBannerProps) {
   const requestedDeliveryDate = cart.metadata?.requestedDeliveryDate as
     | string
     | undefined
-  const scheduledTimeWindow = cart.metadata?.scheduledTimeWindow as string | undefined
+  const scheduledTimeWindow = calendarWindowLabel(cart.metadata)
   const pickupLocationId = cart.metadata?.pickupLocationId as string | undefined
 
   if (!fulfillmentType) {
@@ -133,11 +125,11 @@ export default function FulfillmentBanner({ cart }: FulfillmentBannerProps) {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className="font-medium">{displayDate}</span>
+                <span className="font-medium">{formatCalendarDate(displayDate)}</span>
                 {fulfillmentType !== "ups_shipping" && scheduledTimeWindow && (
                   <>
                     <span className="text-Charcoal/40">•</span>
-                    <span>{formatTimeWindow(scheduledTimeWindow)}</span>
+                    <span>{scheduledTimeWindow}</span>
                   </>
                 )}
               </div>

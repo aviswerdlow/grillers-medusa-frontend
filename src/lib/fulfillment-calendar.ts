@@ -37,15 +37,57 @@ export type CalendarActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string }
 
-export function formatCalendarDate(date: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return date
+export function fulfillmentDateKey(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const raw = value.trim()
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw)
+  const key = us
+    ? `${us[3]}-${us[1].padStart(2, "0")}-${us[2].padStart(2, "0")}`
+    : raw
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return null
+  const date = new Date(`${key}T12:00:00Z`)
+  return Number.isFinite(date.getTime()) &&
+    date.toISOString().slice(0, 10) === key
+    ? key
+    : null
+}
+
+export function formatCalendarDate(
+  value: unknown,
+  style: "short" | "long" = "short"
+) {
+  const key = fulfillmentDateKey(value)
+  if (!key) return value ? "Date needs review" : ""
   return new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
+    weekday: style,
+    month: style,
     day: "numeric",
     year: "numeric",
     timeZone: "UTC",
-  }).format(new Date(`${date}T12:00:00Z`))
+  }).format(new Date(`${key}T12:00:00Z`))
+}
+
+export function calendarWindowLabel(metadata?: Record<string, unknown> | null) {
+  const label =
+    typeof metadata?.fulfillmentWindowLabel === "string"
+      ? metadata.fulfillmentWindowLabel.trim()
+      : ""
+  if (label) {
+    return `${label}${
+      metadata?.fulfillmentCalendarTimezone === "America/New_York" ? " ET" : ""
+    }`
+  }
+  // Legacy orders keep their stored window; new selections carry the approved label.
+  const window =
+    typeof metadata?.scheduledTimeWindow === "string"
+      ? metadata.scheduledTimeWindow
+      : ""
+  const legacy: Record<string, string> = {
+    morning: "9:00 AM - 12:00 PM",
+    afternoon: "12:00 PM - 5:00 PM",
+    evening: "5:00 PM - 9:00 PM",
+  }
+  return legacy[window] || window
 }
 
 /** Invalidation only. The server hashes and verifies the actual cart itself. */

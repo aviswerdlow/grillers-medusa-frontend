@@ -33,6 +33,9 @@ export type StaffCatchWeightFinalizationSummary = {
   fulfillment_type?: string | null
   fulfillment_date?: string | null
   fulfillment_date_key?: string | null
+  arrival_date?: string | null
+  pick_date?: string | null
+  dispatch_date?: string | null
   estimated_order_total?: number | string | null
   final_order_total?: number | string | null
   delta_total?: number | string | null

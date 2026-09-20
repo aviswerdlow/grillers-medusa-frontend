@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCalendarDate, calendarWindowLabel } from "@lib/fulfillment-calendar"
 import { HttpTypes } from "@medusajs/types"
 import type { FulfillmentType } from "@lib/data/cart"
 
@@ -16,44 +17,6 @@ const fulfillmentLabels: Record<FulfillmentType, string> = {
 }
 
 /**
- * Formats date string for display
- */
-function formatDate(dateStr: string): string {
-  if (!dateStr) return ""
-  // Handle MM/DD/YYYY format
-  if (dateStr.includes("/")) {
-    const [month, day, year] = dateStr.split("/")
-    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    })
-  }
-  // Handle ISO format
-  const date = new Date(dateStr)
-  return date.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  })
-}
-
-/**
- * Formats time window ID to readable string
- */
-function formatTimeWindow(windowId: string): string {
-  const windows: Record<string, string> = {
-    morning: "Morning (9am - 12pm)",
-    afternoon: "Afternoon (12pm - 5pm)",
-    evening: "Evening (5pm - 9pm)",
-  }
-  return windows[windowId] || windowId
-}
-
-/**
  * Displays fulfillment details on the order confirmation page.
  * Shows different content based on the fulfillment type.
  */
@@ -63,7 +26,7 @@ export default function FulfillmentDetails({ order, plantPickupNote }: Fulfillme
   const requestedDeliveryDate = order.metadata?.requestedDeliveryDate as
     | string
     | undefined
-  const timeWindow = order.metadata?.scheduledTimeWindow as string | undefined
+  const timeWindow = calendarWindowLabel(order.metadata)
   const pickupLocationId = order.metadata?.pickupLocationId as string | undefined
   const orderNotes = order.metadata?.orderNotes as string | undefined
 
@@ -81,7 +44,7 @@ export default function FulfillmentDetails({ order, plantPickupNote }: Fulfillme
         <div className="space-y-3">
           <div>
             <p className="text-sm text-gray-600">Pickup Date</p>
-            <p className="font-medium">{formatDate(scheduledDate || "")}</p>
+            <p className="font-medium">{formatCalendarDate(scheduledDate, "long")}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Location</p>
@@ -107,14 +70,8 @@ export default function FulfillmentDetails({ order, plantPickupNote }: Fulfillme
         <div className="space-y-3">
           <div>
             <p className="text-sm text-gray-600">Delivery Date</p>
-            <p className="font-medium">{formatDate(scheduledDate || "")}</p>
+            <p className="font-medium">{formatCalendarDate(scheduledDate, "long")}</p>
           </div>
-          {timeWindow && (
-            <div>
-              <p className="text-sm text-gray-600">Time Window</p>
-              <p className="font-medium">{formatTimeWindow(timeWindow)}</p>
-            </div>
-          )}
           <div className="bg-white/50 rounded p-3 mt-4">
             <p className="text-sm text-Charcoal">
               Our delivery driver will contact you via the phone number on your
@@ -130,7 +87,7 @@ export default function FulfillmentDetails({ order, plantPickupNote }: Fulfillme
           {requestedDeliveryDate && (
             <div>
               <p className="text-sm text-gray-600">Requested Arrival</p>
-              <p className="font-medium">{formatDate(requestedDeliveryDate)}</p>
+              <p className="font-medium">{formatCalendarDate(requestedDeliveryDate, "long")}</p>
             </div>
           )}
           <div className="bg-white/50 rounded p-3 mt-4">
@@ -150,7 +107,7 @@ export default function FulfillmentDetails({ order, plantPickupNote }: Fulfillme
         <div className="space-y-3">
           <div>
             <p className="text-sm text-gray-600">Pickup Date</p>
-            <p className="font-medium">{formatDate(scheduledDate || "")}</p>
+            <p className="font-medium">{formatCalendarDate(scheduledDate, "long")}</p>
           </div>
           {pickupLocationId && (
             <div>
@@ -166,6 +123,13 @@ export default function FulfillmentDetails({ order, plantPickupNote }: Fulfillme
               You will receive a reminder email with complete pickup details.
             </p>
           </div>
+        </div>
+      )}
+
+      {timeWindow && fulfillmentType !== "ups_shipping" && (
+        <div className="mt-3">
+          <p className="text-sm text-gray-600">Time Window</p>
+          <p className="font-medium">{timeWindow}</p>
         </div>
       )}
 

@@ -123,5 +123,8 @@ export function clearedCheckoutFulfillmentMetadata() {
     fulfillment_calendar_accepted_v1: null,
     fulfillmentCalendarQuoteId: "",
     fulfillmentPickDate: "",
+    fulfillmentDispatchDate: "",
+    fulfillmentWindowLabel: "",
+    fulfillmentCalendarTimezone: "",
   }
 }

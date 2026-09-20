@@ -1,5 +1,6 @@
 "use client"
 
+import { formatCalendarDate, calendarWindowLabel } from "@lib/fulfillment-calendar"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button, Heading } from "@medusajs/ui"
@@ -89,7 +90,10 @@ const Summary = ({
                 {formatFulfillmentType(fulfillmentType)}
               </p>
               {displayDate && (
-                <p className="text-xs text-Charcoal/70">{displayDate}</p>
+                <p className="text-xs text-Charcoal/70">{formatCalendarDate(displayDate)}</p>
+              )}
+              {calendarWindowLabel(cart.metadata) && (
+                <p className="text-xs text-Charcoal/70">{calendarWindowLabel(cart.metadata)}</p>
               )}
             </div>
             <button
