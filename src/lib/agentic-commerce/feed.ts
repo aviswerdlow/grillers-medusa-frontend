@@ -1,3 +1,4 @@
+import { isInternalMedusaProduct } from "@lib/util/internal-products"
 import type { HttpTypes } from "@medusajs/types"
 
 export const AGENTIC_COMMERCE_FEED_VERSION =
@@ -231,7 +232,7 @@ export function buildAgenticCommerceProductFeed(
 ): AgenticCommerceProductFeed {
   const baseUrl = normalizeBaseUrl(options.baseUrl)
   const countryCode = options.countryCode.toLowerCase()
-  const entries = products.flatMap((product) => {
+  const entries = products.filter(product => !isInternalMedusaProduct(product)).flatMap((product) => {
     const variants = product.variants?.length ? product.variants : [null]
     const categories = categoryNames(product)
     const tags = tagNames(product)

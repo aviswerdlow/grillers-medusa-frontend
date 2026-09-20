@@ -328,7 +328,7 @@ const sections: GuideSection[] = [
       "When QuickBooks SKUs change for seasonal sorting, do not remap by SKU first. Confirm the ListID.",
       "For item Hechshers, use the five exact Strapi fields sourced from Peter's Item Manager categories by QuickBooks ListID: OU, Chassidish Recognized, CHK Certification, AgriStar Lamed-K Lubavitch or Rabbi Weissmandl, and AgriStar Lamed-K Lubavitch.",
       "Keep item Hechshers separate from other kashruth facts such as Chassidish shchita and Kosher for Passover. One does not imply the other.",
-      "Treat QuickBooks items beginning with RM- as raw materials or internal production inputs unless Peter explicitly confirms they are sellable.",
+      "Items beginning with RM- and items marked internal only are production inputs. They cannot be sold through the public catalog or staff cart. Keep their QuickBooks records and stable item identities; correct an incorrect classification through catalog review before attempting a sale.",
     ],
     watch: [
       "A matching SKU can be misleading during Passover or other seasonal list management.",
@@ -365,7 +365,7 @@ const sections: GuideSection[] = [
     watch: [
       "Wallet messaging should not be promised unless the backend supports it.",
       "Only the customer may check the order-text box. Staff cannot grant this consent while acting for the customer or taking a phone order.",
-      "Inventory can change between cart building and checkout. The final inventory check happens before order completion.",
+      "Inventory can change between cart building and checkout. Product eligibility is checked before payment setup and again before order completion. If availability cannot be verified, wait and retry; do not work around the check by entering a different item identity.",
       "Catch-weight checkout saves the card but does not authorize or charge the estimate. Staff charge the final amount in Pack & Finalize before shipment.",
       "QuickBooks should receive an estimated sales order after checkout. A successful final Stripe charge should then queue the finalized QuickBooks invoice.",
     ],
@@ -663,7 +663,7 @@ const sections: GuideSection[] = [
     ],
     howTo: [
       "Active plus zero quantity means an item can be waitlist eligible if waitlist is enabled.",
-      "Seasonal inactive, discontinued, and internal only should not show normal waitlist capture unless there is a deliberate override.",
+      "Seasonal inactive and discontinued products should not show normal waitlist capture unless there is a deliberate override. Internal-only products are never eligible for customer waitlists.",
       "Staff product search shows available to promise, future allowed, partial, blocked, or inactive.",
       "Partial and blocked lines may need an approved staff override before payment. Inactive lines must be replaced.",
       "Back-in-stock requests are stored in Strapi and emailed by Postmark when the trigger sees the item back in stock.",

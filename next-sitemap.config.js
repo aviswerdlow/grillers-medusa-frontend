@@ -94,12 +94,7 @@ const learnSlugs = [
   "guides/shabbos-meat-order",
 ]
 
-const isInternalRawMaterialSku = (sku) =>
-  typeof sku === "string" && /^RM-/i.test(sku.trim())
-
-const isInternalRawMaterialProduct = (product) =>
-  Array.isArray(product?.variants) &&
-  product.variants.some((variant) => isInternalRawMaterialSku(variant?.sku))
+const { isInternalMedusaProduct } = require("./src/lib/util/public-catalog.cjs")
 
 function errorMessage(error) {
   if (error instanceof Error) return error.message
@@ -153,7 +148,7 @@ async function emitSitemapSourceFailureAlert({
     : "sitemap_source_degraded"
   const title = willThrow
     ? `Sitemap ${source} source failed without fallback`
-    : `Sitemap ${source} source failed; using previous entries`
+    : `Sitemap ${source} source failed; ${fallbackCount ? "using previous entries" : "omitting unverified entries"}`
   const alertSource = "storefront-build"
 
   try {
@@ -262,7 +257,9 @@ async function dynamicSitemapEntries({ source, load, fallbackKind }) {
   try {
     return await load()
   } catch (error) {
-    const fallbackEntries = existingSitemapEntries(fallbackKind)
+    // Old product URLs have no current eligibility proof. Reusing them can
+    // publish an item that has since become an internal production input.
+    const fallbackEntries = fallbackKind === "products" ? [] : existingSitemapEntries(fallbackKind)
     const willThrow =
       fallbackEntries.length === 0 && shouldFailClosedWithoutSitemapFallback()
 
@@ -362,7 +359,7 @@ async function getProductSitemapEntries() {
     const url = new URL(`${backendUrl}/store/products`)
     url.searchParams.set("limit", String(limit))
     url.searchParams.set("offset", String(offset))
-    url.searchParams.set("fields", "handle,updated_at,*variants")
+    url.searchParams.set("fields", "handle,updated_at,*variants,+metadata")
     if (regionId) url.searchParams.set("region_id", regionId)
 
     const data = await fetchJson(url.toString(), headers)
@@ -372,7 +369,7 @@ async function getProductSitemapEntries() {
     entries.push(
       ...products
         .filter((product) => product.handle)
-        .filter((product) => !isInternalRawMaterialProduct(product))
+        .filter((product) => !isInternalMedusaProduct(product))
         .map((product) => ({
           loc: `/us/products/${product.handle}`,
           changefreq: "weekly",

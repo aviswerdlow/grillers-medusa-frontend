@@ -1,30 +1,34 @@
 import type { HttpTypes } from "@medusajs/types"
 import type { StrapiCollectionProduct } from "@lib/data/strapi/collections"
 
-const INTERNAL_RAW_MATERIAL_SKU = /^RM-/i
+const policy = require("./public-catalog.cjs") as {
+  internalMetadata: (metadata: unknown) => boolean
+  isInternalRawMaterialSku: (sku: unknown) => boolean
+  isInternalMedusaProduct: (product: unknown) => boolean
+  isInternalStrapiProduct: (product: unknown) => boolean
+}
+
+export function hasInternalCatalogLifecycle(metadata: unknown): boolean {
+  return policy.internalMetadata(metadata)
+}
 
 export function isInternalRawMaterialSku(sku: unknown): boolean {
-  return (
-    typeof sku === "string" && INTERNAL_RAW_MATERIAL_SKU.test(sku.trim())
-  )
+  return policy.isInternalRawMaterialSku(sku)
 }
 
-export function medusaProductHasInternalRawMaterialSku(
-  product: Pick<HttpTypes.StoreProduct, "variants"> | null | undefined
+export function isInternalMedusaProduct(
+  product:
+    | (Pick<HttpTypes.StoreProduct, "variants"> & {
+        metadata?: Record<string, unknown> | null
+      })
+    | null
+    | undefined
 ): boolean {
-  return Boolean(
-    product?.variants?.some((variant) =>
-      isInternalRawMaterialSku(variant?.sku)
-    )
-  )
+  return policy.isInternalMedusaProduct(product)
 }
 
-export function strapiProductHasInternalRawMaterialSku(
+export function isInternalStrapiProduct(
   product: Pick<StrapiCollectionProduct, "MedusaProduct"> | null | undefined
 ): boolean {
-  return Boolean(
-    product?.MedusaProduct?.Variants?.some((variant) =>
-      isInternalRawMaterialSku(variant?.Sku)
-    )
-  )
+  return policy.isInternalStrapiProduct(product)
 }

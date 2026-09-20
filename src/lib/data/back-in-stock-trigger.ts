@@ -2,7 +2,9 @@
 
 import { sendTemplatedEmail } from "@lib/postmark"
 import { isWaitlistEligible } from "@lib/util/waitlist-eligibility"
+import { isInternalMedusaProduct } from "@lib/util/internal-products"
 import { trackCommunicationEvent } from "./communications-events"
+import type { HttpTypes } from "@medusajs/types"
 
 /**
  * Restock trigger for #102. Polls inventory state, finds products that
@@ -191,7 +193,7 @@ async function fetchMedusaProductInventory(
 
   const root = MEDUSA_ADMIN_TOKEN ? "/admin/products" : "/store/products"
   const fields =
-    "id,status,+metadata,variants.inventory_quantity,variants.allow_backorder,variants.manage_inventory,+variants.metadata"
+    "id,status,+metadata,variants.id,variants.sku,variants.inventory_quantity,variants.allow_backorder,variants.manage_inventory,+variants.metadata"
   // Batch into chunks of 50 to keep URLs short.
   for (let i = 0; i < productIds.length; i += 50) {
     const batch = productIds.slice(i, i + 50)
@@ -241,6 +243,9 @@ async function fetchMedusaProductInventory(
       }>
     }>
     for (const p of products) {
+      // Admin reads also include internal items; old subscriptions must never
+      // turn those records into customer emails when stock changes.
+      if (isInternalMedusaProduct(p as HttpTypes.StoreProduct)) continue
       const variants = p.variants || []
       const variantInventory = new Map<
         string,

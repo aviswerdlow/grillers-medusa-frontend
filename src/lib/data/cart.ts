@@ -29,7 +29,7 @@ import {
 import { getPaymentContextHeaders } from "./payment"
 import { findShippingOptionByType } from "./fulfillment"
 import { getRegion } from "./regions"
-import { medusaProductHasInternalRawMaterialSku } from "@lib/util/internal-products"
+import { isInternalMedusaProduct } from "@lib/util/internal-products"
 import { reportServerSoftFailure } from "@lib/server-soft-failure"
 import { emitStorefrontOpsAlert } from "@lib/ops-alert"
 import {
@@ -102,14 +102,15 @@ async function assertPublicVariantCanBeAddedToCart(
     method: "GET",
     query: {
       limit: 1,
-      fields: "*variants",
+      fields: "*variants,+metadata",
       "variants[id]": variantId,
     } as HttpTypes.FindParams & HttpTypes.StoreProductParams,
     headers,
     cache: "no-store",
   })
 
-  if (medusaProductHasInternalRawMaterialSku(products?.[0])) {
+  if (!products?.some(product => product.variants?.some(variant => variant.id === variantId)) ||
+      products.some(isInternalMedusaProduct)) {
     throw new Error("This item is not available for online ordering.")
   }
 }
@@ -132,7 +133,7 @@ async function assertPublicVariantsCanBeAddedToCart(
       method: "GET",
       query: {
         limit: uniqueVariantIds.length,
-        fields: "*variants",
+        fields: "*variants,+metadata",
         "variants[id]": uniqueVariantIds,
       } as HttpTypes.FindParams & HttpTypes.StoreProductParams,
       headers,
@@ -140,7 +141,7 @@ async function assertPublicVariantsCanBeAddedToCart(
     })
 
     const returnedProducts = products || []
-    if (returnedProducts.some(medusaProductHasInternalRawMaterialSku)) {
+    if (returnedProducts.some(isInternalMedusaProduct)) {
       throw new Error("This item is not available for online ordering.")
     }
 

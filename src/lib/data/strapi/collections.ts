@@ -253,12 +253,14 @@ export type StrapiCollectionProduct = {
     ProductTags?: Array<{ Name: string }>
   }
   MedusaProduct?: {
+    AvailabilityLifecycle?: string | null
     ProductId: string
     Handle: string
     Description?: string | null
     ShortDescription?: string | null
     PricingMode?: "per_lb" | "fixed_price" | null
     Variants?: Array<{
+      AvailabilityLifecycle?: string | null
       VariantId: string
       Sku?: string
       QualifiesForFreeDeliveryOffers?: boolean | null
@@ -373,11 +375,13 @@ export const GetProductsByTagQuery = gql`
         }
       }
       MedusaProduct {
+        AvailabilityLifecycle
         ProductId
         Handle
         Description
         ShortDescription
         Variants {
+          AvailabilityLifecycle
           VariantId
           Sku
           QualifiesForFreeDeliveryOffers
@@ -491,11 +495,13 @@ export const GetProductsByCollectionSlugQuery = gql`
         }
       }
       MedusaProduct {
+        AvailabilityLifecycle
         ProductId
         Handle
         Description
         ShortDescription
         Variants {
+          AvailabilityLifecycle
           VariantId
           Sku
           QualifiesForFreeDeliveryOffers
@@ -760,11 +766,13 @@ export const GetProductsByMedusaIdsQuery = gql`
         }
       }
       MedusaProduct {
+        AvailabilityLifecycle
         ProductId
         Handle
         Description
         ShortDescription
         Variants {
+          AvailabilityLifecycle
           VariantId
           Sku
           QualifiesForFreeDeliveryOffers
@@ -878,11 +886,13 @@ export const GetProductsByHandlesQuery = gql`
         }
       }
       MedusaProduct {
+        AvailabilityLifecycle
         ProductId
         Handle
         Description
         ShortDescription
         Variants {
+          AvailabilityLifecycle
           VariantId
           Sku
           QualifiesForFreeDeliveryOffers
@@ -1074,11 +1084,13 @@ export const GetProductsWithImagesQuery = gql`
         }
       }
       MedusaProduct {
+        AvailabilityLifecycle
         ProductId
         Handle
         Description
         ShortDescription
         Variants {
+          AvailabilityLifecycle
           VariantId
           Sku
           QualifiesForFreeDeliveryOffers
@@ -1115,12 +1127,14 @@ export const GetStoreProductsQuery = gql`
         GrassFed
       }
       MedusaProduct {
+        AvailabilityLifecycle
         ProductId
         Handle
         Description
         ShortDescription
         PricingMode
         Variants {
+          AvailabilityLifecycle
           VariantId
           Sku
           Price {

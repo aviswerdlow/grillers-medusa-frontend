@@ -4,6 +4,7 @@ import { randomBytes } from "crypto"
 import { sendTemplatedEmail } from "@lib/postmark"
 import { trackCommunicationEvent } from "./communications-events"
 import { emitBackInStockCaptureFailureAlert } from "@lib/customer-demand-ops-alerts"
+import { resolvePublicWaitlistProduct } from "./public-waitlist-product"
 
 function strapiBase() {
   return (process.env.STRAPI_ENDPOINT || "").replace(/\/+$/, "")
@@ -22,10 +23,9 @@ function strapiApiToken() {
  *   1. Lightweight email validation (regex on shape — Postmark and
  *      Strapi do the heavy lifting). Reject obvious garbage early so
  *      we never write a record we can't actually email.
- *   2. Create a `back-in-stock-request` record in Strapi via the
- *      public REST API. Strapi's Users-Permissions plugin must allow
- *      the public role to POST `api::back-in-stock-request` for this
- *      to work. Strapi-side storage means the restock trigger
+ *   2. Verify current public catalog eligibility, then create a
+ *      `back-in-stock-request` record through Strapi's authenticated
+ *      server API. Keep anonymous access disabled. Strapi storage means the restock trigger
  *      (whichever service owns it) can query a single source of truth
  *      when inventory crosses zero.
  *   3. Send the confirmation email via Postmark template
@@ -36,11 +36,8 @@ function strapiApiToken() {
  * success state unless Strapi accepted the row the restock trigger
  * will later process.
  *
- * Idempotency: repeated submissions from the same email + product
- * create multiple Strapi records on purpose. The restock trigger
- * collapses duplicates before sending so the customer never gets
- * spammed. Doing it at the boundary would require a database read
- * inside this hot path for marginal benefit.
+ * Repeated active subscriptions are checked before sending another
+ * confirmation; the restock trigger also collapses duplicate records.
  */
 
 export type RequestBackInStockResult = {
@@ -232,6 +229,13 @@ export async function requestBackInStockNotification(input: {
   // fill every field will populate it; we silently 200 those.
   if (input.honeypot && input.honeypot.length > 0) {
     return { ok: true }
+  }
+
+  try {
+    const canonical = await resolvePublicWaitlistProduct(input.medusaProductId, input.medusaVariantId)
+    input = { ...input, ...canonical }
+  } catch {
+    return { ok: false, error: "We couldn't verify this item's availability. Please try again." }
   }
 
   // De-dupe before sending. If this email has an active (un-unsubscribed)
