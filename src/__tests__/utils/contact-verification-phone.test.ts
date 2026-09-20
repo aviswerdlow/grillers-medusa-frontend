@@ -52,7 +52,7 @@ const migratedCustomer = {
   email: "customer@example.com",
   created_at: "2025-01-01T00:00:00.000Z",
   phone: "4045550100",
-  metadata: {},
+  metadata: { legacy_source: "legacy_site_customers", legacy_customer_id: "source-1" },
   addresses: [],
 } as any
 

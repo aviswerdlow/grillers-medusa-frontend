@@ -8,16 +8,10 @@ import { getStaffImpersonationSession } from "@lib/data/staff/impersonation"
 import { emitStorefrontOpsAlert } from "@lib/ops-alert"
 import { isValidUSPhone, stripPhone } from "@lib/util/format-phone"
 import {
-  buildSmsMarketingConsentMetadata,
   normalizeSmsMarketingPhone,
 } from "@lib/util/sms-consent"
 import {
   CONTACT_VERIFICATION_VERSION,
-  CONTACT_VERIFIED_AT_KEY,
-  CONTACT_VERIFIED_VERSION_KEY,
-  CONTACT_VERIFY_SKIPPED_AT_KEY,
-  EMAIL_CONFIRMED_AT_KEY,
-  PREFERRED_EMAIL_KEY,
   collectPhoneCandidates,
   isMigratedCustomer,
 } from "@lib/util/contact-verification"
@@ -151,6 +145,8 @@ export async function submitContactVerification(
     return { success: false, error: "Add a shipping address to continue." }
   }
 
+  let savedAddressId = wantsNewAddress ? "" : addressChoice
+
   let stage:
     | "address_default"
     | "address_create"
@@ -186,6 +182,7 @@ export async function submitContactVerification(
       )
       if (existing) {
         stage = "address_default"
+        savedAddressId = existing.id
         await sdk.client.fetch(
           `/store/customers/me/addresses/${existing.id}`,
           {
@@ -230,6 +227,11 @@ export async function submitContactVerification(
             error: result?.error || "Could not save the new address.",
           }
         }
+        const refreshed = await retrieveCustomer()
+        savedAddressId = refreshed?.addresses?.find((a) =>
+          (a.address_1 || "").trim().toLowerCase() === newAddress1.toLowerCase() &&
+          (a.postal_code || "").trim() === newPostal)?.id || ""
+        if (!savedAddressId) throw new Error("Saved address could not be confirmed")
       }
     } else {
       // Minimal, field-preserving default-shipping flip (the full
@@ -245,32 +247,19 @@ export async function submitContactVerification(
       )
     }
 
-    // 2) Customer: phone + verification stamp + consent, one write.
-    // Re-read metadata RIGHT before writing: the form may sit open for
-    // minutes, and Medusa metadata updates replace what we send — a
-    // consent recorded meanwhile (e.g. checkout in another tab) must not
-    // be clobbered by a stale snapshot. This shrinks the race window from
-    // form-fill time to milliseconds.
+    // The backend locks the authenticated customer and changes the primary
+    // destination, communications consent and attestation in one transaction.
     stage = "customer_update"
-    const fresh = await retrieveCustomer().catch(() => null)
-    const baseMetadata = (fresh || customer).metadata || {}
-    const metadata: Record<string, unknown> = {
-      ...baseMetadata,
-      [CONTACT_VERIFIED_AT_KEY]: new Date().toISOString(),
-      [CONTACT_VERIFIED_VERSION_KEY]: CONTACT_VERIFICATION_VERSION,
-      [EMAIL_CONFIRMED_AT_KEY]: new Date().toISOString(),
-      [PREFERRED_EMAIL_KEY]: preferredEmail,
-      ...(smsOptIn
-        ? buildSmsMarketingConsentMetadata({
-            phone: primaryPhone,
-            source: "first_login_verification",
-          })
-        : {}),
-    }
-
-    await sdk.client.fetch(`/store/customers/me`, {
+    await sdk.client.fetch(`/store/customers/me/contact`, {
       method: "POST",
-      body: { phone: primaryPhone, metadata },
+      body: {
+        phone: primaryPhone,
+        expected_revision: Number(formData.get("contact_revision")),
+        request_id: formData.get("contact_request_id"),
+        sms_marketing_opt_in: smsOptIn,
+        confirmation: { version: CONTACT_VERIFICATION_VERSION,
+          address_id: savedAddressId, preferred_email: preferredEmail },
+      },
       headers,
     })
 
@@ -291,58 +280,18 @@ export async function submitContactVerification(
         has_customer: true,
         wanted_new_address: wantsNewAddress,
         sms_opt_in: smsOptIn,
-        message: String(error?.message || error).slice(0, 300),
+        error_code: "contact_persistence_failed",
       },
     }).catch(() => {})
     return {
       success: false,
       error:
-        "We couldn't save your confirmation. Please try again — nothing was lost.",
+        "We couldn't save your confirmation. Refresh this page and try again; your saved address is kept.",
     }
   }
 }
 
-/**
- * "Remind me later." Records the skip so the account overview shows a
- * gentle reminder instead of re-opening the full-screen flow every visit.
- */
+/** The required legacy confirmation has no skip control. */
 export async function skipContactVerification(): Promise<{ ok: boolean }> {
-  // Fail closed on the impersonation check, same as submit.
-  let impersonation
-  try {
-    impersonation = await getStaffImpersonationSession()
-  } catch {
-    return { ok: false }
-  }
-  if (impersonation) return { ok: false }
-
-  const customer = await retrieveCustomer().catch(() => null)
-  if (!customer) return { ok: false }
-
-  try {
-    const headers = { ...(await getAuthHeaders()) }
-    await sdk.client.fetch(`/store/customers/me`, {
-      method: "POST",
-      body: {
-        metadata: {
-          ...(customer.metadata || {}),
-          [CONTACT_VERIFY_SKIPPED_AT_KEY]: new Date().toISOString(),
-        },
-      },
-      headers,
-    })
-    const cacheTag = await getCacheTag("customers")
-    revalidateTag(cacheTag)
-    return { ok: true }
-  } catch (error: any) {
-    await emitStorefrontOpsAlert({
-      alertKind: "contact_verification_failed",
-      severity: "warn",
-      title: "Contact-verification skip failed to persist",
-      path: ALERT_PATH,
-      fingerprint: "contact_verification:skip",
-      meta: { message: String(error?.message || error).slice(0, 300) },
-    }).catch(() => {})
-    return { ok: false }
-  }
+  return { ok: false }
 }
