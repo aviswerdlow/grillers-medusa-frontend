@@ -76,6 +76,11 @@ const dailyChecklist = [
 
 const publicSurfaces = [
   {
+    route: "/us/account/staff/incoming-stock",
+    name: "Incoming stock — staff only",
+    staffUse: "Review expected and confirmed batches, available versus committed quantities, final receipts awaiting reconciliation, and orders affected by late, short or cancelled supply.",
+  },
+  {
     route: "/us",
     name: "Homepage",
     staffUse:
@@ -695,7 +700,11 @@ const sections: GuideSection[] = [
       "Do not use inventory quantity to mean inactive. Use lifecycle fields for inactive status.",
       "Do not use inactive for a product that should accept future or waitlist demand.",
       "Refunds and cancellations can release allocation, but that must be verified in Medusa allocation state, not assumed from Stripe alone.",
-      "The incoming-stock launch work is still awaiting the receiving screen, checkout connection and receiving approval. A recorded receipt awaiting reconciliation has not increased usable stock. Do not enter it again as a separate stock adjustment or reset the QuickBooks baseline.",
+      "Open Incoming stock from the Staff Console. Choose the receiving timezone, then search a product. A draft batch is an expectation; only an approved receiving operator can confirm or revise its quantity and usable time. Record the approved sellable unit, source reference and reason for each change.",
+      "The affected-order list spans products. Review the customer date and preparation deadline, then coordinate with receiving and Order Support. Changing supply does not approve a replacement product or a different customer date.",
+      "Record final receipt only when no further delivery remains for that batch. A short final delivery can be recorded; a rolling partial delivery needs receiving review. A receipt awaiting reconciliation has not increased usable stock. Do not enter it again as a separate stock adjustment or reset the QuickBooks baseline.",
+      "If a save result is uncertain, use Retry saved request. The screen preserves that request in the same browser tab, including after a reload. Do not create another batch or receipt to work around it. If the saved request cannot be recovered, ask the receiving owner to reconcile it first.",
+      "Future-order checkout and receipt-to-stock reconciliation still await integration and operating approval. A confirmed incoming batch alone does not enable those launch promises.",
       "For a short, late or cancelled incoming batch, review every affected order with the receiving owner. Keep the original customer date until an approved correction is recorded; do not silently move it or substitute products.",
     ],
   },
