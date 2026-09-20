@@ -343,7 +343,7 @@ describe("back-in-stock alerting", () => {
 
   it("surfaces Medusa inventory lookup failures in the cron summary without sending notifications", async () => {
     process.env.MEDUSA_BACKEND_URL = "https://medusa.example.com"
-    process.env.MEDUSA_ADMIN_API_TOKEN = "admin-token"
+    process.env.MEDUSA_READ_ONLY_API_TOKEN = "admin-token"
     global.fetch = jest.fn(async (url: string) => {
       const href = String(url)
       if (href.startsWith("https://medusa.example.com/admin/products")) {

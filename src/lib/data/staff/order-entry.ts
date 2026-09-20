@@ -32,6 +32,7 @@ import {
   type StaffCustomerAccountNote,
   type StaffCustomerAccountReasonCode,
 } from "./customer-account-ledger"
+import { adminFetch, queryString } from "./admin"
 import { signStaffCartHandoff } from "./order-token"
 
 type AnyRecord = Record<string, any>
@@ -220,69 +221,11 @@ const MEDUSA_BACKEND_URL = (
 
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || ""
 
-function adminToken(): string {
-  const token =
-    process.env.MEDUSA_ADMIN_API_TOKEN || process.env.MEDUSA_API_TOKEN || ""
-
-  if (!token) {
-    throw new Error(
-      "MEDUSA_ADMIN_API_TOKEN missing. Staff order entry cannot access customer or inventory data."
-    )
-  }
-
-  return token
-}
-
 function storeHeaders(): HeadersInit {
   return {
     "Content-Type": "application/json",
     "x-publishable-api-key": PUBLISHABLE_KEY,
   }
-}
-
-function adminHeaders(): HeadersInit {
-  const token = adminToken()
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Basic ${Buffer.from(`${token}:`).toString("base64")}`,
-  }
-}
-
-function queryString(params: Record<string, unknown>): string {
-  const search = new URLSearchParams()
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === "") return
-    if (Array.isArray(value)) {
-      value.forEach((item) => search.append(`${key}[]`, String(item)))
-      return
-    }
-    search.set(key, String(value))
-  })
-  const qs = search.toString()
-  return qs ? `?${qs}` : ""
-}
-
-async function adminFetch<T>(
-  path: string,
-  init: RequestInit & { query?: Record<string, unknown> } = {}
-): Promise<T> {
-  const res = await fetch(
-    `${MEDUSA_BACKEND_URL}${path}${queryString(init.query || {})}`,
-    {
-      ...init,
-      headers: {
-        ...adminHeaders(),
-        ...(init.headers || {}),
-      },
-      cache: "no-store",
-    }
-  )
-
-  const json = (await res.json().catch(() => ({}))) as AnyRecord
-  if (!res.ok) {
-    throw new Error(json.message || json.error || res.statusText)
-  }
-  return json as T
 }
 
 async function storeFetch<T>(

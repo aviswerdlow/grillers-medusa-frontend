@@ -1,3 +1,8 @@
+jest.mock("@lib/data/cookies", () => ({
+  ...jest.requireActual("@lib/data/cookies"),
+  getAuthHeaders: jest.fn(async () => ({ authorization: "Bearer signed.fixture.staff" })),
+}))
+
 import {
   applyStaffCustomerAccountAction,
   getStaffCustomerContext,

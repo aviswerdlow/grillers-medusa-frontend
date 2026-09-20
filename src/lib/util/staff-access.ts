@@ -1,8 +1,9 @@
 import type { HttpTypes } from "@medusajs/types"
 
 type StaffMetadata = Record<string, unknown> | null | undefined
+type ServerStaffAccess = { role?: unknown; final_charge_enabled?: boolean; bootstrap?: boolean; session_current?: boolean }
 type StaffCustomerLike =
-  | (Pick<HttpTypes.StoreCustomer, "metadata"> & { email?: string | null })
+  | (Pick<HttpTypes.StoreCustomer, "metadata"> & { email?: string | null; staff_access?: ServerStaffAccess })
   | null
   | undefined
 
@@ -110,12 +111,6 @@ const STAFF_ROLES = new Set([
   "owner",
 ])
 
-const SUPER_ADMIN_EMAILS = new Set([
-  "aviswerdlow@gmail.com",
-  "peterswerdlow@gmail.com",
-  "peter@grillerspride.com",
-])
-
 function truthyStaffValue(value: unknown): boolean {
   if (value === true) return true
   if (typeof value === "number") return value === 1
@@ -130,12 +125,8 @@ function falseyStaffValue(value: unknown): boolean {
   return FALSE_VALUES.has(value.trim().toLowerCase())
 }
 
-function normalizedEmail(email: unknown): string {
-  return String(email || "").trim().toLowerCase()
-}
-
-export function isBootstrapSuperAdminEmail(email: unknown): boolean {
-  return SUPER_ADMIN_EMAILS.has(normalizedEmail(email))
+export function isBootstrapStaffCustomer(customer: StaffCustomerLike): boolean {
+  return customer?.staff_access?.bootstrap === true
 }
 
 function normalizeRole(value: unknown): string {
@@ -182,6 +173,9 @@ export function staffMetadataRole(metadata: StaffMetadata): StaffAccessRole {
     return "staff"
   }
 
+  // An explicit customer/unknown role cannot be promoted by stale broad flags.
+  if (role) return "customer"
+
   const directFlags = [
     metadata.is_staff,
     metadata.staff,
@@ -206,10 +200,11 @@ export function isStaffCustomer(
 }
 
 export function staffAccessRole(customer: StaffCustomerLike): StaffAccessRole {
-  if (isBootstrapSuperAdminEmail(customer?.email)) {
-    return "super_admin"
+  if (customer?.staff_access) {
+    if (customer.staff_access.session_current === false) return "customer"
+    const role = customer.staff_access.role
+    return STAFF_ROLE_OPTIONS.some(option => option.value === role) ? role as StaffAccessRole : "customer"
   }
-
   return staffMetadataRole(customer?.metadata as StaffMetadata)
 }
 
@@ -218,6 +213,7 @@ export function isSuperAdminCustomer(customer: StaffCustomerLike): boolean {
 }
 
 export function canChargeFinalOrders(customer: StaffCustomerLike): boolean {
+  if (customer?.staff_access) return (staffAccessRole(customer) === "super_admin" || canRoleReceiveFinalChargeAccess(staffAccessRole(customer))) && customer.staff_access.final_charge_enabled === true
   if (isSuperAdminCustomer(customer)) return true
 
   // Final charge is a money action layered on top of a pick/pack role. A stray

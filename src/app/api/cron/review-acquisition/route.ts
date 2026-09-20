@@ -19,7 +19,7 @@ const ALERT_PATH = "src/app/api/cron/review-acquisition/route.ts"
  * (HTTP 200, scanned:0) but never sends, so we page on it.
  */
 function missingReviewAcquisitionEnv(): string[] {
-  const required = ["MEDUSA_BACKEND_URL", "MEDUSA_ADMIN_API_TOKEN"]
+  const required = ["MEDUSA_BACKEND_URL", "MEDUSA_READ_ONLY_API_TOKEN"]
   return required.filter((name) => !process.env[name])
 }
 
@@ -36,7 +36,7 @@ const MEDUSA_BACKEND_URL = (process.env.MEDUSA_BACKEND_URL || "").replace(
   /\/+$/,
   ""
 )
-const ADMIN_TOKEN = process.env.MEDUSA_ADMIN_API_TOKEN
+const ADMIN_TOKEN = process.env.MEDUSA_READ_ONLY_API_TOKEN
 const ADMIN_AUTH_HEADER = ADMIN_TOKEN
   ? `Basic ${Buffer.from(`${ADMIN_TOKEN}:`).toString("base64")}`
   : ""
@@ -163,7 +163,7 @@ function asOrderSummary(order: DeliveredOrder): string {
 async function fetchRecentlyDelivered(): Promise<DeliveredOrderFetchResult> {
   if (!MEDUSA_BACKEND_URL || !ADMIN_TOKEN) {
     console.warn(
-      "[cron/review-acquisition] MEDUSA_BACKEND_URL or MEDUSA_ADMIN_API_TOKEN missing; skipping run"
+      "[cron/review-acquisition] MEDUSA_BACKEND_URL or MEDUSA_READ_ONLY_API_TOKEN missing; skipping run"
     )
     return {
       orders: [],
