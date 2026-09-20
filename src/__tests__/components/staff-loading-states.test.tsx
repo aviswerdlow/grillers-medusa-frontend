@@ -1,3 +1,5 @@
+jest.mock("@lib/data/cart", () => ({ getCheckoutCalendar: jest.fn(), saveCheckoutCalendar: jest.fn() }))
+
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 

@@ -1,3 +1,5 @@
+jest.mock("@lib/data/cart", () => ({ getCheckoutCalendar: jest.fn(), saveCheckoutCalendar: jest.fn() }))
+
 import { render, screen } from "@testing-library/react"
 
 import PhoneOrderCopilot from "@modules/staff/components/phone-order-copilot"

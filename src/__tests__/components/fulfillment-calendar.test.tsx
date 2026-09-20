@@ -229,3 +229,65 @@ test("server lifetime expiration disables submission until refreshed, regardless
   ).not.toBeInTheDocument()
   expect(select).not.toHaveBeenCalled()
 })
+
+test("staff adapters show only server-provided locations and require explicit exception review for each date", async () => {
+  const actions = {
+    load: jest.fn(),
+    save: jest.fn(async () => ({
+      ok: true as const,
+      data: { state: "selected" as const },
+    })),
+  }
+  const locations = [
+    { id: "approved-route", city: "Fixture city", state: "SC" },
+  ]
+  actions.load.mockImplementation(async ({ routeId }) => ({
+    ok: true,
+    data: {
+      ...page(routeId ? [first, { ...first, arrivalDate: "2026-10-09" }] : []),
+      regionalLocations: locations,
+    },
+  }))
+  const saved = jest.fn(),
+    user = userEvent.setup()
+  render(
+    <FulfillmentCalendarPicker
+      cart={cart}
+      fulfillmentType="southeast_pickup"
+      actions={actions}
+      inventoryOverrideReview
+      onSaved={saved}
+    />
+  )
+  await user.selectOptions(
+    await screen.findByRole("combobox", { name: /Pickup location/ }),
+    "approved-route"
+  )
+  await user.click(await screen.findByRole("button", { name: /Thu, Oct 8/ }))
+  const confirmButton = screen.getByRole("button", {
+    name: "Confirm pickup date",
+  })
+  expect(confirmButton).toBeDisabled()
+  await user.click(
+    screen.getByRole("checkbox", { name: /inventory exceptions/ })
+  )
+  expect(confirmButton).toBeEnabled()
+  await user.click(screen.getByRole("button", { name: /Fri, Oct 9/ }))
+  expect(confirmButton).toBeDisabled()
+  await user.click(
+    screen.getByRole("checkbox", { name: /inventory exceptions/ })
+  )
+  await user.click(confirmButton)
+  await waitFor(() => expect(saved).toHaveBeenCalledTimes(1))
+  expect(actions.save).toHaveBeenCalledWith(
+    expect.objectContaining({
+      choice: expect.objectContaining({
+        routeId: "approved-route",
+        staffOverrideConfirmed: true,
+        arrivalDate: "2026-10-09",
+      }),
+    })
+  )
+  expect(list).not.toHaveBeenCalled()
+  expect(select).not.toHaveBeenCalled()
+})
