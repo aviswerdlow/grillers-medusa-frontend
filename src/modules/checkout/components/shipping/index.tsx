@@ -197,6 +197,7 @@ const Shipping: React.FC<ShippingProps> = ({
   // Auto-open if: address is done AND no valid shipping method yet, OR explicitly via URL
   const isOpen = searchParams.get("step") === "delivery" || (addressComplete && !shippingMethodSelected)
 
+  const [priceTokens, setPriceTokens] = useState<Record<string, string>>({})
   const [priceLoadError, setPriceLoadError] = useState(false)
 
   useEffect(() => {
@@ -211,8 +212,15 @@ const Shipping: React.FC<ShippingProps> = ({
 
         Promise.allSettled(promises).then((res) => {
           const pricesMap: Record<string, number> = {}
-          const fulfilled = res.filter((r) => r.status === "fulfilled")
-          fulfilled.forEach((p) => (pricesMap[p.value?.id || ""] = p.value?.amount!))
+          const tokens: Record<string, string> = {}
+          const fulfilled = res.filter((r) => r.status === "fulfilled" && r.value && Number.isFinite(r.value.amount))
+          fulfilled.forEach((p) => {
+            if (p.status !== "fulfilled" || !p.value) return
+            pricesMap[p.value.id] = p.value.amount!
+            const token = (p.value as any).calculated_price?.shipping_price_quote_v1
+            if (typeof token === "string") tokens[p.value.id] = token
+          })
+          setPriceTokens(tokens)
 
           setCalculatedPricesMap(pricesMap)
           setIsLoadingPrices(false)
@@ -257,7 +265,7 @@ const Shipping: React.FC<ShippingProps> = ({
       return id
     })
 
-    await setShippingMethod({ cartId: cart.id, shippingMethodId: id })
+    await setShippingMethod({ cartId: cart.id, shippingMethodId: id, shippingPriceToken: priceTokens[id] })
       .then(() => {
         const selectedMethod = availableShippingMethods?.find(m => m.id === id)
         const shippingItems = getCheckoutAnalyticsItems(cart)
