@@ -19,6 +19,8 @@ import {
   type StaffQuickBooksSyncStatusFilter,
 } from "@lib/data/staff/quickbooks-sync"
 
+import { quickBooksSessionView } from "@lib/util/quickbooks-session-health"
+
 const STATUS_FILTERS: Array<{
   key: StaffQuickBooksSyncStatusFilter
   label: string
@@ -38,8 +40,11 @@ function labelClass() {
 function formatDateTime(value?: string | null) {
   if (!value) return "Not recorded"
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
+  if (Number.isNaN(date.getTime())) return "Invalid timestamp"
   return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    timeZoneName: "short",
+    year: "numeric",
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -68,12 +73,14 @@ function humanStatus(status: string) {
 }
 
 function statusClass(status: string) {
-  if (status === "synced") return "border-emerald-200 bg-emerald-50 text-emerald-800"
+  if (status === "synced")
+    return "border-emerald-200 bg-emerald-50 text-emerald-800"
   if (status === "waiting_for_web_connector" || status === "pending") {
     return "border-blue-200 bg-blue-50 text-blue-800"
   }
   if (status === "warning") return "border-amber-200 bg-amber-50 text-amber-800"
-  if (status === "canceled_before_qb") return "border-gray-200 bg-gray-50 text-Charcoal/60"
+  if (status === "canceled_before_qb")
+    return "border-gray-200 bg-gray-50 text-Charcoal/60"
   return "border-red-200 bg-red-50 text-red-800"
 }
 
@@ -118,11 +125,13 @@ function SummaryTile({
   tone = "neutral",
 }: {
   label: string
-  value: number
+  value: number | null
   tone?: "neutral" | "danger" | "warning" | "success"
 }) {
   const toneClass =
-    tone === "danger"
+    value === null
+      ? "border-gray-200 bg-white text-Charcoal"
+      : tone === "danger"
       ? "border-red-200 bg-red-50 text-red-800"
       : tone === "warning"
       ? "border-amber-200 bg-amber-50 text-amber-800"
@@ -135,7 +144,13 @@ function SummaryTile({
       <p className="text-[11px] font-maison-neue-mono uppercase opacity-70">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-maison-neue font-semibold">{value}</p>
+      <p
+        className={`mt-1 font-maison-neue font-semibold ${
+          value === null ? "text-base" : "text-2xl"
+        }`}
+      >
+        {value === null ? "Unavailable" : value}
+      </p>
     </div>
   )
 }
@@ -247,6 +262,8 @@ export default function StaffQuickBooksSyncStatusConsole() {
   const [requeueingId, setRequeueingId] = useState<number | null>(null)
   const [isPending, startTransition] = useTransition()
   const requestIdRef = useRef(0)
+  const [receivedAt, setReceivedAt] = useState(0)
+  const [clock, setClock] = useState(() => Date.now())
   const perPage = 20
 
   useEffect(() => {
@@ -271,9 +288,12 @@ export default function StaffQuickBooksSyncStatusConsole() {
           perPage,
         })
         if (requestId !== requestIdRef.current) return
+        setReceivedAt(Date.now())
+        setClock(Date.now())
         setData(next)
       } catch (err) {
         if (requestId !== requestIdRef.current) return
+        setData(null)
         setError(err instanceof Error ? err.message : String(err))
       }
     })
@@ -281,8 +301,18 @@ export default function StaffQuickBooksSyncStatusConsole() {
 
   useEffect(() => {
     load()
+    const poll = setInterval(load, 60_000)
+    return () => {
+      clearInterval(poll)
+      requestIdRef.current++
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, debouncedQuery, page])
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   function requeue(order: StaffQuickBooksSyncOrder) {
     if (requeueingId) return
@@ -309,6 +339,8 @@ export default function StaffQuickBooksSyncStatusConsole() {
   const orders = data?.orders.data || []
   const syncStatus = data?.sync_status
   const activeSummary = useMemo(() => data?.summary, [data])
+  const health = syncStatus?.health
+  const sessionView = quickBooksSessionView(health, clock - receivedAt)
   const qbwcConfiguration = syncStatus?.qbwc_configuration
   const qbwcWarnings = qbwcConfiguration?.warnings?.filter(Boolean) || []
 
@@ -343,53 +375,106 @@ export default function StaffQuickBooksSyncStatusConsole() {
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 large:grid-cols-5">
-          <SummaryTile label="Open" value={activeSummary?.open || 0} />
+          <SummaryTile label="Open" value={activeSummary?.open ?? null} />
           <SummaryTile
             label="Waiting"
-            value={activeSummary?.waiting || 0}
+            value={activeSummary?.waiting ?? null}
             tone="neutral"
           />
           <SummaryTile
             label="Stuck"
             value={
-              (activeSummary?.blocked || 0) +
-              (activeSummary?.error || 0) +
-              (activeSummary?.warning || 0) +
-              (activeSummary?.stale_pending || 0)
+              activeSummary
+                ? activeSummary.blocked +
+                  activeSummary.error +
+                  activeSummary.warning +
+                  activeSummary.stale_pending
+                : null
             }
             tone="danger"
           />
           <SummaryTile
             label="Skipped"
-            value={activeSummary?.skipped || 0}
+            value={activeSummary?.skipped ?? null}
             tone="warning"
           />
           <SummaryTile
-            label="Synced"
-            value={activeSummary?.synced || 0}
+            label="Recorded synced"
+            value={activeSummary?.synced ?? null}
             tone="success"
           />
         </div>
 
-        <div className="mt-4 rounded-md border border-gray-200 bg-SilverPlate/25 px-4 py-3">
-          <div className="flex flex-col gap-2 small:flex-row small:items-center small:justify-between">
-            <div className="flex items-center gap-2">
-              <DatabaseZap className="h-4 w-4 text-Charcoal/55" aria-hidden />
-              <p className="text-sm font-maison-neue font-semibold text-Charcoal">
-                Web Connector{" "}
-                {syncStatus?.active ? "is currently active" : "is not active"}
-              </p>
-            </div>
-            <p className="text-xs font-maison-neue text-Charcoal/55">
-              Last session {formatDateTime(syncStatus?.last_web_connector_session_at)} |{" "}
-              {syncStatus?.last_web_connector_status || "unknown"}
-            </p>
+        <div
+          className={`mt-4 rounded-md border px-4 py-3 ${
+            sessionView.state === "fresh"
+              ? "border-gray-200 bg-SilverPlate/25"
+              : "border-amber-300 bg-amber-50"
+          }`}
+        >
+          <div role="status" aria-live="polite">
+            <h3 className="text-sm font-maison-neue font-semibold text-Charcoal">
+              {sessionView.title}
+            </h3>
           </div>
-          {syncStatus?.current_step && (
-            <p className="mt-1 text-xs font-maison-neue text-Charcoal/55">
-              Current step: {humanStatus(syncStatus.current_step)}
+          <div className="mt-2 space-y-1 text-xs font-maison-neue text-Charcoal/70">
+            <p>
+              Last sign-in attempt: {formatDateTime(health?.last_auth_at)} ·{" "}
+              {health?.last_auth_status || "unknown"}
             </p>
-          )}
+            <p>
+              Last accepted sign-in:{" "}
+              {formatDateTime(health?.last_accepted_auth_at)}
+            </p>
+            <p>
+              Status checked: {formatDateTime(health?.observed_at)}. All times
+              UTC.
+            </p>
+            {health && (
+              <p>
+                A session becomes stale after {health.max_age_seconds / 60}{" "}
+                minutes without a new accepted sign-in.
+              </p>
+            )}
+            {sessionView.state !== "fresh" && (
+              <p className="font-semibold">
+                {health?.issue ||
+                  "Current activity is unconfirmed. Refresh and check Web Connector with the sync operator."}
+              </p>
+            )}
+            {syncStatus?.current_step && (
+              <p>Last reported step: {humanStatus(syncStatus.current_step)}</p>
+            )}
+            <p>
+              Sign-in does not prove a completed session or a posted order.
+              Check each order’s QuickBooks transaction and accounting-action
+              receipt separately.
+            </p>
+            <p>
+              Monitoring owner: {health?.owner || "Not recorded"}. Monitor last
+              checked: {formatDateTime(health?.monitor?.checked_at)}.
+            </p>
+            {health?.monitor?.delivery === "pending" && (
+              <p className="font-semibold">
+                The monitoring alert has not been accepted. Contact the sync
+                operator.
+              </p>
+            )}
+            {health?.monitor?.last_sink_accepted_at && (
+              <p>
+                Monitoring event accepted:{" "}
+                {formatDateTime(health.monitor.last_sink_accepted_at)}. Confirm
+                that the responsible operator received it.
+              </p>
+            )}
+            {health?.monitor?.last_recovered_at && (
+              <p>
+                Session freshness recovered:{" "}
+                {formatDateTime(health.monitor.last_recovered_at)}. Check queued
+                work separately.
+              </p>
+            )}
+          </div>
           {qbwcConfiguration?.username && (
             <p className="mt-1 text-xs font-maison-neue text-Charcoal/55">
               Configured Web Connector user: {qbwcConfiguration.username}
@@ -492,11 +577,12 @@ export default function StaffQuickBooksSyncStatusConsole() {
               aria-hidden
             />
             <h3 className="mt-3 font-maison-neue text-lg font-semibold text-Charcoal">
-              No orders in this view
+              {data ? "No orders in this view" : "Queue status unavailable"}
             </h3>
             <p className="mt-1 text-sm font-maison-neue text-Charcoal/55">
-              Change the filter or search text to inspect another part of the
-              QuickBooks queue.
+              {data
+                ? "Change the filter or search text to inspect another part of the QuickBooks queue."
+                : "A successful status read is needed before the queue can be assessed."}
             </p>
           </div>
         )}
@@ -504,14 +590,17 @@ export default function StaffQuickBooksSyncStatusConsole() {
 
       <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-4 small:flex-row small:items-center small:justify-between">
         <p className="text-sm font-maison-neue text-Charcoal/60">
-          Showing page {data?.orders.current_page || page} of{" "}
-          {Math.max(data?.orders.last_page || 1, 1)} |{" "}
-          {data?.orders.total || 0} rows
+          {data
+            ? `Showing page ${data.orders.current_page} of ${Math.max(
+                data.orders.last_page,
+                1
+              )} | ${data.orders.total} rows`
+            : "Queue counts unavailable"}
         </p>
         <div className="flex gap-2">
           <button
             className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-md border border-gray-200 px-3 text-sm font-maison-neue font-semibold text-Charcoal transition hover:border-Charcoal disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={page <= 1 || isPending}
+            disabled={!data || page <= 1 || isPending}
             onClick={() => setPage((current) => Math.max(current - 1, 1))}
             type="button"
           >
