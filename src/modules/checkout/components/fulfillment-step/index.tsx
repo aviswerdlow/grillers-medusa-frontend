@@ -1009,6 +1009,13 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
             >
               Back to fulfillment options
             </button>
+            {subStep === "plant_date" && config.PlantPickupAddress && (
+              <address className="text-sm not-italic">
+                <span className="block font-semibold">Pickup location</span>
+                {config.PlantPickupAddress}<br />
+                {config.PlantPickupCity}, {config.PlantPickupState} {config.PlantPickupZip}
+              </address>
+            )}
             {subStep === "southeast_pickup" && (
               <label className="block text-sm font-medium">
                 Pickup location
@@ -1027,6 +1034,9 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
                   ))}
                 </select>
               </label>
+            )}
+            {subStep === "plant_date" && config.PlantPickupPostOrderNote && (
+              <p className="text-sm">{config.PlantPickupPostOrderNote}</p>
             )}
             {selectedRoute && subStep === "southeast_pickup" && (
               <p className="text-sm">{selectedRoute.Address}</p>
