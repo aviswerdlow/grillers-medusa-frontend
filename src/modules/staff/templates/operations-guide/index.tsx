@@ -938,6 +938,8 @@ const sections: GuideSection[] = [
       "Revenue experiments should stay paused unless purchase tracking and parity gates are healthy.",
       "Read the latest completed analytics comparison, including its dates and source availability. A running reporting service alone does not prove that Medusa, first-party events, GA4, and QuickBooks were compared.",
       "Compare the same order IDs and placement estimates. Final weighed charges and QuickBooks invoices are separate amounts; ask the analytics owner to investigate a missing order or amount difference before increasing campaign spend.",
+      "The launch comparison candidate reads the original checkout amount and date, even if a later charge, refund or order correction changes today's totals. An accepted order in this comparison does not mean the customer has paid.",
+      "Missing original checkout evidence or unknown test-order, consent or experiment-version information makes the comparison unavailable. Ask the analytics owner to resolve the source; do not edit customer or accounting records to make the report pass. Known test orders and customers who declined analytics are excluded from the production comparison.",
       "For content-driven experiments, create draft Strapi experiment, variant, and placement records before activation.",
       "Use the email preferences page when a customer asks to manage newsletter email.",
       "Use review links and review-click tracking for post-purchase follow-up.",
