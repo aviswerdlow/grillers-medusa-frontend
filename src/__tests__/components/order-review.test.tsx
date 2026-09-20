@@ -4,7 +4,7 @@ import {
   loadCheckoutReview,
   recoverReviewedCheckout,
 } from "@lib/data/order-review"
-import { checkoutReviewFixture } from "../fixtures/order-review"
+import { checkoutReviewFixture } from "../../test-fixtures/order-review"
 jest.mock("@lib/data/order-review", () => ({
   loadCheckoutReview: jest.fn(),
   recoverReviewedCheckout: jest.fn(),
