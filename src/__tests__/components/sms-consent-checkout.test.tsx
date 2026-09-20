@@ -45,6 +45,10 @@ const mockedUseExitStaffContext = useExitStaffContext as jest.MockedFunction<
 describe("SMS consent surfaces", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    Object.defineProperty(globalThis.crypto, "randomUUID", {
+      configurable: true,
+      value: () => "synthetic-contact-request-0001",
+    })
     mockedUseStorefrontSession.mockReturnValue({
       customer: null,
       staffImpersonation: null,
