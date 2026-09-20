@@ -103,12 +103,13 @@ describe("staff context cart headers", () => {
       }),
       {},
       expect.objectContaining({
-        authorization: "Bearer staff",
+        "x-gp-staff-authorization": "Bearer staff",
         "x-gp-staff-actor-customer-id": "cus_staff",
         "x-gp-staff-target-customer-id": "cus_target",
       })
     )
     expect(mockedRevalidateTag).toHaveBeenCalledWith("carts")
     expect(mockedRevalidateTag).toHaveBeenCalledWith("fulfillment")
+    expect(mockedCartUpdate.mock.calls[0][3]).not.toHaveProperty("authorization")
   })
 })
