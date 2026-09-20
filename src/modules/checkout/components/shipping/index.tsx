@@ -3,7 +3,6 @@
 import { RadioGroup, Radio } from "@headlessui/react"
 import {
   clearFulfillmentDetails,
-  setFulfillmentDetails,
   setShippingMethod,
 } from "@lib/data/cart"
 import { calculatePriceForShippingOption, findShippingOptionByType } from "@lib/data/fulfillment"
@@ -360,37 +359,9 @@ const Shipping: React.FC<ShippingProps> = ({
     setError(null)
     setIsLoading(true)
     try {
-      if (nextType === "atlanta_delivery") {
-        // Atlanta delivery requires an explicit delivery date and time window.
-        // Retire the unusable UPS choice and return to the normal selector so
-        // the customer completes that scheduling flow; never synthesize a
-        // pending Atlanta selection from this dead-end shortcut.
-        await clearFulfillmentDetails(cart.id)
-        router.replace(pathname, { scroll: false })
-        router.refresh()
-        return
-      }
-
-      const today = new Date().toLocaleDateString("en-US", {
-        month: "numeric",
-        day: "numeric",
-        year: "numeric",
-      })
-      await setFulfillmentDetails({
-        cartId: cart.id,
-        fulfillmentType: nextType,
-        fulfillmentZip: "00000",
-        scheduledDate: today,
-      })
-
-      const option = await findShippingOptionByType(cart.id, "plant_pickup")
-      if (!option) {
-        throw new Error(
-          "Plant pickup is unavailable right now. Please choose another fulfillment method."
-        )
-      }
-      await setShippingMethod({ cartId: cart.id, shippingMethodId: option.id })
-
+      // Both local modes need an explicit, currently available date/window.
+      // Return to the selector; never synthesize today's pickup date here.
+      await clearFulfillmentDetails(cart.id)
       router.replace(pathname, { scroll: false })
       router.refresh()
     } catch (err: any) {

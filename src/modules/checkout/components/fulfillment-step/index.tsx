@@ -30,9 +30,9 @@ import {
   regionalPickupPresentation,
 } from "@lib/util/southeast-pickup"
 import { useFulfillmentEdit } from "@modules/checkout/context/fulfillment-edit-context"
-import PlantPickupScheduling from "@modules/checkout/components/fulfillment-selector/scheduling/plant-pickup"
-import SoutheastPickupScheduling from "@modules/checkout/components/fulfillment-selector/scheduling/southeast-pickup"
-import AtlantaDeliveryScheduling from "@modules/checkout/components/fulfillment-selector/scheduling/atlanta-delivery"
+import FulfillmentCalendarPicker from "@modules/checkout/components/fulfillment-calendar"
+import { formatCalendarDate } from "@lib/fulfillment-calendar"
+import { pickupLocationsForState } from "@lib/util/southeast-pickup"
 import AddressForm, { type DeliveryAddress } from "@modules/checkout/components/fulfillment-selector/address-form"
 
 type FulfillmentStepProps = {
@@ -146,11 +146,7 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [subStep, setSubStep] = useState<SubStep>("select")
-  const [pendingAtlantaDate, setPendingAtlantaDate] = useState("")
-  const [pendingAtlantaTimeWindow, setPendingAtlantaTimeWindow] = useState("")
-  const [pendingPickupDate, setPendingPickupDate] = useState("")
   const [pendingSELocationId, setPendingSELocationId] = useState("")
-  const [pendingSEDate, setPendingSEDate] = useState("")
   const [savingAddress, setSavingAddress] = useState(false)
   const [saveAddressError, setSaveAddressError] = useState<string | null>(null)
   const [addressFormIntent, setAddressFormIntent] =
@@ -587,21 +583,17 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
     setRegionResetNotice(null)
 
     if (option === "plant_pickup") {
-      setPendingPickupDate("")
       setSubStep("plant_date")
       return
     }
 
     if (option === "southeast_pickup") {
       setPendingSELocationId("")
-      setPendingSEDate("")
       setSubStep("southeast_pickup")
       return
     }
 
     if (option === "atlanta_delivery") {
-      setPendingAtlantaDate("")
-      setPendingAtlantaTimeWindow("")
       setSubStep("atlanta_delivery")
       return
     }
@@ -629,92 +621,18 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
     }
   }
 
-  const handleConfirmPickupDate = async () => {
-    if (isSubmitting || !pendingPickupDate) return
-
-    setIsSubmitting(true)
-    setError(null)
-
-    try {
-      await setFulfillmentDetails({
-        cartId: cart.id,
-        fulfillmentType: "plant_pickup",
-        fulfillmentZip: "00000",
-        scheduledDate: pendingPickupDate,
-      })
-
-      await attachShippingMethod("plant_pickup")
-
-      setIsEditing(false)
-      setSubStep("select")
-      router.refresh()
-    } catch (err: any) {
-      setError(friendlyFulfillmentError(err.message))
-    } finally {
-      setIsSubmitting(false)
-    }
+  const handleCalendarSaved = () => {
+    setIsEditing(false)
+    setSubStep("select")
+    router.refresh()
   }
-
-  const handleConfirmAtlantaDelivery = async () => {
-    if (isSubmitting || !pendingAtlantaDate || !pendingAtlantaTimeWindow) return
-
-    setIsSubmitting(true)
-    setError(null)
-
-    try {
-      await setFulfillmentDetails({
-        cartId: cart.id,
-        fulfillmentType: "atlanta_delivery",
-        fulfillmentZip: shipZip,
-        scheduledDate: pendingAtlantaDate,
-        scheduledTimeWindow: pendingAtlantaTimeWindow,
-      })
-
-      await attachShippingMethod("atlanta_delivery")
-
-      setIsEditing(false)
-      setSubStep("select")
-      router.refresh()
-    } catch (err: any) {
-      setError(friendlyFulfillmentError(err.message))
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleConfirmSoutheastPickup = async () => {
-    if (isSubmitting || !pendingSELocationId || !pendingSEDate) return
-
-    setIsSubmitting(true)
-    setError(null)
-
-    try {
-      const location = config.SoutheastPickupLocations?.find(
-        (loc) => loc.id === pendingSELocationId
-      )
-
-      await setFulfillmentDetails({
-        cartId: cart.id,
-        fulfillmentType: "southeast_pickup",
-        fulfillmentZip: "00000",
-        scheduledDate: pendingSEDate,
-        pickupLocationId: pendingSELocationId,
-        pickupLocationName: location?.Name,
-        pickupLocationCity: location?.City,
-        pickupLocationState: location?.State,
-      })
-
-      await attachShippingMethod("southeast_pickup")
-
-      setIsEditing(false)
-      setSubStep("select")
-      router.refresh()
-    } catch (err: any) {
-      setError(friendlyFulfillmentError(err.message))
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+  const regionalLocations = pickupLocationsForState(
+    config.SoutheastPickupLocations || [],
+    shipState
+  )
+  const selectedRoute = regionalLocations.find(
+    (location) => location.id === pendingSELocationId
+  )
 
   const handleChange = () => {
     if (isEditing) {
@@ -1079,81 +997,69 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
         </div>
       )}
 
-      {/* Atlanta Delivery Date Selection */}
-      {showSelection && subStep === "atlanta_delivery" && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
+      {showSelection &&
+        ["atlanta_delivery", "plant_date", "southeast_pickup"].includes(
+          subStep
+        ) && (
+          <div className="space-y-4">
             <button
               type="button"
               onClick={() => setSubStep("select")}
-              className="text-sm text-Gold hover:text-Gold/80 font-medium flex items-center gap-1 transition-colors"
+              className="min-h-[44px] text-sm underline underline-offset-4"
             >
-              <svg className="w-4 h-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-              Back
+              Back to fulfillment options
             </button>
+            {subStep === "southeast_pickup" && (
+              <label className="block text-sm font-medium">
+                Pickup location
+                <select
+                  className="block w-full mt-2 p-3 border border-gray-300 rounded-md"
+                  value={pendingSELocationId}
+                  onChange={(event) =>
+                    setPendingSELocationId(event.target.value)
+                  }
+                >
+                  <option value="">Choose a pickup location</option>
+                  {regionalLocations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.City}, {location.State}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {selectedRoute && subStep === "southeast_pickup" && (
+              <p className="text-sm">{selectedRoute.Address}</p>
+            )}
+            {(subStep !== "southeast_pickup" || selectedRoute) && (
+              <FulfillmentCalendarPicker
+                cart={cart}
+                fulfillmentType={
+                  subStep === "plant_date"
+                    ? "plant_pickup"
+                    : subStep === "atlanta_delivery"
+                    ? "atlanta_delivery"
+                    : "southeast_pickup"
+                }
+                routeId={
+                  subStep === "southeast_pickup"
+                    ? pendingSELocationId
+                    : undefined
+                }
+                pickupLocation={
+                  subStep === "southeast_pickup" && selectedRoute
+                    ? {
+                        name: selectedRoute.Name,
+                        city: selectedRoute.City,
+                        state: selectedRoute.State,
+                      }
+                    : undefined
+                }
+                onSaved={handleCalendarSaved}
+              />
+            )}
           </div>
-          <AtlantaDeliveryScheduling
-            config={config}
-            selectedDate={pendingAtlantaDate}
-            selectedTimeWindow={pendingAtlantaTimeWindow}
-            onDateChange={setPendingAtlantaDate}
-            onTimeWindowChange={setPendingAtlantaTimeWindow}
-            destinationZip={shipZip}
-            atlantaZipConfig={config.AtlantaDeliveryZipDays}
-          />
-          <button
-            type="button"
-            onClick={handleConfirmAtlantaDelivery}
-            disabled={!pendingAtlantaDate || !pendingAtlantaTimeWindow || isSubmitting}
-            className={`
-              w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200
-              ${pendingAtlantaDate && pendingAtlantaTimeWindow && !isSubmitting
-                ? "bg-Gold text-white hover:bg-Gold/90 shadow-md hover:shadow-lg active:scale-[0.99]"
-                : "bg-gray-100 text-gray-400 cursor-not-allowed"
-              }
-            `}
-          >
-            {isSubmitting ? "Confirming..." : "Confirm Delivery Date"}
-          </button>
-          {error && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200/80 rounded-xl text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Plant Pickup Date Selection */}
-      {showSelection && subStep === "plant_date" && (
-        <PlantPickupScheduling
-          config={config}
-          selectedDate={pendingPickupDate}
-          onDateChange={setPendingPickupDate}
-          onConfirm={handleConfirmPickupDate}
-          onBack={() => setSubStep("select")}
-          isSubmitting={isSubmitting}
-        />
-      )}
-
-      {/* Southeast Pickup Location/Date Selection */}
-      {showSelection && subStep === "southeast_pickup" && (
-        <SoutheastPickupScheduling
-          locations={config.SoutheastPickupLocations?.map((loc) => ({
-            ...loc,
-            IsActive: true,
-          })) || []}
-          preferredState={shipState}
-          selectedLocationId={pendingSELocationId}
-          selectedDate={pendingSEDate}
-          onLocationChange={setPendingSELocationId}
-          onDateChange={setPendingSEDate}
-          onConfirm={handleConfirmSoutheastPickup}
-          onBack={() => setSubStep("select")}
-          isSubmitting={isSubmitting}
-        />
-      )}
+        )}
 
       {/* Summary Mode */}
       {!showSelection && fulfillmentType && (
@@ -1172,7 +1078,7 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
             {displayDate && (
               <div className="flex items-center gap-1.5 text-sm text-Charcoal/70 mb-1.5">
                 <CalendarIcon />
-                <span className="font-medium">{displayDate}</span>
+                <span className="font-medium">{formatCalendarDate(displayDate)}</span>
               </div>
             )}
             
