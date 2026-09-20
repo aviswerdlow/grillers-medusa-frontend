@@ -1,3 +1,5 @@
+import { reviewAcceptance } from "../fixtures/order-review"
+import { acceptCheckoutReview } from "@lib/data/order-review"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import StaffChargeCard from "@modules/staff/components/phone-order-card"
 import {
@@ -5,6 +7,15 @@ import {
   verifyStaffPhoneOrderForPayment,
 } from "@lib/data/staff/order-entry"
 
+jest.mock("@lib/data/order-review", () => ({ acceptCheckoutReview: jest.fn() }))
+jest.mock("@modules/checkout/components/order-review", () => ({
+  __esModule: true,
+  default: ({ children }: any) =>
+    children({
+      acceptance: require("../fixtures/order-review").reviewAcceptance,
+      invalidate: jest.fn(),
+    }),
+}))
 const confirm = jest.fn()
 jest.mock("@lib/data/staff/order-entry", () => ({
   completeStaffPhoneOrder: jest.fn(),
@@ -44,6 +55,7 @@ const props = () => ({
 })
 beforeEach(() => {
   jest.clearAllMocks()
+  ;(acceptCheckoutReview as jest.Mock).mockResolvedValue({ error: null })
   ;(verifyStaffPhoneOrderForPayment as jest.Mock).mockResolvedValue({
     ok: true,
   })

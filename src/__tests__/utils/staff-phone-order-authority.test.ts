@@ -1,3 +1,4 @@
+import { reviewAcceptance } from "../fixtures/order-review"
 import {
   prepareStaffPhoneOrder,
   prepareStaffPhoneOrderPayment,
@@ -432,21 +433,25 @@ describe("Phone orders preserve staff authority across draft, date and payment",
   })
   it("preserves native completion replay without rechecking already consumed date or inventory", async () => {
     await prepareStaffPhoneOrder(input)
-    expect(await completeStaffPhoneOrder(cart.id)).toMatchObject({
+    expect(
+      await completeStaffPhoneOrder(cart.id, reviewAcceptance)
+    ).toMatchObject({
       ok: true,
       orderId: "order_fixture",
     })
     expect(sdk.store.cart.complete).toHaveBeenCalledWith(
       cart.id,
       {},
-      signedHeaders
+      { ...signedHeaders, "x-gp-order-review-id": reviewAcceptance.reviewId, "x-gp-order-request-id": reviewAcceptance.requestId }
     )
     cart.completed_at = "2026-10-05T18:00:00Z"
     calendarFailure = "expired"
     ;(checkStaffInventoryAvailability as jest.Mock).mockRejectedValue(
       new Error("stock now reserved")
     )
-    expect(await completeStaffPhoneOrder(cart.id)).toMatchObject({
+    expect(
+      await completeStaffPhoneOrder(cart.id, reviewAcceptance)
+    ).toMatchObject({
       ok: true,
       orderId: "order_fixture",
     })
