@@ -74,6 +74,7 @@ import type { StaffImpersonationSession } from "@lib/data/staff/impersonation-ty
 import { dispatchStorefrontSessionUpdated } from "@lib/util/storefront-session-events"
 import StaffOrderExceptionConsole from "@modules/staff/components/order-exception-console"
 import StaffTeamAccessConsole from "@modules/staff/components/team-access-console"
+import { canReviewIncomingStock } from "@lib/util/incoming-stock"
 import StaffCatchWeightFinalizationConsole from "@modules/staff/components/catch-weight-finalization-console"
 import StaffQuickBooksSyncStatusConsole from "@modules/staff/components/quickbooks-sync-status-console"
 import StaffMerchandisingWorkspace from "@modules/staff/components/merchandising-workspace"
@@ -1656,6 +1657,10 @@ export default function PhoneOrderCopilot({
               <BookOpenText className="h-4 w-4" aria-hidden />
               Guide
             </LocalizedClientLink>
+            {canReviewIncomingStock(staffCustomer) && <LocalizedClientLink
+              href="/account/staff/incoming-stock"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-md border border-Charcoal px-3.5 text-sm font-maison-neue font-semibold text-Charcoal focus-visible:outline focus-visible:outline-2"
+            >Incoming stock</LocalizedClientLink>}
             {canUseOffice && (
               <LocalizedClientLink
                 href="/account/staff/communications"

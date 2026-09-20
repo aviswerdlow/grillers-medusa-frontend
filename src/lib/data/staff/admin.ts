@@ -72,7 +72,7 @@ export async function adminFetch<T>(
 
   const json = (await res.json().catch(() => ({}))) as AnyRecord
   if (!res.ok) {
-    throw new Error(json.message || json.error || res.statusText)
+    throw Object.assign(new Error(json.message || json.error || res.statusText), { status: res.status })
   }
   return json as T
 }
