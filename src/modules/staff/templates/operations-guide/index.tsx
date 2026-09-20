@@ -1011,8 +1011,10 @@ const playbooks: Playbook[] = [
     steps: [
       "A super admin opens Staff Console and chooses Team Access.",
       "Search the customer account by email, name, or phone.",
+      "Change staff access in Team Access. Customer profile and contact forms cannot grant staff roles, final-charge permission, or clear a staff revocation.",
       "Choose staff or super admin, enter a clear reason, and type the confirmation word.",
       "Turn on Can charge final orders only for staff trusted to press Charge Card & Release. Super admins always have this permission.",
+      "Helping with another customer's saved cards requires office access, such as Office, Manager, General staff, or Super admin. Picker, Packer, and Merchandising reviewer roles do not have this access; final-charge permission does not add it. Revoked accounts are refused by these saved-card tools.",
       "Do not demote bootstrap super admins or remove your own super admin access.",
       "Ask the new staff member to sign in and confirm the Staff nav item appears.",
     ],
