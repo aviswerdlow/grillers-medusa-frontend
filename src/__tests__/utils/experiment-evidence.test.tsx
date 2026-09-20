@@ -6,7 +6,7 @@ import { experimentCartMetadata, getActiveExperimentContext, rememberExperimentA
 import { EXPERIMENT_ASSIGNMENTS_COOKIE, parseStoredAssignments } from "@lib/experiments/cookies"
 import ExperimentExposure from "@lib/experiments/exposure"
 import { jitsuTrack } from "@lib/jitsu"
-import type { ExperimentAssignment, ExperimentDefinition } from "@lib/experiments/types"
+import type { ExperimentAssignment, ExperimentDefinition, StoredExperimentAssignment } from "@lib/experiments/types"
 import fixture from "../fixtures/experiment-evidence.json"
 
 jest.mock("server-only", () => ({}))
@@ -27,10 +27,11 @@ beforeEach(() => {
 afterEach(() => { process.env = initialEnv })
 const issue = (extra: Partial<ExperimentAssignment> = {}, definition = fixture.definition as ExperimentDefinition, evaluation: unknown = fixture.evaluation) =>
   withAssignmentEvidence({ ...fixture.input, ...extra } as ExperimentAssignment, definition, evaluation)
+const storedFixture = (): StoredExperimentAssignment => ({ ...fixture.issued, source: "statsig", surface: "homepage", impact: "revenue", assignedAt: "2026-09-20T00:00:00Z" })
 
 test("matches the backend's frozen producer/consumer vector", () => {
   expect(issue()).toEqual(fixture.issued)
-  expect(verifiedStoredAssignment(fixture.definition.key, { ...fixture.issued, source: "statsig", assignedAt: "2026-09-20T00:00:00Z" })).toBe(true)
+  expect(verifiedStoredAssignment(fixture.definition.key, storedFixture())).toBe(true)
 })
 test("both variants share an experiment revision, with separate evaluation evidence", () => {
   const control = issue({ variantKey: "control", assignmentId: "control-fixture" }, undefined, { ...fixture.evaluation, value: { variant: "control" } })
@@ -54,7 +55,7 @@ test("malformed or weak keys cannot create known evidence", () => {
   }
 })
 test.each(["variantKey", "assignmentId", "version", "evaluationVersion", "releaseId", "versionSignature"])("tampering with %s invalidates the receipt", field => {
-  expect(verifiedStoredAssignment(fixture.definition.key, { ...fixture.issued, assignedAt: "now", [field]: "tampered" })).toBe(false)
+  expect(verifiedStoredAssignment(fixture.definition.key, { ...storedFixture(), [field]: "tampered" })).toBe(false)
 })
 test("disabled/blocked experiments never acquire a verified version", () => {
   expect(issue({ isEnabled: false }).version).toBeNull()
