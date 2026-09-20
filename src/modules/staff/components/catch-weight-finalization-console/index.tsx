@@ -39,6 +39,7 @@ import {
   replacementUnitPrice,
 } from "./replacement-pricing"
 import { resolveStaffLinePricingBasis } from "./pricing-basis"
+import { PackingEstimate } from "./packing-estimate"
 
 const statusLabels: Record<string, string> = {
   pending_pick: "Needs picking",
@@ -3128,6 +3129,7 @@ export default function StaffCatchWeightFinalizationConsole({
               </div>
 
               {canViewAuditTrail && <OrderAuditTrail order={detail.order} />}
+              {detail.package_capture_required && <PackingEstimate metadata={detail.order?.metadata} />}
 
               {canEditLines && inPickingPhase && (
                 <AddFinalizationItem
