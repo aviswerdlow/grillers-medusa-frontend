@@ -1,4 +1,4 @@
-import { reviewAcceptance } from "../fixtures/order-review"
+import { reviewAcceptance } from "../../test-fixtures/order-review"
 import { acceptCheckoutReview } from "@lib/data/order-review"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"

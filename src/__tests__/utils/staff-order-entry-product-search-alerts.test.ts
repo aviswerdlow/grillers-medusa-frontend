@@ -1,4 +1,4 @@
-import { reviewAcceptance } from "../fixtures/order-review"
+import { reviewAcceptance } from "../../test-fixtures/order-review"
 jest.mock("@lib/data/cookies", () => ({
   ...jest.requireActual("@lib/data/cookies"),
   getAuthHeaders: jest.fn(async () => ({

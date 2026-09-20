@@ -1,4 +1,4 @@
-import { reviewAcceptance } from "../fixtures/order-review"
+import { reviewAcceptance } from "../../test-fixtures/order-review"
 import {
   prepareStaffPhoneOrder,
   prepareStaffPhoneOrderPayment,
