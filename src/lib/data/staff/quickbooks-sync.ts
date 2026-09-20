@@ -3,12 +3,10 @@
 import "server-only"
 
 import { retrieveAuthenticatedCustomerForStaffAccess } from "@lib/data/customer"
-import {
-  canManageOrderSupport,
-  staffDisplayName,
-} from "@lib/util/staff-access"
+import { canManageOrderSupport, staffDisplayName } from "@lib/util/staff-access"
 import { emitStorefrontOpsAlert } from "@lib/ops-alert"
 import { adminFetch } from "./admin"
+import type { QuickBooksSessionHealth } from "@lib/util/quickbooks-session-health"
 
 async function requireOrderSupportStaff() {
   const staff = await retrieveAuthenticatedCustomerForStaffAccess()
@@ -141,6 +139,7 @@ export type StaffQuickBooksSyncStatus = {
   }
   sync_status: {
     active: boolean
+    health: QuickBooksSessionHealth
     started_at?: string | null
     current_step?: string | null
     last_web_connector_session_at?: string | null
@@ -204,7 +203,9 @@ export async function requeueStaffQuickBooksSyncOrder(
 ) {
   const staff = await requireOrderSupportStaff()
 
-  const actor = `${staffDisplayName(staff)}${staff.email ? ` (${staff.email})` : ""}`
+  const actor = `${staffDisplayName(staff)}${
+    staff.email ? ` (${staff.email})` : ""
+  }`
   try {
     return await adminFetch<{ order: StaffQuickBooksSyncOrder }>(
       `/admin/grillers/quickbooks-sync/orders/${orderId}/requeue`,
