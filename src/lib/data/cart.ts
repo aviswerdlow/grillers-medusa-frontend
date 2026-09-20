@@ -1,9 +1,13 @@
 "use server"
+import type { OrderAcceptance } from "@lib/order-review"
 
 import { sdk } from "@lib/config"
 import { getActiveStaffImpersonation } from "@lib/data/customer"
 import { staffAuditFields } from "@lib/data/staff/admin"
-import { createStaffCart, staffCartHeaders } from "@lib/data/staff/cart-authority"
+import {
+  createStaffCart,
+  staffCartHeaders,
+} from "@lib/data/staff/cart-authority"
 import { ATLANTA_DELIVERY_ZIP_DAYS } from "@lib/util/atlanta-delivery-zips"
 import { isSameAddressKey } from "@lib/util/compare-addresses"
 import { normalizeDeliveryZip } from "@lib/util/delivery-zip"
@@ -39,8 +43,12 @@ import {
 } from "@lib/checkout-address-quality"
 import { buildOrderSmsConsentMetadata } from "@lib/util/order-sms-consent"
 import { isExpectedNextRedirect } from "@lib/util/next-redirect"
-import type { CalendarActionResult, FulfillmentCalendarPage, FulfillmentCalendarDraft } from "@lib/fulfillment-calendar"
-import { fulfillmentDateKey } from "@lib/fulfillment-calendar"
+import {
+  fulfillmentDateKey,
+  type CalendarActionResult,
+  type FulfillmentCalendarPage,
+  type FulfillmentCalendarDraft,
+} from "@lib/fulfillment-calendar"
 import {
   CALENDAR_PATH,
   CALENDAR_REQUIRED_MESSAGE,
@@ -376,7 +384,11 @@ export async function getOrSetCart(countryCode: string) {
       "cart_created"
     )
     const cartResp = active
-      ? await createStaffCart(input, "staff_impersonation", active.session.targetCustomerId)
+      ? await createStaffCart(
+          input,
+          "staff_impersonation",
+          active.session.targetCustomerId
+        )
       : await sdk.store.cart.create(input, {}, headers)
     cart = cartResp.cart
 
@@ -1058,12 +1070,7 @@ export async function setOrderSmsConsent({
   const headers = await cartHeadersForStaffContext(active)
 
   return sdk.store.cart
-    .update(
-      cartId,
-      { metadata: { order_sms_consent: consent } },
-      {},
-      headers
-    )
+    .update(cartId, { metadata: { order_sms_consent: consent } }, {}, headers)
     .then(async ({ cart: updatedCart }) => {
       const cartCacheTag = await getCacheTag("carts")
       revalidateTag(cartCacheTag)
@@ -1171,11 +1178,24 @@ export async function setShippingMethod({
   let priceToken = shippingPriceToken
   if (!priceToken) {
     const { calculatePriceForShippingOption } = await import("./fulfillment")
-    const priced = await calculatePriceForShippingOption(shippingMethodId, cartId)
+    const priced = await calculatePriceForShippingOption(
+      shippingMethodId,
+      cartId
+    )
     priceToken = (priced as any)?.calculated_price?.shipping_price_quote_v1
   }
   return sdk.store.cart
-    .addShippingMethod(cartId, { option_id: shippingMethodId, ...(priceToken ? { data: { shipping_price_quote_v1: priceToken } } : {}) }, {}, headers)
+    .addShippingMethod(
+      cartId,
+      {
+        option_id: shippingMethodId,
+        ...(priceToken
+          ? { data: { shipping_price_quote_v1: priceToken } }
+          : {}),
+      },
+      {},
+      headers
+    )
     .then(async (result) => {
       // Mark the two-step selection complete only after Medusa accepted the
       // shipping method. A failed attachment must remain visibly pending.
@@ -1641,12 +1661,14 @@ export async function placeOrderWithSavedPaymentMethod({
   setupIntentId,
   consentVersion,
   consentText,
+  acceptance,
 }: {
   cartId?: string
   paymentMethodId: string
   setupIntentId?: string | null
-  consentVersion: string
-  consentText: string
+  consentVersion?: string
+  consentText?: string
+  acceptance: OrderAcceptance
 }) {
   const active = await getCartStaffContext()
   const id = cartId || (await getCurrentCartId(active))
@@ -1686,6 +1708,9 @@ export async function placeOrderWithSavedPaymentMethod({
         setup_intent_id: setupIntentId || null,
         consent_version: consentVersion,
         consent_text: consentText,
+        review_id: acceptance.reviewId,
+        request_id: acceptance.requestId,
+        analytics_consent: acceptance.analyticsConsent,
       },
     })
     .then(async (result) => {
@@ -1759,7 +1784,11 @@ export async function submitOrderWithSavedPaymentMethod(
  */
 export async function placeOrderByInvoice({
   cartId,
-}: { cartId?: string } = {}) {
+  acceptance,
+}: {
+  cartId?: string
+  acceptance: OrderAcceptance
+}) {
   const active = await getCartStaffContext()
   const id = cartId || (await getCurrentCartId(active))
 
@@ -1784,6 +1813,9 @@ export async function placeOrderByInvoice({
       body: {
         cart_id: id,
         payment_method: "invoice",
+        review_id: acceptance.reviewId,
+        request_id: acceptance.requestId,
+        analytics_consent: acceptance.analyticsConsent,
       },
     })
     .then(async (result) => {
@@ -1824,7 +1856,7 @@ export async function placeOrderByInvoice({
 }
 
 export async function submitOrderByInvoice(
-  input: Parameters<typeof placeOrderByInvoice>[0] = {}
+  input: Parameters<typeof placeOrderByInvoice>[0]
 ) {
   try {
     const result = await placeOrderByInvoice(input)
