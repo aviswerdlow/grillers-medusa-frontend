@@ -4,6 +4,7 @@ import {
   submitOrderByInvoice,
   submitOrderWithSavedPaymentMethod,
   verifyCartInventoryForCheckout,
+  verifyCartCalendarForCheckout,
 } from "@lib/data/cart"
 import { reportClientOpsAlert } from "@lib/client-error-reporter"
 import { jitsuTrack } from "@lib/jitsu"
@@ -190,6 +191,7 @@ async function verifyAndPlaceOrder({
   setErrorMessage: (message: string | null) => void
 }) {
   await verifyCartInventoryForCheckout(cart.id)
+  await verifyCartCalendarForCheckout(cart.id)
 
   let result: Awaited<ReturnType<typeof submitOrderWithSavedPaymentMethod>>
   try {
@@ -338,6 +340,7 @@ const NewCardSetupPaymentButton = ({
 
       try {
         await verifyCartInventoryForCheckout(cart.id)
+        await verifyCartCalendarForCheckout(cart.id)
       } catch (err: any) {
         setErrorMessage(err.message || "Some items need inventory review.")
         return
@@ -509,6 +512,7 @@ const InvoicePaymentButton = ({
 
     try {
       await verifyCartInventoryForCheckout(cart.id)
+      await verifyCartCalendarForCheckout(cart.id)
     } catch (err: any) {
       setErrorMessage(
         err.message || "Could not place the order. Please try again."

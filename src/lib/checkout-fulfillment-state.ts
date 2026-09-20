@@ -119,5 +119,9 @@ export function clearedCheckoutFulfillmentMetadata() {
     pickupLocationCity: "",
     pickupLocationState: "",
     fulfillmentSelectionStatus: "",
+    fulfillment_calendar_selection_v1: "",
+    fulfillment_calendar_accepted_v1: null,
+    fulfillmentCalendarQuoteId: "",
+    fulfillmentPickDate: "",
   }
 }

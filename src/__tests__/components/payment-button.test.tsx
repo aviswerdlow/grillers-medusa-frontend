@@ -6,6 +6,7 @@ import {
   submitOrderByInvoice,
   submitOrderWithSavedPaymentMethod,
   verifyCartInventoryForCheckout,
+  verifyCartCalendarForCheckout,
 } from "@lib/data/cart"
 import { reportClientOpsAlert } from "@lib/client-error-reporter"
 import { useElements, useStripe } from "@stripe/react-stripe-js"
@@ -14,6 +15,7 @@ jest.mock("@lib/data/cart", () => ({
   submitOrderByInvoice: jest.fn(),
   submitOrderWithSavedPaymentMethod: jest.fn(),
   verifyCartInventoryForCheckout: jest.fn(),
+  verifyCartCalendarForCheckout: jest.fn(),
 }))
 
 jest.mock("@lib/client-error-reporter", () => ({
@@ -60,11 +62,38 @@ const readyCart = {
 describe("PaymentButton", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    ;(verifyCartCalendarForCheckout as jest.Mock).mockResolvedValue(undefined)
     mockVerifyInventory.mockResolvedValue(undefined as never)
     mockPlaceOrder.mockResolvedValue(undefined as never)
     mockSubmitOrderByInvoice.mockResolvedValue(undefined as never)
     mockUseStripe.mockReturnValue(null)
     mockUseElements.mockReturnValue(null)
+  })
+
+  it("does not create a card setup or order when the selected date expired", async () => {
+    const user = userEvent.setup()
+    const confirmCardSetup = jest.fn()
+    mockUseStripe.mockReturnValue({ confirmCardSetup } as any)
+    mockUseElements.mockReturnValue({ getElement: () => ({}) } as any)
+    ;(verifyCartCalendarForCheckout as jest.Mock).mockRejectedValue(
+      new Error("Please confirm an available date.")
+    )
+    render(
+      <PaymentButton
+        cart={readyCart}
+        cardComplete
+        setupIntentClientSecret="seti_test_secret"
+        data-testid="submit-order-button"
+      />
+    )
+    await user.click(
+      screen.getByRole("button", { name: /Save Card & Place Order/i })
+    )
+    expect(
+      await screen.findByText("Please confirm an available date.")
+    ).toBeVisible()
+    expect(confirmCardSetup).not.toHaveBeenCalled()
+    expect(mockPlaceOrder).not.toHaveBeenCalled()
   })
 
   it("places a catch-weight order with a saved card without requiring Stripe Elements", async () => {
