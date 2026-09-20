@@ -684,6 +684,7 @@ const sections: GuideSection[] = [
       "Active plus zero quantity means an item can be waitlist eligible if waitlist is enabled.",
       "Seasonal inactive and discontinued products should not show normal waitlist capture unless there is a deliberate override. Internal-only products are never eligible for customer waitlists.",
       "Staff product search shows available to promise, future allowed, partial, blocked, or inactive.",
+      "Before promising future stock, confirm its recorded quantity and when it will be usable for preparation. A distant delivery date, a supplier estimate or a future allowed label alone is not proof of available supply.",
       "Partial and blocked lines may need an approved staff override before payment. Inactive lines must be replaced.",
       "Back-in-stock requests are stored in Strapi and emailed by Postmark when the trigger sees the item back in stock.",
       "The restock trigger respects a cooldown so customers are not spammed by inventory bouncing in and out.",
@@ -694,6 +695,8 @@ const sections: GuideSection[] = [
       "Do not use inventory quantity to mean inactive. Use lifecycle fields for inactive status.",
       "Do not use inactive for a product that should accept future or waitlist demand.",
       "Refunds and cancellations can release allocation, but that must be verified in Medusa allocation state, not assumed from Stripe alone.",
+      "The incoming-stock launch work is still awaiting the receiving screen, checkout connection and receiving approval. A recorded receipt awaiting reconciliation has not increased usable stock. Do not enter it again as a separate stock adjustment or reset the QuickBooks baseline.",
+      "For a short, late or cancelled incoming batch, review every affected order with the receiving owner. Keep the original customer date until an approved correction is recorded; do not silently move it or substitute products.",
     ],
   },
   {
