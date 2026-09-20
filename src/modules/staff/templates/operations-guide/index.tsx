@@ -934,6 +934,7 @@ const sections: GuideSection[] = [
     howTo: [
       "Use analytics to understand customer behavior, not to decide whether a customer paid.",
       "Use Medusa and Stripe for order/payment truth.",
+      "The launch tracking candidate records cancellations, individual shipments, deliveries and refunds separately from the original sale. Completing an order in the admin does not prove it was delivered. A recorded refund can still be pending or unverified at the payment provider; check its actual status before telling a customer it succeeded. If reporting is delayed, ask the analytics owner to recover the event without repeating the refund or shipment.",
       "Storefront events dual-write to first-party communications ingestion when the communications endpoint is configured.",
       "Use Customer Communications reports for lifecycle and email performance. Use Medusa and Stripe for order and payment truth.",
       "When changing checkout or purchase logic, make sure order_completed still originates server-side from order.placed.",
