@@ -31,7 +31,7 @@ import {
 } from "@lib/util/southeast-pickup"
 import { useFulfillmentEdit } from "@modules/checkout/context/fulfillment-edit-context"
 import FulfillmentCalendarPicker from "@modules/checkout/components/fulfillment-calendar"
-import { formatCalendarDate } from "@lib/fulfillment-calendar"
+import { formatCalendarDate, calendarWindowLabel } from "@lib/fulfillment-calendar"
 import { pickupLocationsForState } from "@lib/util/southeast-pickup"
 import AddressForm, { type DeliveryAddress } from "@modules/checkout/components/fulfillment-selector/address-form"
 
@@ -1089,6 +1089,7 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
               <div className="flex items-center gap-1.5 text-sm text-Charcoal/70 mb-1.5">
                 <CalendarIcon />
                 <span className="font-medium">{formatCalendarDate(displayDate)}</span>
+                {calendarWindowLabel(cart.metadata) && <span> · {calendarWindowLabel(cart.metadata)}</span>}
               </div>
             )}
             

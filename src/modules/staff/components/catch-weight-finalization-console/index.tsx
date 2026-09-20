@@ -2740,10 +2740,18 @@ export default function StaffCatchWeightFinalizationConsole({
                           <span className="mt-1 block truncate text-xs font-maison-neue text-Charcoal/50">
                             {[
                               fulfillmentTypeLabel(item.fulfillment_type),
-                              shortDateLabel(item.fulfillment_date),
+                              item.fulfillment_date ? `Dispatch / pickup ${shortDateLabel(item.fulfillment_date)}` : "Dispatch date needs review",
                             ]
                               .filter(Boolean)
                               .join(" | ")}
+                          </span>
+                        )}
+                        {(item.pick_date || item.arrival_date) && (
+                          <span className="mt-1 block text-xs font-maison-neue text-Charcoal/60">
+                            {[
+                              item.pick_date && `Prepare ${shortDateLabel(item.pick_date)}`,
+                              item.arrival_date && `Arrival / pickup ${shortDateLabel(item.arrival_date)}`,
+                            ].filter(Boolean).join(" | ")}
                           </span>
                         )}
                         <span className="mt-1 block">
