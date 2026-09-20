@@ -78,7 +78,7 @@ const ContactVerification = ({
         customer_id: customer.id,
         sms_opt_in: Boolean(state.smsOptedIn),
       })
-      router.push(`/${countryCode}/account?verified=1`)
+      router.push(state.receiptEmailPending ? `/${countryCode}/account/profile` : `/${countryCode}/account?verified=1`)
       router.refresh()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,8 +263,8 @@ const ContactVerification = ({
                 />
                 <p className="mt-1 text-xs text-ui-fg-subtle">
                   You&apos;ll still sign in with {customer.email}, and
-                  receipts stay there for now — we&apos;ll confirm this
-                  address with you before switching anything over.
+                  receipts stay there until you enter the verification code
+                  we send to this address. You can finish this in your profile.
                 </p>
               </div>
             ) : null}

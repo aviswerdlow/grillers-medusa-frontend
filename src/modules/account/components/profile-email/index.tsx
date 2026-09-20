@@ -1,75 +1,190 @@
 "use client"
-
-import React, { useEffect, useActionState } from "react";
-
-import Input from "@modules/common/components/input"
-
-import AccountInfo from "../account-info"
+import { useActionState, useEffect, useState } from "react"
 import { HttpTypes } from "@medusajs/types"
-// import { updateCustomer } from "@lib/data/customer"
+import { updateReceiptEmail, ReceiptEmailState } from "@lib/data/receipt-email"
 
-type MyInformationProps = {
+export default function ProfileEmail({
+  customer,
+  receipt,
+  canManage = true,
+}: {
   customer: HttpTypes.StoreCustomer
-}
-
-const ProfileEmail: React.FC<MyInformationProps> = ({ customer }) => {
-  const [successState, setSuccessState] = React.useState(false)
-
-  // TODO: It seems we don't support updating emails now?
-  const updateCustomerEmail = (
-    _currentState: Record<string, unknown>,
-    formData: FormData
-  ) => {
-    const customer = {
-      email: formData.get("email") as string,
-    }
-
-    try {
-      // await updateCustomer(customer)
-      return { success: true, error: null }
-    } catch (error: any) {
-      return { success: false, error: error.toString() }
-    }
-  }
-
-  const [state, formAction] = useActionState(updateCustomerEmail, {
-    error: false,
-    success: false,
+  receipt: ReceiptEmailState | null
+  canManage?: boolean
+}) {
+  const [state, action, pending] = useActionState(updateReceiptEmail, {
+    receipt,
+    error: null,
+    notice: null,
   })
-
-  const clearState = () => {
-    setSuccessState(false)
-  }
-
+  const current =
+    state.receipt && (!receipt || state.receipt.revision >= receipt.revision)
+      ? state.receipt
+      : receipt
+  const [requestId, setRequestId] = useState("")
   useEffect(() => {
-    setSuccessState(state.success)
-  }, [state])
-
+    setRequestId(crypto.randomUUID())
+  }, [current?.revision])
+  const inputClass =
+    "w-full rounded-md border border-gray-400 px-3 py-2 text-base"
+  const buttonClass =
+    "min-h-11 rounded-md bg-Charcoal px-4 py-2 text-white disabled:opacity-50"
   return (
-    <form action={formAction} className="w-full">
-      <AccountInfo
-        label="Email"
-        currentInfo={`${customer.email}`}
-        isSuccess={successState}
-        isError={!!state.error}
-        errorMessage={state.error}
-        clearState={clearState}
-        data-testid="account-email-editor"
-      >
-        <div className="grid grid-cols-1 gap-y-2">
-          <Input
-            label="Email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            defaultValue={customer.email}
-            data-testid="email-input"
-          />
-        </div>
-      </AccountInfo>
-    </form>
+    <section
+      className="space-y-4"
+      data-testid="account-email-editor"
+      aria-labelledby="receipt-email-heading"
+    >
+      <div>
+        <h2 id="receipt-email-heading" className="font-semibold">
+          Email addresses
+        </h2>
+        <p className="mt-1 text-sm">
+          Sign-in and password reset: <strong>{customer.email}</strong>
+        </p>
+      </div>
+      {!canManage ? (
+        <p>Only the signed-in customer can verify a receipt address.</p>
+      ) : !current ? (
+        <p role="alert">
+          Receipt settings are temporarily unavailable. Refresh the page to try
+          again.
+        </p>
+      ) : (
+        <>
+          <p>
+            Future order receipts: <strong>{current.active_email}</strong>
+          </p>
+          <p className="text-sm">
+            Changing your receipt address does not change your sign-in email,
+            marketing choices or receipts for existing orders.
+          </p>
+          {current.active_status === "delivery_problem" && (
+            <p role="alert">
+              We cannot deliver to your current receipt address. Verify another
+              address or use your sign-in email.
+            </p>
+          )}
+          {state.notice && <p role="status">{state.notice}</p>}
+          {state.error && <p role="alert">{state.error}</p>}
+          <form action={action} className="space-y-2">
+            <input
+              type="hidden"
+              name="expected_revision"
+              value={current.revision}
+            />
+            <input type="hidden" name="request_id" value={requestId} />
+            <label
+              htmlFor="receipt_email"
+              className="block text-sm font-medium"
+            >
+              Receipt email
+            </label>
+            <input
+              id="receipt_email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              maxLength={254}
+              defaultValue={
+                current.suggested_email ||
+                current.pending?.email ||
+                current.active_email
+              }
+              className={inputClass}
+            />
+            <button
+              className={buttonClass}
+              name="action"
+              value="request"
+              disabled={pending || !requestId}
+            >
+              {current.pending ? "Send a new code" : "Send verification code"}
+            </button>
+            <p className="text-sm text-gray-600">
+              Codes expire after 15 minutes. Wait at least one minute before
+              requesting another.
+            </p>
+          </form>
+          {current.pending && (
+            <div className="space-y-2 border-t pt-4">
+              <p>
+                Pending verification: <strong>{current.pending.email}</strong>
+              </p>
+              {current.pending.status === "delivery_problem" ? (
+                <p role="alert">
+                  The verification email could not be delivered. Check the
+                  address or contact customer service.
+                </p>
+              ) : current.pending.status === "expired" ||
+                current.pending.status === "locked" ? (
+                <p role="alert">
+                  This code has expired or reached its attempt limit. Request a
+                  new code.
+                </p>
+              ) : (
+                <form action={action} className="space-y-2">
+                  <input
+                    type="hidden"
+                    name="challenge_id"
+                    value={current.pending.id}
+                  />
+                  <label
+                    htmlFor="receipt_code"
+                    className="block text-sm font-medium"
+                  >
+                    Verification code
+                  </label>
+                  <input
+                    key={current.pending.id}
+                    id="receipt_code"
+                    name="code"
+                    type="text"
+                    autoComplete="one-time-code"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    required
+                    maxLength={32}
+                    className={inputClass}
+                    aria-describedby="receipt-code-help"
+                  />
+                  <p id="receipt-code-help" className="text-sm">
+                    Paste the code from the email. Hyphens are optional.
+                  </p>
+                  <button
+                    className={buttonClass}
+                    name="action"
+                    value="verify"
+                    disabled={pending}
+                  >
+                    Verify receipt email
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+          {(current.pending ||
+            current.active_source === "verified_preference") && (
+            <form action={action}>
+              <input
+                type="hidden"
+                name="expected_revision"
+                value={current.revision}
+              />
+              <input type="hidden" name="request_id" value={requestId} />
+              <button
+                name="action"
+                value="revoke"
+                disabled={pending || !requestId}
+                className="min-h-11 underline"
+              >
+                Use sign-in email and cancel pending changes
+              </button>
+            </form>
+          )}
+        </>
+      )}
+    </section>
   )
 }
-
-export default ProfileEmail

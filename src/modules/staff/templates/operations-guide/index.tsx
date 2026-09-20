@@ -470,7 +470,10 @@ const sections: GuideSection[] = [
       "Migrated customers confirm details based on their recorded import identity, not their account creation date. A valid earlier confirmation remains completed.",
       "Only the customer confirms one primary mobile and optional marketing text choice. Saving is customer attestation, not proof that a text challenge or line-type lookup ran. Staff context cannot grant that consent.",
       "Changing the primary mobile retires the previous destination. Past addresses/orders stay historical; pending order texts to an old number are held rather than redirected. New order-text consent is collected separately at checkout.",
-      "A different receipt email remains pending until the verified-email flow activates it. Contact confirmation does not change sign-in, account ownership or a verified receipt destination.",
+      "Once the receipt-email update is released, customers use Account > Profile to request a code and verify a receipt address. The current address stays active while the replacement is pending. Staff cannot verify it through customer impersonation.",
+      "Receipt codes expire after 15 minutes. A customer can request a new code after one minute, up to five per hour; a new code replaces the previous one. If delivery failed or the code expired, use the Profile recovery controls or customer service.",
+      "Verification affects future order receipts only. Sign-in, password resets, marketing consent and existing order receipt addresses remain separate. Existing-order contact corrections require the audited Order Support process, not an account profile edit.",
+      "The Profile page shows the current receipt address and any delivery problem. Use sign-in email cancels pending changes and changes future receipts; it does not rewrite old orders or resend past messages.",
     ],
   },
   {
