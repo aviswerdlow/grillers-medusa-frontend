@@ -940,6 +940,7 @@ const sections: GuideSection[] = [
       "Compare the same order IDs and placement estimates. Final weighed charges and QuickBooks invoices are separate amounts; ask the analytics owner to investigate a missing order or amount difference before increasing campaign spend.",
       "The launch comparison candidate reads the original checkout amount and date, even if a later charge, refund or order correction changes today's totals. An accepted order in this comparison does not mean the customer has paid.",
       "Missing original checkout evidence or unknown test-order, consent or experiment-version information makes the comparison unavailable. Ask the analytics owner to resolve the source; do not edit customer or accounting records to make the report pass. Known test orders and customers who declined analytics are excluded from the production comparison.",
+      "Missing or conflicting experiment records are not the same as a customer seeing no experiment. The analytics owner must verify the version shown at the time; staff should not relabel older orders with today's version. An attribution problem should not prevent a customer from ordering.",
       "For content-driven experiments, create draft Strapi experiment, variant, and placement records before activation.",
       "Use the email preferences page when a customer asks to manage newsletter email.",
       "Use review links and review-click tracking for post-purchase follow-up.",
