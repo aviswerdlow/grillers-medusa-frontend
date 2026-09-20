@@ -1,4 +1,4 @@
-import { reviewAcceptance } from "../fixtures/order-review"
+import { reviewAcceptance } from "../../test-fixtures/order-review"
 import { acceptCheckoutReview } from "@lib/data/order-review"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import StaffChargeCard from "@modules/staff/components/phone-order-card"
@@ -12,7 +12,7 @@ jest.mock("@modules/checkout/components/order-review", () => ({
   __esModule: true,
   default: ({ children }: any) =>
     children({
-      acceptance: require("../fixtures/order-review").reviewAcceptance,
+      acceptance: require("../../test-fixtures/order-review").reviewAcceptance,
       invalidate: jest.fn(),
     }),
 }))

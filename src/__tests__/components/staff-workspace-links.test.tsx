@@ -1,4 +1,9 @@
 jest.mock("@lib/data/cart", () => ({ getCheckoutCalendar: jest.fn(), saveCheckoutCalendar: jest.fn() }))
+jest.mock("@lib/data/order-review", () => ({
+  loadCheckoutReview: jest.fn(async () => ({ review: null, error: null })),
+  acceptCheckoutReview: jest.fn(),
+  recoverReviewedCheckout: jest.fn(),
+}))
 
 import { render, screen } from "@testing-library/react"
 
