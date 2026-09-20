@@ -1,28 +1,10 @@
 import { HttpTypes } from "@medusajs/types"
 import { normalizeSmsMarketingPhone } from "@lib/util/sms-consent"
 
-/**
- * First-login contact verification for migrated (pre-launch) customers.
- *
- * ~4.5K customers were synced into Medusa from QuickBooks/the legacy site
- * with phones, emails, and (via order history) addresses we've never had
- * them confirm on the new stack. Before we can text anyone we need (a) the
- * customer to tell us which number on file is their primary MOBILE, and
- * (b) an explicit, versioned SMS opt-in (TCPA express written consent —
- * the same consent record used at signup/checkout: see
- * `@lib/util/sms-consent`). While they're here we confirm the primary
- * email and default shipping address.
- *
- * Eligibility: customers created BEFORE the cutoff (i.e. the migrated
- * book — post-launch signups already provide + consent to everything at
- * registration) who haven't completed or skipped the flow.
- */
+import { CONTACT_CONFIRMATION_VERSION, hasContactConfirmation, hasMigrationProvenance } from "./customer-contact-state"
 
-export const CONTACT_VERIFICATION_VERSION = "contact-verify-v1-2026-07-07"
-
-/** Customers created before this instant are "existing" (migrated). */
-export const CONTACT_VERIFY_CUTOFF_ISO =
-  process.env.CONTACT_VERIFY_CUTOFF_ISO || "2026-07-07T00:00:00Z"
+/** Explicit legacy provenance determines eligibility, never creation dates. */
+export const CONTACT_VERIFICATION_VERSION = CONTACT_CONFIRMATION_VERSION
 
 export const CONTACT_VERIFIED_AT_KEY = "contact_verified_at"
 export const CONTACT_VERIFIED_VERSION_KEY = "contact_verified_version"
@@ -38,7 +20,7 @@ type CustomerLike = Pick<
 export function hasCompletedContactVerification(
   customer: CustomerLike | null | undefined
 ): boolean {
-  return Boolean(customer?.metadata?.[CONTACT_VERIFIED_AT_KEY])
+  return hasContactConfirmation(customer?.metadata)
 }
 
 export function hasSkippedContactVerification(
@@ -47,14 +29,9 @@ export function hasSkippedContactVerification(
   return Boolean(customer?.metadata?.[CONTACT_VERIFY_SKIPPED_AT_KEY])
 }
 
-/** Created before the launch cutoff — i.e. part of the migrated book. */
-export function isMigratedCustomer(
-  customer: CustomerLike | null | undefined
-): boolean {
-  if (!customer) return false
-  const createdAt = customer.created_at ? new Date(customer.created_at) : null
-  if (!createdAt || Number.isNaN(createdAt.getTime())) return false
-  return createdAt < new Date(CONTACT_VERIFY_CUTOFF_ISO)
+/** Existing source identity is preserved through repeated migration deltas. */
+export function isMigratedCustomer(customer: CustomerLike | null | undefined): boolean {
+  return Boolean(customer && hasMigrationProvenance(customer.metadata))
 }
 
 /**

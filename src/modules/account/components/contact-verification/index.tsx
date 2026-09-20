@@ -18,6 +18,8 @@ import {
   formatPhoneForDisplay,
 } from "@lib/util/contact-verification"
 
+import { contactRevision } from "@lib/util/customer-contact-state"
+
 type Props = {
   customer: HttpTypes.StoreCustomer
   phoneCandidates: PhoneCandidate[]
@@ -42,6 +44,8 @@ const ContactVerification = ({
   countryCode,
 }: Props) => {
   const router = useRouter()
+  const [requestId, setRequestId] = useState("")
+  useEffect(() => { setRequestId(crypto.randomUUID()) }, [])
   const [state, formAction] = useActionState(submitContactVerification, null)
 
   const hasCandidates = phoneCandidates.length > 0
@@ -87,12 +91,13 @@ const ContactVerification = ({
         let&apos;s confirm your details
       </h1>
       <p className="mt-2 text-base-regular text-ui-fg-subtle">
-        You&apos;re one of our long-time customers, and this is our new home.
-        Take 60 seconds to confirm how we reach you and where we ship — then
-        you&apos;re all set.
+        Please confirm your primary mobile and shipping address for the new site.
+        Text updates are optional.
       </p>
 
       <form action={formAction} className="mt-8 flex flex-col gap-y-8">
+        <input type="hidden" name="contact_revision" value={contactRevision(customer.metadata)} />
+        <input type="hidden" name="contact_request_id" value={requestId} />
         {/* ── 1 · Mobile number + texts ─────────────────────────── */}
         <section className="rounded-lg border border-ui-border-base bg-ui-bg-base p-5">
           <div className="flex items-center gap-x-3">
@@ -102,7 +107,7 @@ const ContactVerification = ({
             </h2>
           </div>
           <p className="mt-2 text-small-regular text-ui-fg-subtle">
-            Which of these is the best mobile number for your customer profile?
+            Choose one primary mobile number for your account. Saved addresses and past orders keep their original contact details.
           </p>
 
           <div className="mt-4 flex flex-col gap-y-2" data-testid="phone-candidates">
@@ -149,6 +154,7 @@ const ContactVerification = ({
                 <Input
                   label="Mobile number"
                   name="primary_phone_other"
+                  id="primary_phone_other"
                   type="tel"
                   autoComplete="mobile tel"
                   required
@@ -158,6 +164,10 @@ const ContactVerification = ({
             ) : null}
           </div>
 
+          <p className="mt-3 text-small-regular text-ui-fg-subtle">
+            Saving confirms this is your number. It does not verify ownership by text.
+            Order texts are a separate, optional choice at checkout.
+          </p>
           {/* Must stay unchecked-by-default: TCPA "express written consent"
               requires the subscriber's own affirmative action, and Twilio
               toll-free verification rejected the number (code 30446) over
@@ -167,6 +177,7 @@ const ContactVerification = ({
             <input
               className="mt-1 h-4 w-4 shrink-0 accent-Gold"
               name="sms_marketing_opt_in"
+              id="sms_marketing_opt_in"
               type="checkbox"
               value="on"
               data-testid="sms-marketing-opt-in"
@@ -201,7 +212,7 @@ const ContactVerification = ({
             <h2 className="text-large-semi text-ui-fg-base">Your email</h2>
           </div>
           <p className="mt-2 text-small-regular text-ui-fg-subtle">
-            Order confirmations and receipts go here.
+            Your sign-in email currently receives order confirmations and receipts.
           </p>
 
           <div className="mt-4 flex flex-col gap-y-2">
@@ -244,6 +255,7 @@ const ContactVerification = ({
                 <Input
                   label="Preferred email"
                   name="preferred_email"
+                  id="preferred_email"
                   type="email"
                   autoComplete="email"
                   required
@@ -322,20 +334,20 @@ const ContactVerification = ({
               <div className="grid grid-cols-1 gap-3 pl-7 small:grid-cols-2">
                 <Input
                   label="First name"
-                  name="new_first_name"
+                  name="new_first_name" id="new_first_name"
                   autoComplete="given-name"
                   defaultValue={customer.first_name || ""}
                 />
                 <Input
                   label="Last name"
-                  name="new_last_name"
+                  name="new_last_name" id="new_last_name"
                   autoComplete="family-name"
                   defaultValue={customer.last_name || ""}
                 />
                 <div className="small:col-span-2">
                   <Input
                     label="Street address"
-                    name="new_address_1"
+                    name="new_address_1" id="new_address_1"
                     autoComplete="address-line1"
                     required
                   />
@@ -343,25 +355,25 @@ const ContactVerification = ({
                 <div className="small:col-span-2">
                   <Input
                     label="Apt, suite, etc. (optional)"
-                    name="new_address_2"
+                    name="new_address_2" id="new_address_2"
                     autoComplete="address-line2"
                   />
                 </div>
                 <Input
                   label="City"
-                  name="new_city"
+                  name="new_city" id="new_city"
                   autoComplete="address-level2"
                   required
                 />
                 <Input
                   label="State"
-                  name="new_province"
+                  name="new_province" id="new_province"
                   autoComplete="address-level1"
                   required
                 />
                 <Input
                   label="ZIP code"
-                  name="new_postal_code"
+                  name="new_postal_code" id="new_postal_code"
                   autoComplete="postal-code"
                   required
                 />
@@ -371,12 +383,15 @@ const ContactVerification = ({
           </div>
         </section>
 
-        <ErrorMessage error={state?.error || null} data-testid="contact-verification-error" />
+        <div role="alert" aria-live="polite">
+          <ErrorMessage error={state?.error || null} data-testid="contact-verification-error" />
+        </div>
 
         <div className="flex flex-col gap-y-3">
           <SubmitButton
             className="w-full"
             data-testid="contact-verification-submit"
+            disabled={!requestId}
           >
             Confirm my details
           </SubmitButton>

@@ -467,6 +467,10 @@ const sections: GuideSection[] = [
       "Customer credits are not Stripe refunds. Use card refund in Order Support when money should go back to the card.",
       "Staff context actions are audited to the staff member.",
       "Always verify identity before entering account context or saving address/profile changes.",
+      "Migrated customers confirm details based on their recorded import identity, not their account creation date. A valid earlier confirmation remains completed.",
+      "Only the customer confirms one primary mobile and optional marketing text choice. Saving is customer attestation, not proof that a text challenge or line-type lookup ran. Staff context cannot grant that consent.",
+      "Changing the primary mobile retires the previous destination. Past addresses/orders stay historical; pending order texts to an old number are held rather than redirected. New order-text consent is collected separately at checkout.",
+      "A different receipt email remains pending until the verified-email flow activates it. Contact confirmation does not change sign-in, account ownership or a verified receipt destination.",
     ],
   },
   {
