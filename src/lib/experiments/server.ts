@@ -9,7 +9,8 @@ import {
 } from "./cookies"
 import { evaluateExperimentGuardrails } from "./guardrails"
 import { getExperimentDefinition, isKnownVariant } from "./registry"
-import { getStatsigVariant } from "./statsig-server"
+import { getStatsigEvaluation } from "./statsig-server"
+import { experimentReleaseId, verifiedStoredAssignment, withAssignmentEvidence } from "./assignment-evidence"
 import type {
   ExperimentAssignment,
   ExperimentAssignmentSource,
@@ -61,9 +62,10 @@ function assignment(
   stableId: string,
   context: ExperimentRequestContext,
   source: ExperimentAssignmentSource,
-  overrides?: Partial<ExperimentAssignment>
+  overrides?: Partial<ExperimentAssignment>,
+  evaluation: unknown = { source }
 ): ExperimentAssignment {
-  return {
+  return withAssignmentEvidence({
     experimentKey: definition.key,
     variantKey,
     assignmentId: assignmentId(definition.key, variantKey, stableId),
@@ -76,7 +78,7 @@ function assignment(
     routeMarket: context.routeMarket,
     customerType: context.customerType,
     ...overrides,
-  }
+  }, definition, evaluation)
 }
 
 export async function getExperimentAssignment(
@@ -153,31 +155,39 @@ export async function getExperimentAssignment(
     cookieStore.get(EXPERIMENT_ASSIGNMENTS_COOKIE)?.value
   )[experimentKey]
 
-  if (stored && isKnownVariant(effectiveDefinition, stored.variantKey)) {
-    return {
-      ...assignment(
+  if (stored && isKnownVariant(effectiveDefinition, stored.variantKey) && verifiedStoredAssignment(experimentKey, stored)) {
+    const current = assignment(
         effectiveDefinition,
         stored.variantKey,
         stableId,
         requestContext,
-        "sticky-cookie"
-      ),
-      assignmentId: stored.assignmentId,
-    }
+        "sticky-cookie",
+        { assignmentId: stored.assignmentId },
+        { source: "sticky-cookie", prior_version: stored.version }
+      )
+    // Reuse the original assignment revision within one code release. Across
+    // releases issue new evidence for the UI now rendered; old cart evidence stays old.
+    return stored.releaseId === experimentReleaseId() ? { ...current,
+      version: stored.version, releaseId: stored.releaseId,
+      evaluationVersion: stored.evaluationVersion,
+      versionKeyId: stored.versionKeyId, versionSignature: stored.versionSignature,
+    } : current
   }
 
-  const statsigVariant = await getStatsigVariant(
+  const statsig = await getStatsigEvaluation(
     effectiveDefinition,
     stableId,
     requestContext
   )
-  if (isKnownVariant(effectiveDefinition, statsigVariant)) {
+  if (isKnownVariant(effectiveDefinition, statsig?.variant)) {
     return assignment(
       effectiveDefinition,
-      statsigVariant!,
+      statsig!.variant,
       stableId,
       requestContext,
-      "statsig"
+      "statsig",
+      undefined,
+      { source: "statsig", ...statsig!.evidence }
     )
   }
 

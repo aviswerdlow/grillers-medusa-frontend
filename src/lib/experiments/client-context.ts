@@ -15,6 +15,8 @@ export type ActiveExperimentContext = Record<
   {
     variant_key: string
     assignment_id: string
+    version: string | null
+    evaluation_version?: string
     surface?: string
     impact?: string
     route_market?: string
@@ -25,6 +27,7 @@ export type ActiveExperimentContext = Record<
     user_id?: string
   }
 >
+const INCOMPLETE_COOKIE = "_gp_exp_context_incomplete"
 
 function cookieValue(name: string) {
   if (typeof document === "undefined") return null
@@ -58,17 +61,31 @@ export function rememberExperimentAssignment(assignment: ExperimentAssignment) {
   const next = updateStoredAssignment(stored, assignment.experimentKey, {
     variantKey: assignment.variantKey,
     assignmentId: assignment.assignmentId,
+    version: assignment.version,
+    evaluationVersion: assignment.evaluationVersion,
+    releaseId: assignment.releaseId,
+    versionKeyId: assignment.versionKeyId,
+    versionSignature: assignment.versionSignature,
     surface: assignment.surface,
     impact: assignment.impact,
     routeMarket: assignment.routeMarket,
     customerType: assignment.customerType,
     source: assignment.source,
   })
+  const serialized = serializeStoredAssignments(next)
+  // A rejected/oversized cookie must not silently erase a new exposure. Keep a
+  // small persistent marker so checkout can preserve the uncertainty.
+  if (encodeURIComponent(serialized).length > 3800) {
+    setCookie(INCOMPLETE_COOKIE, "1", EXPERIMENT_COOKIE_MAX_AGE)
+    return
+  }
   setCookie(
     EXPERIMENT_ASSIGNMENTS_COOKIE,
-    serializeStoredAssignments(next),
+    serialized,
     EXPERIMENT_COOKIE_MAX_AGE
   )
+  if (cookieValue(EXPERIMENT_ASSIGNMENTS_COOKIE) !== serialized)
+    setCookie(INCOMPLETE_COOKIE, "1", EXPERIMENT_COOKIE_MAX_AGE)
 }
 
 export function getActiveExperimentContext(): ActiveExperimentContext {
@@ -80,6 +97,8 @@ export function getActiveExperimentContext(): ActiveExperimentContext {
     context[experimentKey] = {
       variant_key: assignment.variantKey,
       assignment_id: assignment.assignmentId,
+      version: assignment.version || null,
+      ...(assignment.evaluationVersion ? { evaluation_version: assignment.evaluationVersion } : {}),
       ...(assignment.surface ? { surface: assignment.surface } : {}),
       ...(assignment.impact ? { impact: assignment.impact } : {}),
       ...(assignment.routeMarket
@@ -104,7 +123,21 @@ export function getActiveExperimentContext(): ActiveExperimentContext {
 
 export function experimentCartMetadata() {
   const experimentContext = getActiveExperimentContext()
-  return Object.keys(experimentContext).length
-    ? { experiment_context: experimentContext }
-    : {}
+  const raw = cookieValue(EXPERIMENT_ASSIGNMENTS_COOKIE)
+  const stored = parseStoredAssignments(raw)
+  let complete = !cookieValue(INCOMPLETE_COOKIE)
+  try {
+    const parsed = raw ? JSON.parse(raw) : {}
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)
+      || Object.keys(parsed).length !== Object.keys(stored).length) complete = false
+  } catch { complete = false }
+  return {
+    experiment_context_status: complete ? "complete" : "unverified",
+    experiment_context: Object.fromEntries(Object.entries(experimentContext).map(([id, value]) => [id, {
+      ...value,
+      release_id: stored[id]?.releaseId,
+      version_key_id: stored[id]?.versionKeyId,
+      version_signature: stored[id]?.versionSignature,
+    }])),
+  }
 }
