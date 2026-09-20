@@ -20,7 +20,16 @@ type Props = {
   shippingOptionId?: string
   routeId?: string
   pickupLocation?: { name?: string; city?: string; state?: string }
-  onSaved: () => void
+  actions?: {
+    load: typeof getCheckoutCalendar
+    save: typeof saveCheckoutCalendar
+  }
+  inventoryOverrideReview?: boolean
+  onSaved: () => void | Promise<void>
+}
+const customerActions = {
+  load: getCheckoutCalendar,
+  save: saveCheckoutCalendar,
 }
 
 /** Every mode uses the same server contract. No local holiday, cutoff or ZIP
@@ -29,10 +38,17 @@ export default function FulfillmentCalendarPicker({
   cart,
   fulfillmentType,
   shippingOptionId,
-  routeId,
+  routeId: providedRouteId,
   pickupLocation,
+  actions = customerActions,
+  inventoryOverrideReview = false,
   onSaved,
 }: Props) {
+  const [chosenRouteId, setChosenRouteId] = useState("")
+  const [overrideConfirmed, setOverrideConfirmed] = useState(false)
+  const routeId = providedRouteId ?? chosenRouteId
+  const chooseRoute =
+    fulfillmentType === "southeast_pickup" && providedRouteId === undefined
   const [page, setPage] = useState<FulfillmentCalendarPage | null>(null)
   const [selected, setSelected] = useState<FulfillmentCalendarChoice | null>(
     null
@@ -57,10 +73,11 @@ export default function FulfillmentCalendarPicker({
     setLoading(true)
     setPage(null)
     setSelected(null)
+    setOverrideConfirmed(false)
     setMessage(null)
     setExpired(false)
     try {
-      const result = await getCheckoutCalendar({
+      const result = await actions.load({
         cartId: cart.id,
         fulfillmentType,
         shippingOptionId,
@@ -76,7 +93,7 @@ export default function FulfillmentCalendarPicker({
       if (sequence.current === request && currentKey.current === key)
         setLoading(false)
     }
-  }, [cart.id, fulfillmentType, shippingOptionId, routeId, key])
+  }, [cart.id, fulfillmentType, shippingOptionId, routeId, key, actions.load])
 
   useEffect(() => {
     void load()
@@ -115,14 +132,21 @@ export default function FulfillmentCalendarPicker({
   }, [message])
 
   const save = async () => {
-    if (!selected || !page || savingRef.current || expired) return
+    if (
+      !selected ||
+      !page ||
+      savingRef.current ||
+      expired ||
+      (inventoryOverrideReview && !overrideConfirmed)
+    )
+      return
     savingRef.current = true
     setSaving(true)
     setMessage(null)
     const requestKey = key
     const request = sequence.current
     try {
-      const result = await saveCheckoutCalendar({
+      const result = await actions.save({
         cartId: cart.id,
         pickupLocation,
         choice: {
@@ -132,6 +156,9 @@ export default function FulfillmentCalendarPicker({
           routeId,
           contextRevision: page.contextRevision,
           replacementQuote: page.replacementQuote,
+          ...(inventoryOverrideReview
+            ? { staffOverrideConfirmed: overrideConfirmed }
+            : {}),
         },
       })
       if (currentKey.current !== requestKey || sequence.current !== request)
@@ -145,7 +172,7 @@ export default function FulfillmentCalendarPicker({
         setSelected(null)
         setMessage(result.data.message)
       } else {
-        onSaved()
+        await onSaved()
       }
     } catch {
       if (currentKey.current === requestKey && sequence.current === request) {
@@ -192,7 +219,31 @@ export default function FulfillmentCalendarPicker({
           {message}
         </p>
       )}
-      {empty && (
+      {chooseRoute && page && (
+        <label className="block text-sm font-semibold">
+          Pickup location
+          <select
+            className="mt-2 block min-h-[44px] w-full rounded-md border border-gray-300 bg-white p-2"
+            value={routeId}
+            disabled={saving}
+            onChange={(event) => setChosenRouteId(event.target.value)}
+          >
+            <option value="">Choose a location</option>
+            {page.regionalLocations?.map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.city}, {location.state}
+              </option>
+            ))}
+          </select>
+          {!page.regionalLocations?.length && (
+            <span className="mt-2 block font-normal">
+              No pickup locations are available for this address. Choose another
+              fulfillment method.
+            </span>
+          )}
+        </label>
+      )}
+      {empty && !(chooseRoute && !routeId) && (
         <p role="status" className="text-sm text-Charcoal/80">
           {page.calendar.unavailableReason === "unknown_route"
             ? "This location doesn’t have a confirmed schedule. Please choose another location or fulfillment method."
@@ -216,7 +267,10 @@ export default function FulfillmentCalendarPicker({
                   key={`${choice.arrivalDate}|${choice.window?.id || ""}`}
                   type="button"
                   aria-pressed={checked}
-                  onClick={() => setSelected(choice)}
+                  onClick={() => {
+                    setSelected(choice)
+                    setOverrideConfirmed(false)
+                  }}
                   className={`min-h-[52px] p-3 text-left border rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
                     checked
                       ? "border-Charcoal bg-Gold/10"
@@ -236,10 +290,26 @@ export default function FulfillmentCalendarPicker({
               )
             })}
           </div>
+          {inventoryOverrideReview && selected && (
+            <label className="flex min-h-[44px] items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={overrideConfirmed}
+                onChange={(event) => setOverrideConfirmed(event.target.checked)}
+              />
+              I have reviewed the inventory exceptions above and confirm their
+              approval applies to these quantities and this date.
+            </label>
+          )}
           <button
             type="button"
             onClick={save}
-            disabled={!selected || saving}
+            disabled={
+              !selected ||
+              saving ||
+              (inventoryOverrideReview && !overrideConfirmed)
+            }
             className="w-full min-h-[44px] px-4 py-3 rounded-md bg-Gold text-Charcoal font-semibold disabled:bg-gray-100 disabled:text-gray-500"
           >
             {saving
