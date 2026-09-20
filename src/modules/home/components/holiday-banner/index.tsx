@@ -51,7 +51,7 @@ export default function HolidayBanner({ holiday }: HolidayBannerProps = {}) {
             </div>
           </div>
           <LocalizedClientLink
-            href="/page/holiday-deadlines"
+            href="/holidays/order-deadlines"
             className="shrink-0 inline-flex items-center gap-2 text-p-sm-mono font-maison-neue-mono uppercase tracking-widest text-Charcoal hover:text-Gold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold rounded"
           >
             See all deadlines

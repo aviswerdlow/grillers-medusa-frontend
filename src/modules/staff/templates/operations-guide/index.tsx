@@ -79,7 +79,7 @@ const publicSurfaces = [
     route: "/us",
     name: "Homepage",
     staffUse:
-      "Start here when explaining the site to a customer. It includes hero content, trust proof, reorder row, holiday banners, specialty rows, delivery promise, collections, learning links, recipes, and social content.",
+      "Start here when explaining the site to a customer. Get Cooking opens the recipe hub, Storage & thawing opens the delivery and thawing guide, and See all deadlines opens the holiday ordering page.",
   },
   {
     route: "/us/store",
@@ -770,6 +770,7 @@ const sections: GuideSection[] = [
     ],
     howTo: [
       "Open the correct Strapi content type, make the edit, and publish if the content type uses draft/publish.",
+      "For the homepage Recipes & Guides section, Strapi controls the heading, images and button wording. The button always opens the recipe hub; the old Button URL field no longer changes that destination. Keep its wording about recipes or cooking. Holiday dates still need the approved operating calendar; a working link does not confirm the dates.",
       "For product edits, use the customer-safe Title and PDP fields. Do not edit QuickBooks ListID unless you are deliberately correcting accounting identity.",
       "Treat the five Hechsher flags as exact Item Manager categories joined by QuickBooks ListID. Use the controlled backfill for catalog-wide changes; do not guess a flag from a title, description, brand, or SKU.",
       "Hechshers are certification fields only. Keep separate kashruth attributes such as Chassidish shchita and Kosher for Passover unchanged unless their own source data is being corrected.",

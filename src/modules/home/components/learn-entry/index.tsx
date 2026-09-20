@@ -42,9 +42,9 @@ const learningLinks = [
     image: "/images/learn/cut-library-hero.jpg",
   },
   {
-    title: "Cold-chain planning",
-    description: "Understand delivery, packing, and freezer timing.",
-    href: "/learn/cold-chain",
+    title: "Storage & thawing",
+    description: "Plan freezer storage and safe thawing after delivery.",
+    href: "/learn/guides/thawing-frozen-kosher-meat",
     image: "/images/learn/cold-chain.jpg",
   },
 ]

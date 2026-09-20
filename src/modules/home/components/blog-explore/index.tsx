@@ -3,6 +3,9 @@
 import React from "react"
 import Image from "next/image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+
+// This recipe entry owns its destination. Strapi supplies the presentation;
+// its legacy Button.Url may still be "/" and must not send shoppers back home.
 export default function BlogExploreSection({
   data,
 }: {
@@ -11,7 +14,6 @@ export default function BlogExploreSection({
     BlogExploreTitle: string
     Button: {
       Text: string
-      Url: string
     }
     QuoteDecorImage: {
       url: string
@@ -33,10 +35,10 @@ export default function BlogExploreSection({
             <h2 className="mb-8 max-w-[10ch] font-gyst text-h2-mobile leading-tight text-Charcoal md:text-h2">
               {data?.BlogExploreTitle}
             </h2>
-            {data?.Button?.Text && data?.Button?.Url && (
+            {data?.Button?.Text && (
               <div>
                 <LocalizedClientLink
-                  href={data.Button.Url}
+                  href="/recipes"
                   className="btn-outline"
                 >
                   <span>{data.Button.Text}</span>
