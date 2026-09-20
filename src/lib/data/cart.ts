@@ -1146,9 +1146,11 @@ export async function getCartInventoryReview(cartId?: string) {
 export async function setShippingMethod({
   cartId,
   shippingMethodId,
+  shippingPriceToken,
 }: {
   cartId: string
   shippingMethodId: string
+  shippingPriceToken?: string
 }) {
   const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
@@ -1164,8 +1166,16 @@ export async function setShippingMethod({
     )
   }
 
+  // The visible quote wins. Automatic/staff method selection also gets a
+  // server-issued quote; never construct an amount or pricing policy here.
+  let priceToken = shippingPriceToken
+  if (!priceToken) {
+    const { calculatePriceForShippingOption } = await import("./fulfillment")
+    const priced = await calculatePriceForShippingOption(shippingMethodId, cartId)
+    priceToken = (priced as any)?.calculated_price?.shipping_price_quote_v1
+  }
   return sdk.store.cart
-    .addShippingMethod(cartId, { option_id: shippingMethodId }, {}, headers)
+    .addShippingMethod(cartId, { option_id: shippingMethodId, ...(priceToken ? { data: { shipping_price_quote_v1: priceToken } } : {}) }, {}, headers)
     .then(async (result) => {
       // Mark the two-step selection complete only after Medusa accepted the
       // shipping method. A failed attachment must remain visibly pending.

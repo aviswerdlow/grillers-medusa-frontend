@@ -7,7 +7,7 @@ import {
   setFulfillmentDetails,
   setShippingMethod,
 } from "@lib/data/cart"
-import { findShippingOptionByType } from "@lib/data/fulfillment"
+import { calculatePriceForShippingOption, findShippingOptionByType } from "@lib/data/fulfillment"
 
 const routerReplace = jest.fn()
 const routerRefresh = jest.fn()
@@ -133,3 +133,11 @@ describe("UPS dead-end fulfillment recovery", () => {
     expect(findShippingOptionByTypeMock).not.toHaveBeenCalled()
   })
 })
+
+it("sends the token belonging to the displayed carrier price when selected",async()=>{
+  const user=userEvent.setup();
+  (calculatePriceForShippingOption as jest.Mock).mockResolvedValue({id:"ground",amount:32,calculated_price:{shipping_price_quote_v1:"opaque.server.quote"}});
+  render(<Shipping cart={upsDeadEndCart} availableShippingMethods={[{id:"ground",name:"UPS Ground",price_type:"calculated",data:{service_code:"GROUND"},service_zone:{fulfillment_set:{type:"shipping"}}}] as any} />);
+  await user.click(await screen.findByText("UPS Ground"));
+  await waitFor(()=>expect(setShippingMethodMock).toHaveBeenCalledWith({cartId:"cart_123",shippingMethodId:"ground",shippingPriceToken:"opaque.server.quote"}));
+});
