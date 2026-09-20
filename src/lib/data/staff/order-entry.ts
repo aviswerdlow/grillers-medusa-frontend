@@ -34,6 +34,7 @@ import {
 } from "./customer-account-ledger"
 import { adminFetch, queryString } from "./admin"
 import { signStaffCartHandoff } from "./order-token"
+import { createStaffCart, staffCartHeaders } from "./cart-authority"
 
 type AnyRecord = Record<string, any>
 
@@ -239,8 +240,10 @@ async function storeFetch<T>(
       headers: {
         ...storeHeaders(),
         ...(init.headers || {}),
+        ...(path.startsWith("/store/carts/") ? await staffCartHeaders() : {}),
       },
       cache: "no-store",
+      redirect: "error",
     }
   )
 
@@ -2168,17 +2171,16 @@ export async function prepareStaffPhoneOrder(
       giftNotes: metadataText(input.giftNotes),
     }
 
-    const { cart } = await sdk.store.cart.create(
+    const { cart } = await createStaffCart(
       {
         region_id: region.id,
         email,
-        customer_id: input.customer.id || undefined,
         shipping_address: toStoreAddress(input.shippingAddress),
         billing_address: toStoreAddress(billingAddress),
         metadata,
       } as any,
-      {},
-      {}
+      "staff_phone_order",
+      input.customer.id
     )
 
     for (const line of input.lines) {
@@ -2210,7 +2212,7 @@ export async function prepareStaffPhoneOrder(
           },
         },
         {},
-        {}
+        await staffCartHeaders()
       )
     }
 
@@ -2222,7 +2224,7 @@ export async function prepareStaffPhoneOrder(
       cart.id,
       { option_id: shippingOption.id },
       {},
-      {}
+      await staffCartHeaders()
     )
 
     let preparedCart = await retrieveStaffCart(cart.id)
@@ -2250,7 +2252,7 @@ export async function prepareStaffPhoneOrder(
           },
         },
         {},
-        {}
+        await staffCartHeaders()
       )
       preparedCart = await retrieveStaffCart(cart.id)
       const session = preparedCart.payment_collection?.payment_sessions?.find(
@@ -2308,7 +2310,7 @@ export async function prepareStaffPhoneOrder(
             },
           } as any,
           {},
-          {}
+          await staffCartHeaders()
         )
         preparedCart = await retrieveStaffCart(cart.id)
       }
@@ -2430,11 +2432,11 @@ export async function completeStaffPhoneOrder(
         },
       } as any,
       {},
-      {}
+      await staffCartHeaders()
     )
 
     const completeResult = await sdk.store.cart
-      .complete(cartId, {}, {})
+      .complete(cartId, {}, await staffCartHeaders())
       .catch((err) => {
         throw medusaError(err)
       })

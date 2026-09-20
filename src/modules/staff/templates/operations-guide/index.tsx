@@ -494,10 +494,11 @@ const sections: GuideSection[] = [
     ],
     watch: [
       "Never enter card details without explicit customer authorization.",
-      "The checkout link expires. If a customer uses an old link and it fails, prepare a new one.",
+      "Checkout links expire and stop working when the preparing staff member's access changes. Sign in again and prepare a new cart or link after the office reviews the order; an old link does not regain permission when access is restored.",
       "Phone-order emails are separate from standard order confirmation emails; verify both when testing.",
       "A phone number or verbal request is not consent for marketing texts or order-update texts. Do not add either consent on the customer's behalf.",
-      "If a line needs an override, the note should explain what the customer accepted or who approved it.",
+      "If a line needs an override, the note should explain what the customer accepted or who approved it. The approval applies to that item, quantity and requested date. Review changed details and prepare the order again before payment; copying the note does not carry the approval over.",
+      "The signed-in staff member is recorded as the person preparing the order, while the selected customer remains the buyer. Prepare a new cart if the customer account or email needs to change. Older staff carts without verified preparation must also be prepared again.",
     ],
   },
   {
