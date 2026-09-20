@@ -1,4 +1,5 @@
 "use server"
+import type { OrderAcceptance } from "@lib/order-review"
 
 import "server-only"
 
@@ -843,7 +844,9 @@ async function emitStaffCustomerContextDataDegradedAlert(input: {
       has_customer_id: Boolean(input.customerId),
       result_count: input.resultCount ?? null,
       failure_count: input.failureCount ?? null,
-      include_legacy_order_requested: Boolean(input.includeLegacyOrderRequested),
+      include_legacy_order_requested: Boolean(
+        input.includeLegacyOrderRequested
+      ),
       error_message: staffOrderEntryErrorMessage(input.error).slice(0, 300),
     },
   })
@@ -1502,18 +1505,15 @@ export async function getStaffCustomerContext(
 
   let orders: AnyRecord[] = []
   try {
-    ;({ orders } = await adminFetch<{ orders: AnyRecord[] }>(
-      "/admin/orders",
-      {
-        query: {
-          customer_id: customerId,
-          limit: 5,
-          order: "-created_at",
-          fields:
-            "id,display_id,email,total,currency_code,created_at,status,*shipping_address,*items,*items.variant",
-        },
-      }
-    ))
+    ;({ orders } = await adminFetch<{ orders: AnyRecord[] }>("/admin/orders", {
+      query: {
+        customer_id: customerId,
+        limit: 5,
+        order: "-created_at",
+        fields:
+          "id,display_id,email,total,currency_code,created_at,status,*shipping_address,*items,*items.variant",
+      },
+    }))
   } catch (err) {
     await emitStaffCustomerContextDataDegradedAlert({
       stage: "context_recent_orders",
@@ -1540,7 +1540,9 @@ export async function getStaffCustomerContext(
       stage: "context_legacy_order_list",
       surface: "context",
       customerId,
-      includeLegacyOrderRequested: Boolean(options.includeLegacyOrderId?.trim()),
+      includeLegacyOrderRequested: Boolean(
+        options.includeLegacyOrderId?.trim()
+      ),
       error: err,
     })
   }
@@ -2724,7 +2726,8 @@ export async function prepareStaffPhoneOrderPayment(
 }
 
 export async function completeStaffPhoneOrder(
-  cartId: string
+  cartId: string,
+  acceptance?: OrderAcceptance
 ): Promise<StaffCompleteOrderResult> {
   try {
     const { staff, cart } = await ownedPhoneCart(cartId, true)
@@ -2747,8 +2750,18 @@ export async function completeStaffPhoneOrder(
       )
     }
 
+    if (!acceptance)
+      throw new Error("Review this order before completing payment.")
     const completeResult = await sdk.store.cart
-      .complete(cartId, {}, await staffCartHeaders())
+      .complete(
+        cartId,
+        {},
+        {
+          ...(await staffCartHeaders()),
+          "x-gp-order-review-id": acceptance.reviewId,
+          "x-gp-order-request-id": acceptance.requestId,
+        }
+      )
       .catch((err) => {
         throw medusaError(err)
       })

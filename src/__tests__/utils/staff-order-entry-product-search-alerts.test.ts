@@ -1,6 +1,9 @@
+import { reviewAcceptance } from "../fixtures/order-review"
 jest.mock("@lib/data/cookies", () => ({
   ...jest.requireActual("@lib/data/cookies"),
-  getAuthHeaders: jest.fn(async () => ({ authorization: "Bearer signed.fixture.staff" })),
+  getAuthHeaders: jest.fn(async () => ({
+    authorization: "Bearer signed.fixture.staff",
+  })),
 }))
 
 import {
@@ -247,7 +250,8 @@ describe("staff order-entry product search availability alerts", () => {
         title: "Staff order availability check failed",
         path: "src/lib/data/staff/order-entry.ts",
         source: "medusa-server",
-        fingerprint: "staff_phone_order:prepare_order:availability_check_failed",
+        fingerprint:
+          "staff_phone_order:prepare_order:availability_check_failed",
         meta: expect.objectContaining({
           staff_module: "phone_order",
           action: "prepare_order",
@@ -262,7 +266,7 @@ describe("staff order-entry product search availability alerts", () => {
   })
 
   it("alerts when complete-order ATP blocks payment completion", async () => {
-    const result = await completeStaffPhoneOrder("cart_staff")
+    const result = await completeStaffPhoneOrder("cart_staff", reviewAcceptance)
 
     expect(result).toEqual({
       ok: false,
@@ -275,7 +279,8 @@ describe("staff order-entry product search availability alerts", () => {
         title: "Staff order availability check failed",
         path: "src/lib/data/staff/order-entry.ts",
         source: "medusa-server",
-        fingerprint: "staff_phone_order:complete_order:availability_check_failed",
+        fingerprint:
+          "staff_phone_order:complete_order:availability_check_failed",
         meta: expect.objectContaining({
           staff_module: "phone_order",
           action: "complete_order",
