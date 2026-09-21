@@ -6,7 +6,6 @@ import { formatPhone, stripPhone } from "@lib/util/format-phone"
 import OnboardingCta from "@modules/order/components/onboarding-cta"
 import OrderItems from "@modules/order/components/items"
 import FulfillmentDetails from "@modules/order/components/fulfillment-details"
-import PurchaseTracker from "../../../components/purchase-tracker"
 import type { FulfillmentType } from "@lib/data/cart"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
@@ -35,21 +34,8 @@ export default async function OrderCompletedTemplate({
 
   const firstName = order.shipping_address?.first_name || "there"
 
-  const purchaseOrderData = {
-    id: order.id,
-    total: order.total ?? 0,
-    currency_code: order.currency_code,
-    items: order.items?.map((item) => ({
-      product_id: item.product_id ?? item.id,
-      title: item.product_title ?? item.title ?? "",
-      unit_price: item.unit_price ?? 0,
-      quantity: item.quantity,
-    })) ?? [],
-  }
-
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[#FAFAF8]">
-      <PurchaseTracker order={purchaseOrderData} />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
         {isOnboarding && <OnboardingCta orderId={order.id} />}
 

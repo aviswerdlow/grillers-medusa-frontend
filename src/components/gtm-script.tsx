@@ -2,6 +2,10 @@
 
 import { useEffect } from "react"
 import Script from "next/script"
+import {
+  canUseProductionGtm,
+  publishGtmConsentState,
+} from "@lib/analytics/browser-boundary"
 
 type GTMScriptProps = {
   gtmId: string
@@ -11,9 +15,10 @@ type GTMScriptProps = {
 
 export default function GTMScript({ gtmId, enabled, debug }: GTMScriptProps) {
   useEffect(() => {
-    if (enabled && typeof window !== "undefined") {
+    if (enabled && canUseProductionGtm()) {
       // Initialize dataLayer
       window.dataLayer = window.dataLayer || []
+      publishGtmConsentState()
 
       if (debug) {
         console.log("GTM Debug Mode: Initialized with ID", gtmId)
@@ -21,7 +26,7 @@ export default function GTMScript({ gtmId, enabled, debug }: GTMScriptProps) {
     }
   }, [enabled, gtmId, debug])
 
-  if (!enabled || !gtmId) {
+  if (!enabled || !/^GTM-[A-Z0-9]+$/.test(gtmId) || !canUseProductionGtm()) {
     return null
   }
 
@@ -44,8 +49,3 @@ export default function GTMScript({ gtmId, enabled, debug }: GTMScriptProps) {
     </>
   )
 }
-
-
-
-
-

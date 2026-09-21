@@ -3,11 +3,21 @@ import {
   setJitsuContext,
   setJitsuExperimentContext,
 } from "@lib/jitsu"
+import { setConsentCookie } from "@lib/utils/cookies"
 
 describe("jitsu first-party communications ingestion", () => {
   const originalEnv = { ...process.env }
 
   beforeEach(() => {
+    process.env.NEXT_PUBLIC_ANALYTICS_ENVIRONMENT = "production"
+    process.env.NEXT_PUBLIC_ANALYTICS_REHEARSAL_ID = ""
+    process.env.NEXT_PUBLIC_STRIPE_MODE_OVERRIDE = "live"
+    process.env.NEXT_PUBLIC_STRIPE_KEY_LIVE = "pk_live_fixture"
+    setConsentCookie({
+      analytics: true,
+      marketing: false,
+      timestamp: Date.now(),
+    })
     process.env.NEXT_PUBLIC_JITSU_HOST = ""
     process.env.NEXT_PUBLIC_JITSU_WRITE_KEY = ""
     process.env.NEXT_PUBLIC_COMMUNICATIONS_INGESTION_URL =

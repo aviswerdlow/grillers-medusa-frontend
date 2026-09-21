@@ -1,7 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { hasConsent } from "@lib/utils/cookies"
+import { CONSENT_CHANGED_EVENT } from "@lib/utils/cookies"
+import {
+  canUseProductionGtm,
+  publishGtmConsentState,
+} from "@lib/analytics/browser-boundary"
 import GTMScript from "./gtm-script"
 
 type ConditionalGTMScriptProps = {
@@ -20,22 +24,21 @@ export default function ConditionalGTMScript({
   const [hasAnalyticsConsent, setHasAnalyticsConsent] = useState(false)
 
   useEffect(() => {
-    let consent = false
-    try {
-      // Check if user has given analytics consent
-      consent = hasConsent("analytics")
-      setHasAnalyticsConsent(consent)
-    } catch {
-      setHasAnalyticsConsent(false)
+    const refresh = () => {
+      publishGtmConsentState()
+      setHasAnalyticsConsent(canUseProductionGtm())
     }
-
-    if (debug) {
-      console.log("Analytics consent status:", consent)
+    refresh()
+    window.addEventListener(CONSENT_CHANGED_EVENT, refresh)
+    window.addEventListener("focus", refresh)
+    return () => {
+      window.removeEventListener(CONSENT_CHANGED_EVENT, refresh)
+      window.removeEventListener("focus", refresh)
     }
-  }, [debug])
+  }, [])
 
   // Don't load GTM if user hasn't consented to analytics
-  if (!hasAnalyticsConsent) {
+  if (!hasAnalyticsConsent || !enabled || !canUseProductionGtm()) {
     if (debug) {
       console.log("GTM blocked: No analytics consent")
     }
@@ -57,7 +60,3 @@ export default function ConditionalGTMScript({
     </>
   )
 }
-
-
-
-
