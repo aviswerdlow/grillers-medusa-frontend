@@ -6,6 +6,7 @@ import {
   recoverReviewedCheckout,
 } from "@lib/data/order-review"
 import { getConsentCookie } from "@lib/utils/cookies"
+import { FINAL_CHARGE_CONSENT_TEXT } from "@lib/order-review"
 import type {
   CheckoutReview,
   OrderAcceptance,
@@ -23,13 +24,22 @@ const money = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
     value
   )
-const civilDate = (value: string) =>
-  new Intl.DateTimeFormat("en-US", {
+const civilDate = (value: string): string | null => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
+    return null
+  const date = new Date(value + "T12:00:00Z")
+  if (
+    !Number.isFinite(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== value
+  )
+    return null
+  return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     timeZone: "UTC",
-  }).format(new Date(value + "T12:00:00Z"))
+  }).format(date)
+}
 function Address({ value }: { value: ReviewedAddress }) {
   return (
     <p className="text-sm leading-6 text-gray-700">
@@ -99,6 +109,7 @@ export default function CheckoutOrderReview({
       i.unit_price,
       i.total,
     ]),
+    cart?.metadata?.gp_order_promise_snapshot_id,
     cart?.metadata?.fulfillmentCalendarQuoteId,
     cart?.metadata?.requestedDeliveryDate,
     cart?.metadata?.scheduledTimeWindow,
@@ -122,14 +133,33 @@ export default function CheckoutOrderReview({
       .then((result) => {
         if (cancelled || current !== sequence.current) return
         loadedIdentity.current = identity
-        const acceptance = result.review
+        if (
+          result.review &&
+          (!civilDate(result.review.fulfillment?.arrival_date) ||
+            !Number.isFinite(Date.parse(result.review.expires_at)))
+        ) {
+          setState({
+            review: null,
+            acceptance: null,
+            error:
+              "The order date could not be confirmed. Refresh the review before placing this order.",
+            loading: false,
+          })
+          return
+        }
+        const acceptance: OrderAcceptance | null = result.review
           ? {
               reviewId: result.review.id,
               requestId: crypto.randomUUID(),
               analyticsConsent: consent,
             }
+          : result.legacy &&
+            cart?.metadata?.gp_order_promise_snapshot_id == null
+          ? { legacy: true, analyticsConsent: consent }
           : null
-        if (acceptance) recoveryReceipt.current = acceptance
+        if (acceptance && !acceptance.legacy)
+          recoveryReceipt.current = acceptance
+        else recoveryReceipt.current = null
         setState({
           review: result.review,
           acceptance,
@@ -170,8 +200,8 @@ export default function CheckoutOrderReview({
   const acceptance =
     !disabled &&
     loadedIdentity.current === identity &&
-    review &&
-    Date.parse(review.expires_at) > Date.now()
+    (state.acceptance?.legacy ||
+      (review && Date.parse(review.expires_at) > Date.now()))
       ? state.acceptance
       : null
   const edit = (label: string, path: string) =>
@@ -258,6 +288,48 @@ export default function CheckoutOrderReview({
           Already tried to place this order? Check order status
         </button>
       )}
+      {state.acceptance?.legacy && (
+        <p className="text-sm leading-6">
+          {paymentMode === "card"
+            ? FINAL_CHARGE_CONSENT_TEXT
+            : paymentMode === "card_at_placement"
+            ? "The customer authorizes the card payment for the order total shown above."
+            : "This order will be invoiced using your approved account terms. No card is charged at checkout."}
+        </p>
+      )}
+      {(review || state.acceptance?.legacy) && (
+        <p className="text-xs leading-5 text-gray-600">
+          By placing this order,{" "}
+          {staffPhone ? "confirm the customer's agreement" : "you agree"} to the{" "}
+          <a
+            href={`/${country}/page/terms-of-sale`}
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+          >
+            Terms of Sale
+          </a>
+          ,{" "}
+          <a
+            href={`/${country}/page/terms-of-use`}
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+          >
+            Terms of Use
+          </a>{" "}
+          and{" "}
+          <a
+            href={`/${country}/page/privacy-policy`}
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+          >
+            Privacy Policy
+          </a>
+          .
+        </p>
+      )}
       {review && (
         <>
           <div className="grid gap-5 border-y border-gray-200 py-4 sm:grid-cols-2">
@@ -268,7 +340,12 @@ export default function CheckoutOrderReview({
                 </h4>
                 {edit("Edit date", "checkout?step=delivery")}
               </div>
-              <p className="text-sm text-gray-600">{review.fulfillment.service_label}{review.fulfillment.pickup_location ? ` · ${review.fulfillment.pickup_location}` : ""}</p>
+              <p className="text-sm text-gray-600">
+                {review.fulfillment.service_label}
+                {review.fulfillment.pickup_location
+                  ? ` · ${review.fulfillment.pickup_location}`
+                  : ""}
+              </p>
               <p className="text-sm leading-6">
                 {civilDate(review.fulfillment.arrival_date)}
                 {review.fulfillment.window_label && (
@@ -290,7 +367,8 @@ export default function CheckoutOrderReview({
                   <Address value={review.shipping_address} />
                 ) : (
                   <p className="text-sm text-gray-600">
-                    {review.fulfillment.pickup_location || review.fulfillment.service_label}
+                    {review.fulfillment.pickup_location ||
+                      review.fulfillment.service_label}
                   </p>
                 )}
               </div>
@@ -376,38 +454,6 @@ export default function CheckoutOrderReview({
             {review.terms.payment_mode === "invoice"
               ? `Invoice terms: ${review.terms.invoice_terms}. No card is charged at checkout. The final food total is determined when packed.`
               : review.terms.consent_text}
-          </p>
-          <p className="text-xs leading-5 text-gray-600">
-            By placing this order,{" "}
-            {staffPhone ? "confirm the customer's agreement" : "you agree"} to
-            the{" "}
-            <a
-              href={`/${country}/page/terms-of-sale`}
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              Terms of Sale
-            </a>
-            ,{" "}
-            <a
-              href={`/${country}/page/terms-of-use`}
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              Terms of Use
-            </a>{" "}
-            and{" "}
-            <a
-              href={`/${country}/page/privacy-policy`}
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              Privacy Policy
-            </a>
-            .
           </p>
         </>
       )}

@@ -1,6 +1,6 @@
 # Checkout review candidate — #368
 
-Tracking: https://github.com/aviswerdlow/grillers-pride-strategy/issues/368. Release with backend PR40's reviewed-checkout adapter and immutable ledger. This source candidate is not production activation or full issue acceptance.
+Tracking: https://github.com/aviswerdlow/grillers-pride-strategy/issues/368. Deploy with backend review enforcement off, then activate with backend PR40's reviewed-checkout adapter and immutable ledger after rehearsal. This source candidate is not production activation or full issue acceptance.
 
 The active payment screen uses `CheckoutOrderReview`, not the unused legacy review component. The server provides the exact lines, price basis, addresses, date/service/window, verified receipt destination, approved terms and total. Edit links use the existing cart/address/delivery/profile paths. Loading, changed cart identity, expired reviews and late responses cannot enable placement. Submitted values are review/request identifiers and consent, never a customer-authored order promise.
 
@@ -10,7 +10,13 @@ Staff phone collection verifies inventory and accepts the current review before 
 
 Customer error recovery requests the status of the same cart with the original review/request identifiers. The backend refuses recovery unless that cart is already completed. A status error must not be treated as proof of failed payment or permission to create a new order. Reload persistence, native payment/subscriber recovery and actual stock behavior still require #332 acceptance.
 
-Prerequisite source: this branch starts from homepage PR59's calendar/incoming/staff chain and explicitly merges receipt PR56 and shipping PR55. The backend counterpart composes receipt PR37 and incoming/staff PR38. Do not deploy just one side; the new backend refuses unreviewed completion. #368 hard dependencies remain #314, #318, #320, #329, #331, #359, #362, #364 and #366. #365 remains an unfinished primary-contact handoff.
+Independent deployment and defaults (#372): no frontend flag. Backend `GP_ORDER_REVIEW_ENFORCEMENT=off|required` defaults to off; unset/empty is off, invalid configured values fail closed as required. Current backend main has no review endpoint, so a review POST 404 plus fresh cart and capability reads preserves the existing payment path. A missing GET endpoint or explicit off is compatible only for an owned, uncompleted cart without an accepted promise. 403/409/503/network failures, required/malformed capability and stale or missing carts keep payment disabled. Compatibility is checked again before Stripe setup/collection; an explicit review is never downgraded. Backend native validation remains authoritative if the setting changes during payment.
+
+The fallback shows the same Terms links and explicit catch-weight disclosure it submits as `consent_text`, with `consent_version=catch-weight-final-charge-2026-09-21`. Saved and new cards continue sending both legacy fields alongside review IDs when present. The backend uses the accepted snapshot in required mode and preserves legacy consent while off. Invoice fallback retains the existing backend account behavior; required review needs actual approved terms. No fabricated review ID, date, customer approval or recovery receipt is generated. Invalid civil dates and expiry values disable acceptance without throwing a render exception.
+
+Published Terms were verified read-only on September 21 in Strapi and at the current storefront `/us/page/terms-of-sale` (200), including actual-weight/estimated-price disclosure. No CMS edit or publication occurred. The published substitution and blanket 72-hour cold-chain paragraphs still need business-policy reconciliation before required activation (#359/#357/#374).
+
+Prerequisite source: PR60 is based on PR58 and composes receipt PR56 and shipping PR55; PR59 was superseded by main PR64. Backend PR40 composes receipt PR37 and incoming/staff PR38. The compatibility change is specific to reviewed checkout. Other #372 contact/staff defects inherited by the stack remain merge holds. #368 hard dependencies remain #314, #318, #320, #329, #331, #359, #362, #364 and #366. #365 remains an unfinished primary-contact handoff.
 
 The staff operations guide documents the candidate review, recovery and catch-weight restrictions. Staff amendments await Peter's #359 whitelist/cutoff/approval policy; QBD amendments and original-event consumers remain separate work. Original acceptance is never rewritten by an account/profile change.
 
