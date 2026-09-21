@@ -1,4 +1,5 @@
 // Google Tag Manager initialization and helpers
+import { canUseProductionGtm, isServerOwnedAnalyticsEvent } from "@lib/analytics/browser-boundary"
 
 export type GTMConfig = {
   gtmId: string
@@ -45,7 +46,8 @@ export function getGTMScripts(config: GTMConfig) {
 
 // GTM Event helpers for ecommerce tracking
 export function pushToDataLayer(event: Record<string, any>) {
-  if (typeof window !== "undefined" && window.dataLayer) {
+  if (canUseProductionGtm() && window.dataLayer &&
+      !isServerOwnedAnalyticsEvent(String(event.event || ""))) {
     window.dataLayer.push(event)
   }
 }
@@ -78,6 +80,7 @@ export function trackAddToCart(
   })
 }
 
+/** @deprecated Purchase measurement is server-owned; the shared guard rejects it. */
 export function trackPurchase(order: any, titleMap?: Record<string, string>) {
   pushToDataLayer({
     event: "purchase",
