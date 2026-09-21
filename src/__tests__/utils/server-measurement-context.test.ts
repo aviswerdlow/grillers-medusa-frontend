@@ -50,6 +50,43 @@ beforeEach(() => {
 afterEach(() => {
   process.env = { ...env }
 })
+it("carries cart cookie choices without identifiers when analytics is declined", () => {
+  const c = reader({
+    cookie_consent: JSON.stringify({
+      analytics: false,
+      marketing: true,
+      timestamp: Date.now() - 1000,
+      email_consent: true,
+    }),
+  })
+  const value = decode(serverMeasurementHeaders(c, { cartActivity: true }))
+  expect(value).toMatchObject({
+    analytics_consent: false,
+    marketing_consent: true,
+    experiment_context_status: "unverified",
+  })
+  expect(value).not.toHaveProperty("anonymous_id")
+  expect(value).not.toHaveProperty("email_consent")
+  expect(c.get.mock.calls).toEqual([["cookie_consent"]])
+})
+it("preserves account authorization with a cart-specific denied-analytics envelope", async () => {
+  ;(cookies as jest.Mock).mockResolvedValue(
+    reader({
+      _medusa_jwt: "account-fixture",
+      cookie_consent: JSON.stringify({
+        analytics: false,
+        marketing: false,
+        timestamp: Date.now() - 1000,
+      }),
+    })
+  )
+  const result = await getAuthHeaders({ cartMeasurement: true })
+  expect(result.authorization).toBe("Bearer account-fixture")
+  expect(decode(result).analytics_consent).toBe(false)
+  expect(await getAuthHeaders()).toEqual({
+    authorization: "Bearer account-fixture",
+  })
+})
 it("forwards explicit choice and existing opaque IDs without account/PII identity", () => {
   const c = decode(
     serverMeasurementHeaders(

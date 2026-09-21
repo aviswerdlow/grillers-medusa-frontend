@@ -64,9 +64,10 @@ source change.
 
 - Backend PR43 adds a paired [communications receiver contract](https://github.com/mintpixels/grillers-medusa-admin/blob/codex/launch-336-durable-purchase/docs/communications-ingress-336.md): public track/batch/identify require the explicit browser envelope, ignore test or declined-consent traffic and refuse backend-owned event names. Older unclassified server callers, including back-in-stock forwarding, must migrate before release; do not add an unmarked bypass.
 - [Native customer capture](https://github.com/mintpixels/grillers-medusa-admin/blob/codex/launch-336-durable-purchase/docs/native-customer-measurement-336.md) now carries current consent/test and assignment evidence on the three account mutation paths. It requires the paired backend hooks, saved source, worker activation and native/provider rehearsal; cached reads keep their existing headers.
-- Backend generic cart/shipping/inventory producers and communications
-  derived/cart/calendar events still need trusted classification/isolation; the browser
-  sender and public receiver do not cover them. Keep #332's live rehearsal stopped.
+- [Native cart response capture](https://github.com/mintpixels/grillers-medusa-admin/blob/codex/launch-336-durable-purchase/docs/native-cart-measurement-336.md) carries original choices on customer mutations, including explicit analytics denial without browser identifiers. Cached reads and staff authority headers remain separate. Backend source persistence, atomic expiration and original email-permission checks replace mutable delayed reads; cookie marketing choice is not an email subscription. The paired capture/worker flag is unset, and actual native/event-bus/provider acceptance remains.
+- Shipping/inventory and custom/internal cart adapters, account welcome,
+  calendar/segment audiences, SMS, provider callbacks and later custom flow chains
+  still need their own classified sources. Keep #332's live rehearsal stopped.
 - Browser assignment/exposure history, identity on login/logout/account switch,
   campaign/checkout context and full consent UI remain #336 acceptance work.
 - The standalone review-click redirect has a separate event producer. Verify its

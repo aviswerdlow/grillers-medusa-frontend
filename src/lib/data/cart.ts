@@ -98,8 +98,8 @@ async function getCartStaffContext(): Promise<ActiveStaffContext> {
   return getActiveStaffImpersonation().catch(() => null)
 }
 
-async function cartHeadersForStaffContext(active: ActiveStaffContext) {
-  const headers = { ...(await getAuthHeaders()) } as Record<string, string>
+async function cartHeadersForStaffContext(active: ActiveStaffContext, captureActivity = true) {
+  const headers = { ...(await getAuthHeaders(captureActivity && !active ? { cartMeasurement: true } : {})) } as Record<string, string>
 
   if (!active) return headers
 
@@ -272,7 +272,7 @@ export async function retrieveCart(
     return null
   }
 
-  const headers = await cartHeadersForStaffContext(active)
+  const headers = await cartHeadersForStaffContext(active, false)
 
   const next = options.fresh
     ? undefined
@@ -785,7 +785,7 @@ export async function getCheckoutCalendar(input: {
         error:
           "This fulfillment option is unavailable. Please choose another option.",
       }
-    const headers = await cartHeadersForStaffContext(active)
+    const headers = await cartHeadersForStaffContext(active, false)
     const data = await sdk.client.fetch<
       Omit<FulfillmentCalendarPage, "shippingOptionId">
     >("/store/grillers/checkout/fulfillment-calendar", {
@@ -906,7 +906,7 @@ export async function saveCheckoutCalendar(input: {
 
 export async function verifyCartCalendarForCheckout(cartId: string) {
   const active = await getCartStaffContext()
-  await validateCalendarOrLegacy(calendarReaders(cartId, await cartHeadersForStaffContext(active)))
+  await validateCalendarOrLegacy(calendarReaders(cartId, await cartHeadersForStaffContext(active, false)))
 }
 
 /**
@@ -2020,7 +2020,7 @@ export async function updateRegion(countryCode: string, currentPath: string) {
 export async function listCartOptions(options: { fresh?: boolean } = {}) {
   const active = await getCartStaffContext()
   const cartId = await getCurrentCartId(active)
-  const headers = await cartHeadersForStaffContext(active)
+  const headers = await cartHeadersForStaffContext(active, false)
   const next = options.fresh
     ? undefined
     : {
