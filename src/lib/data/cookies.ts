@@ -6,9 +6,9 @@ import {
   type StaffCartCookieSession,
 } from "@lib/util/staff-cart-cookie"
 
-// Measurement is opt-in per native account mutation, never added to cached reads.
+// Context is selected per native mutation, never added to cached reads.
 export const getAuthHeaders = async (
-  options: { customerMeasurement?: boolean } = {}
+  options: { customerMeasurement?: boolean; cartMeasurement?: boolean } = {}
 ): Promise<Record<string, string>> => {
   try {
     const cookies = await nextCookies()
@@ -16,7 +16,11 @@ export const getAuthHeaders = async (
 
     return {
       ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...(options.customerMeasurement ? serverMeasurementHeaders(cookies) : {}),
+      ...(options.customerMeasurement || options.cartMeasurement
+        ? serverMeasurementHeaders(cookies, {
+            cartActivity: options.cartMeasurement,
+          })
+        : {}),
     }
   } catch {
     return {}
