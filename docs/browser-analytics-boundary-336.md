@@ -17,7 +17,10 @@ Use the same resolved Stripe publishable key as checkout. A live key permits the
 production analytics lane; a test key permits only an explicitly configured
 rehearsal lane. Missing/mismatched/unknown configuration holds browser sends.
 `NEXT_PUBLIC_ANALYTICS_ENVIRONMENT` defaults to `production`; `rehearsal` also
-requires `NEXT_PUBLIC_ANALYTICS_REHEARSAL_ID` (3–48 lowercase slug characters).
+requires `NEXT_PUBLIC_ANALYTICS_REHEARSAL_ID` (3–48 characters: a lowercase
+letter followed by lowercase letters, digits or hyphens). Browser and server
+requests use the same validator, matching backend/ingestion's run-ID contract;
+digit-leading IDs and underscores cannot create browser-only rehearsal traffic.
 An event property cannot override the lane, consent, identity or event ID.
 
 Production retains the existing Jitsu, communications and `/a` GP mirror.
