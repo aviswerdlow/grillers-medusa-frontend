@@ -62,9 +62,10 @@ source change.
 
 ## Remaining launch gates
 
+- Backend PR43 adds a paired [communications receiver contract](https://github.com/mintpixels/grillers-medusa-admin/blob/codex/launch-336-durable-purchase/docs/communications-ingress-336.md): public track/batch/identify require the explicit browser envelope, ignore test or declined-consent traffic and refuse backend-owned event names. Older unclassified server callers, including back-in-stock forwarding, must migrate before release; do not add an unmarked bypass.
 - Backend generic cart/customer/shipping/inventory producers and communications
-  ingress still need trusted classification/isolation; the purchase boundary
-  does not cover them. Keep #332's live rehearsal stopped.
+  native/derived events still need trusted classification/isolation; the browser
+  sender and public receiver do not cover them. Keep #332's live rehearsal stopped.
 - Browser assignment/exposure history, identity on login/logout/account switch,
   campaign/checkout context and full consent UI remain #336 acceptance work.
 - The standalone review-click redirect has a separate event producer. Verify its
