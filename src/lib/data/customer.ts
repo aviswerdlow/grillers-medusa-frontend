@@ -456,7 +456,7 @@ export async function signupWithCredentials(data: {
     await setAuthToken(token as string)
 
     stage = "auth_headers"
-    const headers = { ...(await getAuthHeaders()) }
+    const headers = { ...(await getAuthHeaders({ customerMeasurement: true })) }
     stage = "customer_create"
     await sdk.store.customer.create(
       {
@@ -657,7 +657,7 @@ export const updateCustomer = async (body: HttpTypes.StoreUpdateCustomer) => {
 
     stage = "store_auth_headers"
     const headers = {
-      ...(await getAuthHeaders()),
+      ...(await getAuthHeaders({ customerMeasurement: true })),
     }
 
     stage = "store_customer_update"
@@ -724,7 +724,7 @@ export async function signup(_currentState: unknown, formData: FormData) {
     await setAuthToken(token as string)
 
     const headers = {
-      ...(await getAuthHeaders()),
+      ...(await getAuthHeaders({ customerMeasurement: true })),
     }
 
     const { customer: createdCustomer } = await sdk.store.customer.create(

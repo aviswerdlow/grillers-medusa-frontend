@@ -63,8 +63,9 @@ source change.
 ## Remaining launch gates
 
 - Backend PR43 adds a paired [communications receiver contract](https://github.com/mintpixels/grillers-medusa-admin/blob/codex/launch-336-durable-purchase/docs/communications-ingress-336.md): public track/batch/identify require the explicit browser envelope, ignore test or declined-consent traffic and refuse backend-owned event names. Older unclassified server callers, including back-in-stock forwarding, must migrate before release; do not add an unmarked bypass.
-- Backend generic cart/customer/shipping/inventory producers and communications
-  native/derived events still need trusted classification/isolation; the browser
+- [Native customer capture](https://github.com/mintpixels/grillers-medusa-admin/blob/codex/launch-336-durable-purchase/docs/native-customer-measurement-336.md) now carries current consent/test and assignment evidence on the three account mutation paths. It requires the paired backend hooks, saved source, worker activation and native/provider rehearsal; cached reads keep their existing headers.
+- Backend generic cart/shipping/inventory producers and communications
+  derived/cart/calendar events still need trusted classification/isolation; the browser
   sender and public receiver do not cover them. Keep #332's live rehearsal stopped.
 - Browser assignment/exposure history, identity on login/logout/account switch,
   campaign/checkout context and full consent UI remain #336 acceptance work.
