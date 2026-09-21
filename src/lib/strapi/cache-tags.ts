@@ -34,6 +34,10 @@ const TAGS_BY_CACHE_NAME: Array<{
     tags: [STRAPI_CACHE_TAGS.products],
   },
   {
+    matches: (name) => name === "recipe-hub-images",
+    tags: [STRAPI_CACHE_TAGS.products],
+  },
+  {
     matches: (name) => name === "pdp-common",
     tags: [STRAPI_CACHE_TAGS.pdp],
   },

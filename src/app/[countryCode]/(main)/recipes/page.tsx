@@ -3,7 +3,9 @@ import { notFound } from "next/navigation"
 
 import RecipesCollection from "@modules/recipes/templates/recipes-collection"
 import { extractFilterOptions } from "@modules/recipes/lib/filter-helpers"
+import { overlayRecipeImages } from "@modules/recipes/lib/live-images"
 import recipeHubData from "@modules/recipes/data/recipe-bucket-audit.generated.json"
+import { getRecipeHubImageMap } from "@lib/data/strapi/recipes"
 import {
   applyRecipeRuntimeFilters,
   sortRecipesForBucket,
@@ -90,7 +92,10 @@ export default async function RecipesPage(props: PageProps) {
     mission: mission?.id,
   }
 
-  const hubRecipes = ALL_RECIPE_CARDS
+  const hubRecipes = overlayRecipeImages(
+    ALL_RECIPE_CARDS,
+    await getRecipeHubImageMap()
+  )
 
   if (!hubRecipes.length) {
     return notFound()

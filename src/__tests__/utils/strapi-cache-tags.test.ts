@@ -44,6 +44,18 @@ describe("Strapi cache tags", () => {
     ).toEqual([STRAPI_CACHE_TAGS.fulfillment])
   })
 
+  it("refreshes recipe hub images on recipe publication", () => {
+    expect(strapiCacheTagsForRequest("recipe-hub-images")).toEqual([
+      STRAPI_CACHE_TAGS.products,
+    ])
+    expect(
+      strapiCacheTagsForWebhook({
+        event: "entry.publish",
+        model: "api::recipe.recipe",
+      })
+    ).toEqual(strapiCacheTagsForRequest("recipe-hub-images"))
+  })
+
   it("invalidates every model only for genuinely cross-model or unknown events", () => {
     expect(
       strapiCacheTagsForWebhook({ event: "media.update", model: "file" })

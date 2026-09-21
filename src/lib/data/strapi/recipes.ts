@@ -1,4 +1,6 @@
 import { gql } from "graphql-request"
+import { cachedStrapiRequest } from "@lib/strapi"
+import { withTimeout } from "@lib/util/promise-timeout"
 import type { StrapiCollectionProduct } from "./collections"
 import type { StrapiSEO, StrapiSocialMeta } from "./seo"
 
@@ -234,6 +236,72 @@ export const GetRecipeHubRecipesPageQuery = gql`
     }
   }
 `
+
+export const GetRecipeHubImagesPageQuery = gql`
+  query RecipeHubImagesPage($page: Int!, $pageSize: Int!) {
+    recipes_connection(
+      pagination: { page: $page, pageSize: $pageSize }
+      sort: ["Slug:asc"]
+      status: PUBLISHED
+      filters: {
+        Title: { notContainsi: "Recipe Title" }
+        ShortDescription: { notContainsi: "Etiam id nisi" }
+      }
+    ) {
+      nodes {
+        Slug
+        Image {
+          url
+        }
+      }
+      pageInfo {
+        pageCount
+      }
+    }
+  }
+`
+
+type RecipeHubImagesPage = {
+  recipes_connection: {
+    nodes: Array<{ Slug: string; Image?: { url?: string | null } | null }>
+    pageInfo: { pageCount: number }
+  }
+}
+
+export async function getRecipeHubImageMap(): Promise<Map<string, string>> {
+  const images = new Map<string, string>()
+  // Bound the entire pagination pass, not each page independently. The shared
+  // client also aborts a stalled request; no further pages start after timeout.
+  const deadline = Date.now() + 12_000
+
+  try {
+    let pageCount = 1
+    for (let page = 1; page <= pageCount; page += 1) {
+      const data = await withTimeout(
+        cachedStrapiRequest<RecipeHubImagesPage>(
+          "recipe-hub-images",
+          GetRecipeHubImagesPageQuery,
+          { page, pageSize: 100 }
+        ),
+        Math.max(0, deadline - Date.now()),
+        null,
+        "Recipe hub image lookup; using snapshot images"
+      )
+      if (!data) return new Map()
+
+      pageCount = data.recipes_connection.pageInfo.pageCount
+      for (const recipe of data.recipes_connection.nodes) {
+        if (recipe.Slug && recipe.Image?.url) {
+          images.set(recipe.Slug, recipe.Image.url)
+        }
+      }
+    }
+    return images
+  } catch {
+    console.warn("Unable to load recipe hub images; using snapshot images.")
+    return new Map()
+  }
+}
 
 // Filtered recipes query with dynamic filters
 export const GetFilteredRecipesQuery = gql`

@@ -770,6 +770,7 @@ const sections: GuideSection[] = [
     ],
     howTo: [
       "Open the correct Strapi content type, make the edit, and publish if the content type uses draft/publish.",
+      "For a recipe photo, update the recipe's Image field and publish. Check the recipe hub card and the recipe detail page; both use that image without a site rebuild. If Strapi is unavailable, the hub keeps its saved images until the lookup recovers.",
       "For the homepage Recipes & Guides section, Strapi controls the heading, images and button wording. The button always opens the recipe hub; the old Button URL field no longer changes that destination. Keep its wording about recipes or cooking. Holiday dates still need the approved operating calendar; a working link does not confirm the dates.",
       "For product edits, use the customer-safe Title and PDP fields. Do not edit QuickBooks ListID unless you are deliberately correcting accounting identity.",
       "Treat the five Hechsher flags as exact Item Manager categories joined by QuickBooks ListID. Use the controlled backfill for catalog-wide changes; do not guess a flag from a title, description, brand, or SKU.",
