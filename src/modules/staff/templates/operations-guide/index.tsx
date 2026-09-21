@@ -661,8 +661,11 @@ const sections: GuideSection[] = [
       "Letting customers join a back-in-stock list for active sellable items.",
       "Keeping seasonal Passover or discontinued items from creating false waitlist expectations.",
       "Reconciling active customer demand against QuickBooks quantities.",
+      "Reviewing the opening stock baseline with Peter and the stock operator before enabling tracked inventory for launch.",
     ],
     howTo: [
+      "For the launch stock review, ask the technical operator for the protected baseline report. Review each sellable item's count or weight unit, usable quantity, source company or physical count, count date, warehouse location, and existing order commitments. The report reads current records; it does not change stock or approve quantities.",
+      "Resolve missing item links or warehouse stock records and record who approved each quantity and exception. Keep raw materials out of the launch customer catalog. Unknown stock must be checked; an item with tracking turned off does not prove unlimited availability.",
       "Active plus zero quantity means an item can be waitlist eligible if waitlist is enabled.",
       "Seasonal inactive and discontinued products should not show normal waitlist capture unless there is a deliberate override. Internal-only products are never eligible for customer waitlists.",
       "Staff product search shows available to promise, future allowed, partial, blocked, or inactive.",
@@ -671,6 +674,8 @@ const sections: GuideSection[] = [
       "The restock trigger respects a cooldown so customers are not spammed by inventory bouncing in and out.",
     ],
     watch: [
+      "Keep the detailed stock report private because it includes internal item and order references. Share summary counts in launch updates. A completed report is preparation; the separately approved stock update and checkout checks are still required.",
+      "Medusa reservations and the advisory allocation list can describe the same order commitment. Compare order-line references before adjusting stock. Never subtract both totals automatically, delete an unmatched commitment, or run a forced QuickBooks product sync to make the numbers agree.",
       "Do not use inventory quantity to mean inactive. Use lifecycle fields for inactive status.",
       "Do not use inactive for a product that should accept future or waitlist demand.",
       "Refunds and cancellations can release allocation, but that must be verified in Medusa allocation state, not assumed from Stripe alone.",
