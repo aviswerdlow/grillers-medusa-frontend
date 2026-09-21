@@ -105,7 +105,6 @@ export const GetHomePageQuery = gql`
           BlogExploreTitle: Title
           Button {
             Text
-            Url
           }
           QuoteDecorImage {
             url
