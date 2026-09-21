@@ -4,6 +4,7 @@ import {
   completeStaffPhoneOrder,
   getStaffPhoneOrderCalendar,
   saveStaffPhoneOrderCalendar,
+  saveLegacyStaffPhoneOrderDate,
   verifyStaffPhoneOrderForPayment,
 } from "@lib/data/staff/order-entry"
 import {
@@ -105,11 +106,14 @@ describe("Phone orders preserve staff authority across draft, date and payment",
     calendarFailure: string | null,
     changed: boolean,
     events: string[]
+  let calendarStatus: number | undefined, capability: { enforcement: string } | null
   beforeEach(() => {
     jest.clearAllMocks()
     calendarFailure = null
     changed = false
     events = []
+    calendarStatus = undefined
+    capability = null
     ;(getAuthHeaders as jest.Mock).mockResolvedValue({
       authorization: "Bearer original.staff.jwt",
     })
@@ -179,10 +183,13 @@ describe("Phone orders preserve staff authority across draft, date and payment",
     global.fetch = jest.fn(async (url, options: any) => {
       let body: any
       if (String(url).includes("fulfillment-calendar")) {
+        if (options.method === "GET") return capability
+          ? { ok: true, json: async () => capability }
+          : { ok: false, status: 404, json: async () => ({ message: "Not found" }) }
         const request = JSON.parse(options.body)
         events.push(request.action)
         if (calendarFailure)
-          return { ok: false, json: async () => ({ message: calendarFailure }) }
+          return { ok: false, status: calendarStatus, json: async () => ({ message: calendarFailure }) }
         body =
           request.action === "validate"
             ? { state: "valid", summary: { arrivalDate: choice.arrivalDate } }
@@ -223,6 +230,44 @@ describe("Phone orders preserve staff authority across draft, date and payment",
   afterAll(() => {
     global.fetch = originalFetch
   })
+
+  it.each([404, 503])("staff can save an existing schedule and prepare payment on compatible %s", async (status) => {
+    await prepareStaffPhoneOrder(input)
+    calendarFailure = "Calendar not enabled"
+    calendarStatus = status
+    capability = status === 503 ? { enforcement: "off" } : null
+    expect(await getStaffPhoneOrderCalendar({ cartId: cart.id, fulfillmentType: "plant_pickup" }))
+      .toMatchObject({ ok: false, legacy: true })
+    expect(await saveLegacyStaffPhoneOrderDate({ cartId: cart.id, date: choice.arrivalDate }))
+      .toMatchObject({ ok: true })
+    expect(await prepareStaffPhoneOrderPayment(cart.id)).toMatchObject({ ok: true, phase: "ready" })
+    expect(await verifyStaffPhoneOrderForPayment(cart.id)).toEqual({ ok: true })
+    for (const action of [sdk.store.cart.update, sdk.store.cart.addShippingMethod, sdk.store.payment.initiatePaymentSession])
+      for (const call of (action as jest.Mock).mock.calls) expect(call[3]).toEqual(signedHeaders)
+  })
+
+  it.each(["signed", "required", "different actor", "revoked", "unreviewed override"])(
+    "legacy staff form cannot bypass %s", async (change) => {
+      await prepareStaffPhoneOrder(input)
+      calendarFailure = "Calendar unavailable"
+      calendarStatus = 503
+      capability = { enforcement: "off" }
+      expect(await getStaffPhoneOrderCalendar({ cartId: cart.id, fulfillmentType: "plant_pickup" })).toHaveProperty("legacy", true)
+      if (change === "signed") cart.metadata.fulfillment_calendar_selection_v1 = "new_promise"
+      if (change === "required") capability = { enforcement: "required" }
+      if (change === "different actor") cart.metadata.staff_actor_customer_id = "someone_else"
+      if (change === "revoked") (retrieveAuthenticatedCustomerForStaffAccess as jest.Mock).mockResolvedValue(null)
+      if (change === "unreviewed override") cart.items[0].metadata = { inventory_override_reason: "approved", inventory_override_note: "Reviewed" }
+      ;(sdk.store.cart.update as jest.Mock).mockClear()
+      expect(await saveLegacyStaffPhoneOrderDate({ cartId: cart.id, date: choice.arrivalDate })).toMatchObject({ ok: false })
+      expect(sdk.store.cart.update).not.toHaveBeenCalled()
+      expect(sdk.store.payment.initiatePaymentSession).not.toHaveBeenCalled()
+      if (change !== "unreviewed override") {
+        expect(await prepareStaffPhoneOrderPayment(cart.id)).toMatchObject({ ok: false })
+        expect(await verifyStaffPhoneOrderForPayment(cart.id)).toMatchObject({ ok: false })
+      }
+    }
+  )
 
   it.each([
     "plant_pickup",

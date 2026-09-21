@@ -35,7 +35,15 @@ export type FulfillmentCalendarDraft = {
 }
 export type CalendarActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string }
+  | { ok: false; error: string; legacy?: true }
+
+export function hasCalendarPromise(metadata?: Record<string, unknown> | null) {
+  return [
+    metadata?.fulfillment_calendar_selection_v1,
+    metadata?.fulfillment_calendar_accepted_v1,
+    metadata?.fulfillmentCalendarQuoteId,
+  ].some((value) => value !== undefined && value !== null && value !== "")
+}
 
 export function fulfillmentDateKey(value: unknown): string | null {
   if (typeof value !== "string") return null
@@ -99,6 +107,11 @@ export function calendarViewKey(cart: StoreCart) {
     currency: cart.currency_code,
     region: cart.region_id,
     address: cart.shipping_address,
+    calendarPromise: [
+      cart.metadata?.fulfillment_calendar_selection_v1,
+      cart.metadata?.fulfillment_calendar_accepted_v1,
+      cart.metadata?.fulfillmentCalendarQuoteId,
+    ],
     items: cart.items?.map((line) => [
       line.id,
       line.variant_id,

@@ -31,6 +31,7 @@ import {
 } from "@lib/util/southeast-pickup"
 import { useFulfillmentEdit } from "@modules/checkout/context/fulfillment-edit-context"
 import FulfillmentCalendarPicker from "@modules/checkout/components/fulfillment-calendar"
+import LegacyFulfillmentScheduling from "./legacy-scheduling"
 import { formatCalendarDate, calendarWindowLabel } from "@lib/fulfillment-calendar"
 import { pickupLocationsForState } from "@lib/util/southeast-pickup"
 import AddressForm, { type DeliveryAddress } from "@modules/checkout/components/fulfillment-selector/address-form"
@@ -1066,6 +1067,15 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
                     : undefined
                 }
                 onSaved={handleCalendarSaved}
+                legacyFallback={<LegacyFulfillmentScheduling
+                  key={`${subStep}-${pendingSELocationId}`}
+                  cart={cart} config={config}
+                  fulfillmentType={subStep === "plant_date" ? "plant_pickup" : subStep === "atlanta_delivery" ? "atlanta_delivery" : "southeast_pickup"}
+                  zip={shipZip} state={shipState} locationId={pendingSELocationId}
+                  onLocationChange={setPendingSELocationId}
+                  onBack={() => setSubStep("select")}
+                  onSaved={handleCalendarSaved}
+                />}
               />
             )}
           </div>

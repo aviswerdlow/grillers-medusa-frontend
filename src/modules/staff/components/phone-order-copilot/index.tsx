@@ -79,6 +79,7 @@ import StaffQuickBooksSyncStatusConsole from "@modules/staff/components/quickboo
 import StaffMerchandisingWorkspace from "@modules/staff/components/merchandising-workspace"
 import StaffChargeCard from "@modules/staff/components/phone-order-card"
 import FulfillmentCalendarPicker from "@modules/checkout/components/fulfillment-calendar"
+import LegacyStaffOrderDate from "./legacy-date"
 import { formatCalendarDate } from "@lib/fulfillment-calendar"
 import type { ProductMerchandisingTagSummary } from "@lib/data/staff/product-merchandising"
 
@@ -2734,6 +2735,12 @@ export default function PhoneOrderCopilot({
                           cart={prepareResult.cart}
                           fulfillmentType={fulfillmentType}
                           actions={staffCalendarActions}
+                          legacyFallback={<LegacyStaffOrderDate
+                            cartId={prepareResult.cartId!}
+                            inventoryOverrideReview={Boolean(prepareResult.cart.items?.some(item =>
+                              item.metadata?.inventory_override_reason || item.metadata?.inventory_override_note))}
+                            onSaved={prepareDatedPayment}
+                          />}
                           inventoryOverrideReview={prepareResult.cart.items?.some(
                             (item) =>
                               Boolean(
