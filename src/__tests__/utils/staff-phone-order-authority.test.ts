@@ -4,7 +4,8 @@ import { adminFetch } from "@lib/data/staff/admin"
 import { getAuthHeaders } from "@lib/data/cookies"
 import { sdk } from "@lib/config"
 
-jest.mock("@lib/data/staff/admin", () => ({ adminFetch: jest.fn(), queryString: () => "" }))
+jest.mock("@lib/data/staff/admin", () => ({
+  ...jest.requireActual("@lib/data/staff/admin"), adminFetch: jest.fn(), queryString: () => "" }))
 jest.mock("@lib/data/cookies", () => ({ getAuthHeaders: jest.fn(), getCacheTag: jest.fn(async (value: string) => value) }))
 jest.mock("@lib/data/customer", () => ({ retrieveAuthenticatedCustomerForStaffAccess: jest.fn(async () => ({ id: "cus_office", email: "office@example.test", staff_access: { role: "office", session_current: true } })) }))
 jest.mock("@lib/data/regions", () => ({ getRegion: jest.fn(async () => ({ id: "reg_fixture" })) }))
