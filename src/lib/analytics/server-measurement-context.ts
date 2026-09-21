@@ -5,6 +5,7 @@ import {
   EXPERIMENT_ASSIGNMENTS_COOKIE,
 } from "@lib/experiments/cookies"
 import { verifiedStoredAssignment } from "@lib/experiments/assignment-evidence"
+import { isRehearsalId } from "./rehearsal-id"
 
 type CookieReader = { get(name: string): { value: string } | undefined }
 const uuid =
@@ -40,7 +41,7 @@ export function serverMeasurementHeaders(
     const rehearsal =
       environment === "rehearsal" &&
       key?.startsWith("pk_test_") &&
-      /^[a-z][a-z0-9-]{2,47}$/.test(rehearsalId || "")
+      isRehearsalId(rehearsalId)
     if (!production && !rehearsal) return {}
     if (!consent.analytics) {
       // Cookie analytics choice is not email subscription authority. Carry the

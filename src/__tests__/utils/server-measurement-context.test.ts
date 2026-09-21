@@ -11,6 +11,8 @@ import { getStripePublishableKey } from "@lib/util/stripe-key"
 import { verifiedStoredAssignment } from "@lib/experiments/assignment-evidence"
 import { getAuthHeaders } from "@lib/data/cookies"
 import { cookies } from "next/headers"
+import { getBrowserAnalyticsContext } from "@lib/analytics/browser-boundary"
+import { setConsentCookie } from "@lib/utils/cookies"
 const env = { ...process.env }
 const uuid = "00000000-0000-4000-8000-000000000001"
 const reader = (patch: Record<string, string | undefined> = {}) => {
@@ -133,6 +135,35 @@ it("cannot silently use a test key in the production lane", () => {
     test_event: true,
     rehearsal_id: "launch-fixture",
   })
+})
+it.each([
+  ["launch-20260924", true],
+  ["a".repeat(48), true],
+  ["a".repeat(49), false],
+  ["123-launch", false],
+  ["launch_fixture", false],
+])("keeps browser and server rehearsal routing aligned for %s", (id, allowed) => {
+  ;(getStripePublishableKey as jest.Mock).mockReturnValue("pk_test_fixture")
+  process.env.NEXT_PUBLIC_ANALYTICS_ENVIRONMENT = "rehearsal"
+  process.env.NEXT_PUBLIC_ANALYTICS_REHEARSAL_ID = id as string
+  setConsentCookie({ analytics: true, marketing: false, timestamp: Date.now() })
+  const browser = getBrowserAnalyticsContext()
+  const headers = serverMeasurementHeaders(reader())
+  if (allowed) {
+    expect(browser).toMatchObject({
+      analytics_environment: "rehearsal",
+      rehearsal_id: id,
+      test_event: true,
+    })
+    expect(decode(headers)).toMatchObject({
+      analytics_environment: "rehearsal",
+      rehearsal_id: id,
+      test_event: true,
+    })
+  } else {
+    expect(browser).toBeNull()
+    expect(headers).toEqual({})
+  }
 })
 it("keeps missing and unverified assignment history explicit", () => {
   expect(

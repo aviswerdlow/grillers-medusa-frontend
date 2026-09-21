@@ -1,5 +1,6 @@
 import { getStripePublishableKey } from "@lib/util/stripe-key"
 import { getConsentCookie } from "@lib/utils/cookies"
+import { isRehearsalId } from "./rehearsal-id"
 
 export type BrowserAnalyticsContext = {
   analytics_environment: "production" | "rehearsal"
@@ -34,8 +35,7 @@ export function getBrowserAnalyticsContext(): BrowserAnalyticsContext | null {
   if (
     environment === "rehearsal" &&
     key?.startsWith("pk_test_") &&
-    rehearsalId &&
-    /^[a-z0-9][a-z0-9_-]{2,47}$/.test(rehearsalId)
+    isRehearsalId(rehearsalId)
   ) {
     return {
       ...common,
