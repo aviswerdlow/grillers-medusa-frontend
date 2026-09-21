@@ -1,22 +1,23 @@
 import "server-only"
+import { serverMeasurementHeaders } from "@lib/analytics/server-measurement-context"
 import { cookies as nextCookies } from "next/headers"
 import {
   staffImpersonationCartCookieName,
   type StaffCartCookieSession,
 } from "@lib/util/staff-cart-cookie"
 
-export const getAuthHeaders = async (): Promise<
-  { authorization: string } | {}
-> => {
+// Measurement is opt-in per native account mutation, never added to cached reads.
+export const getAuthHeaders = async (
+  options: { customerMeasurement?: boolean } = {}
+): Promise<Record<string, string>> => {
   try {
     const cookies = await nextCookies()
     const token = cookies.get("_medusa_jwt")?.value
 
-    if (!token) {
-      return {}
+    return {
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...(options.customerMeasurement ? serverMeasurementHeaders(cookies) : {}),
     }
-
-    return { authorization: `Bearer ${token}` }
   } catch {
     return {}
   }
