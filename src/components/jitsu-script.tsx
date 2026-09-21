@@ -2,20 +2,25 @@
 
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
-import { hasConsent } from "@lib/utils/cookies"
-import { jitsuPage } from "@lib/jitsu"
+import { CONSENT_CHANGED_EVENT, hasConsent } from "@lib/utils/cookies"
+import { getJitsuIdentityContext, jitsuPage } from "@lib/jitsu"
 
 export default function JitsuScript() {
   const [hasAnalyticsConsent, setHasAnalyticsConsent] = useState(false)
   const pathname = usePathname()
 
-  // Check consent on mount
   useEffect(() => {
-    try {
+    const refresh = () => {
       const consent = hasConsent("analytics")
+      if (!consent) getJitsuIdentityContext()
       setHasAnalyticsConsent(consent)
-    } catch {
-      setHasAnalyticsConsent(false)
+    }
+    refresh()
+    window.addEventListener(CONSENT_CHANGED_EVENT, refresh)
+    window.addEventListener("focus", refresh)
+    return () => {
+      window.removeEventListener(CONSENT_CHANGED_EVENT, refresh)
+      window.removeEventListener("focus", refresh)
     }
   }, [])
 
