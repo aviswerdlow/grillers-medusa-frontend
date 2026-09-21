@@ -98,11 +98,13 @@ export const GetRecipeBySlugQuery = gql`
           FreeDeliveryExclusionReason
         }
         MedusaProduct {
+        AvailabilityLifecycle
           ProductId
           Handle
           ShortDescription
           PricingMode
           Variants {
+          AvailabilityLifecycle
             VariantId
             Sku
             QualifiesForFreeDeliveryOffers

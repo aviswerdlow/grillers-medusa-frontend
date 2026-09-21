@@ -18,7 +18,41 @@ describe("next sitemap source failure handling", () => {
     jest.restoreAllMocks()
   })
 
-  it("alerts and reuses previous product URLs when Medusa sitemap fetch fails", async () => {
+  it("omits mixed and renamed internal items from a successful live catalog read", async () => {
+    process.env.MEDUSA_BACKEND_URL = "https://medusa.example"
+    process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY = "pk_test"
+    delete process.env.STRAPI_ENDPOINT
+    delete process.env.STRAPI_API_TOKEN
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        count: 3,
+        products: [
+          {
+            handle: "retail",
+            variants: [{ sku: "01", inventory_quantity: 0 }],
+          },
+          {
+            handle: "renamed",
+            metadata: { availability_lifecycle: "internal_only" },
+            variants: [{ sku: "02" }],
+          },
+          {
+            handle: "mixed",
+            variants: [{ sku: "03" }, { sku: " RM-hidden " }],
+          },
+        ],
+      }),
+    })) as any
+    const entries = await loadConfig().additionalPaths()
+    expect(
+      entries
+        .filter((e: any) => e.loc.startsWith("/us/products/"))
+        .map((e: any) => e.loc)
+    ).toEqual(["/us/products/retail"])
+  })
+
+  it("alerts and omits unverified previous product URLs when Medusa sitemap fetch fails", async () => {
     process.env.MEDUSA_BACKEND_URL = "https://medusa.example"
     process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY = "pk_test"
     process.env.GP_ANALYTICS_ENDPOINT = "https://analytics.example"
@@ -45,7 +79,7 @@ describe("next sitemap source failure handling", () => {
       entry.loc.startsWith("/us/products/")
     )
 
-    expect(productEntries.length).toBeGreaterThan(0)
+    expect(productEntries).toEqual([])
 
     const alertCall = fetchMock.mock.calls.find(([url]) =>
       String(url).includes("https://analytics.example/v1/track")
@@ -73,8 +107,7 @@ describe("next sitemap source failure handling", () => {
     process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY = "pk_test"
     process.env.GP_ANALYTICS_ENDPOINT = "https://analytics.example"
     process.env.GP_ANALYTICS_SERVER_KEY = "server_key"
-    process.env.NEXT_SITEMAP_FALLBACK_FILE =
-      "/tmp/grillers-missing-sitemap.xml"
+    process.env.NEXT_SITEMAP_FALLBACK_FILE = "/tmp/grillers-missing-sitemap.xml"
     process.env.NEXT_SITEMAP_FAIL_CLOSED = "true"
     delete process.env.STRAPI_ENDPOINT
     delete process.env.STRAPI_API_TOKEN

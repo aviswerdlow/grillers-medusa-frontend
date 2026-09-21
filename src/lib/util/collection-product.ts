@@ -1,5 +1,5 @@
 import type { StrapiCollectionProduct } from "@lib/data/strapi/collections"
-import { strapiProductHasInternalRawMaterialSku } from "@lib/util/internal-products"
+import { isInternalStrapiProduct } from "@lib/util/internal-products"
 
 export const COLLECTION_PRODUCT_METADATA_KEYS = [
   "AvgPackSize",
@@ -124,6 +124,8 @@ function compactVariant(variant: any) {
     compact.inventory_quantity = variant.inventory_quantity
   }
 
+  compact.AvailabilityLifecycle = variant.AvailabilityLifecycle ?? null
+
   const price = variant.Price?.CalculatedPriceNumber
   if (typeof price === "number") {
     compact.Price = { CalculatedPriceNumber: price }
@@ -176,6 +178,7 @@ export function compactCollectionProduct(
     Categorization: tags.length ? { ProductTags: tags } : undefined,
     MedusaProduct: medusaProduct
       ? {
+          AvailabilityLifecycle: medusaProduct.AvailabilityLifecycle ?? null,
           ProductId: medusaProduct.ProductId || medusaProduct.Id || "",
           Handle: medusaProduct.Handle || "",
           Description: medusaProduct.Description || null,
@@ -192,7 +195,7 @@ export function compactCollectionProducts<T extends StrapiCollectionProduct>(
 ): StrapiCollectionProduct[] {
   return products
     .map(compactCollectionProduct)
-    .filter((product) => !strapiProductHasInternalRawMaterialSku(product))
+    .filter((product) => !isInternalStrapiProduct(product))
 }
 
 export const ALGOLIA_COLLECTION_PRODUCT_ATTRIBUTES = [
@@ -212,6 +215,8 @@ export const ALGOLIA_COLLECTION_PRODUCT_ATTRIBUTES = [
   "MedusaProduct.Description",
   "MedusaProduct.ShortDescription",
   "MedusaProduct.PricingMode",
+  "MedusaProduct.AvailabilityLifecycle",
+  "MedusaProduct.Variants.AvailabilityLifecycle",
   "MedusaProduct.Variants.VariantId",
   "MedusaProduct.Variants.Sku",
   "MedusaProduct.Variants.QualifiesForFreeDeliveryOffers",

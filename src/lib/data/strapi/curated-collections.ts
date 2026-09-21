@@ -3,7 +3,7 @@ import { cachedStrapiRequest } from "@lib/strapi"
 import { enrichStrapiProductsWithMedusaPrices } from "@lib/data/products"
 import { emitCuratedCollectionsStrapiFailureAlert } from "@lib/curated-collections-ops-alerts"
 import { compactCollectionProduct } from "@lib/util/collection-product"
-import { strapiProductHasInternalRawMaterialSku } from "@lib/util/internal-products"
+import { isInternalStrapiProduct } from "@lib/util/internal-products"
 import type { StrapiSEO, StrapiSocialMeta } from "./seo"
 import type { StrapiCollectionProduct } from "./collections"
 
@@ -213,10 +213,12 @@ const CuratedProductFields = gql`
       }
     }
     MedusaProduct {
+        AvailabilityLifecycle
       ProductId
       Handle
       ShortDescription
       Variants {
+          AvailabilityLifecycle
         VariantId
         Sku
         QualifiesForFreeDeliveryOffers
@@ -395,10 +397,12 @@ const LegacyCuratedProductFields = gql`
       }
     }
     MedusaProduct {
+        AvailabilityLifecycle
       ProductId
       Handle
       ShortDescription
       Variants {
+          AvailabilityLifecycle
         VariantId
         Sku
         Price {
@@ -505,10 +509,12 @@ const PdpCuratedProductFields = gql`
       FreeDeliveryExclusionReason
     }
     MedusaProduct {
+        AvailabilityLifecycle
       ProductId
       Handle
       ShortDescription
       Variants {
+          AvailabilityLifecycle
         VariantId
         Sku
         QualifiesForFreeDeliveryOffers
@@ -580,10 +586,12 @@ const LegacyPdpCuratedProductFields = gql`
       AvgPackWeight
     }
     MedusaProduct {
+        AvailabilityLifecycle
       ProductId
       Handle
       ShortDescription
       Variants {
+          AvailabilityLifecycle
         VariantId
         Sku
         Price {
@@ -751,12 +759,12 @@ function replaceProducts(
 
 function compactCuratedCollectionItem(item: CuratedCollectionItem) {
   const product =
-    item.Product && !strapiProductHasInternalRawMaterialSku(item.Product)
+    item.Product && !isInternalStrapiProduct(item.Product)
       ? compactCollectionProduct(item.Product)
       : null
   const originalProduct =
     item.OriginalProduct &&
-    !strapiProductHasInternalRawMaterialSku(item.OriginalProduct)
+    !isInternalStrapiProduct(item.OriginalProduct)
       ? compactCollectionProduct(item.OriginalProduct)
       : null
 
@@ -932,7 +940,7 @@ function hasEnoughPdpProducts(
         Product &&
           handle &&
           handle !== currentProductHandle &&
-          !strapiProductHasInternalRawMaterialSku(Product)
+          !isInternalStrapiProduct(Product)
       )
     }).length >= 2
   )

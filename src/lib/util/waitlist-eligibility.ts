@@ -1,3 +1,5 @@
+import { hasInternalCatalogLifecycle } from "./internal-products"
+
 export type AvailabilityLifecycle =
   | "active"
   | "seasonal_inactive"
@@ -115,6 +117,17 @@ export function isWaitlistEligible({
   strapiProduct?: StrapiWaitlistFields | null
   strapiVariant?: StrapiWaitlistFields | null
 }): boolean {
+  // Internal production inputs cannot be opted into customer waitlists.
+  if (
+    hasInternalCatalogLifecycle(productMetadata) ||
+    hasInternalCatalogLifecycle(variantMetadata) ||
+    [
+      lifecycleFromStrapi(strapiVariant),
+      lifecycleFromStrapi(strapiProduct),
+    ].includes("internal_only")
+  )
+    return false
+
   const variantFlag =
     waitlistFlagFromStrapi(strapiVariant) ??
     waitlistFlagFromMetadata(variantMetadata)
@@ -149,6 +162,16 @@ export function isCatalogLifecyclePurchasable({
   strapiProduct?: StrapiWaitlistFields | null
   strapiVariant?: StrapiWaitlistFields | null
 }): boolean {
+  if (
+    hasInternalCatalogLifecycle(productMetadata) ||
+    hasInternalCatalogLifecycle(variantMetadata) ||
+    [
+      lifecycleFromStrapi(strapiVariant),
+      lifecycleFromStrapi(strapiProduct),
+    ].includes("internal_only")
+  )
+    return false
+
   const lifecycle =
     lifecycleFromStrapi(strapiVariant) ??
     lifecycleFromMetadata(variantMetadata) ??
