@@ -1,0 +1,11 @@
+# Staff boundary rollout — #372
+
+Paired backend32 defaults `GP_STAFF_BOUNDARY_MODE=log`; invalid explicit values enforce. Backend-first log rollout retains native authenticated dashboard/API access, records would-be denials, and does not serve response-owned `staff_access` or issue staff-cart receipts. Existing signed carts/revocations stay strict on rollback. Enforce mode requires classified service IDs, approved immutable staff/owner IDs and a verified independent recovery login.
+
+Frontend-first rollout retains the existing Avi/Peter bootstrap fallback only while `staff_access` is absent. An explicit server role or stale session wins; metadata revocation/override also wins over the legacy fallback. No frontend staff rollout flag exists.
+
+Staff cart creation falls back only from POST404 after a fresh Office check with no activated server authority and a capability GET404 or explicit log. Old native creation does not issue new authority; server enforcement rejects it if the mode changes concurrently. Auth errors, 503, network errors and unknown/enforced capabilities do not downgrade. Existing signed carts cannot be resumed as unsigned carts. Audited Team Access remains unavailable until the compatible backend/recovery configuration exists; existing dashboard recovery remains accessible in log mode.
+
+Background discovery accepts both `MEDUSA_READ_ONLY_API_TOKEN` and the deployed `MEDUSA_ADMIN_API_TOKEN` name during transition. Review acquisition prefers `MEDUSA_COMMUNICATIONS_API_TOKEN` because it writes three sent timestamps. Its backend ID belongs in `GP_COMMUNICATIONS_ADMIN_API_KEY_IDS`, not read-only; metadata writes now send only those new keys. Before enforcement, separate the gateway from all cron/service credentials. Never infer permission from a misleading env name. No scheduled job or message was run for this change.
+
+Backend documentation inventories staff, QBD reader/catalog writer/dormant legacy writes, review acquisition, restock, inventory audit, strategy scripts and unknown key consumers. Live key ownership/ID mapping and actual recovery-login acceptance remain prerequisites. No migration in this frontend delta; inherited backend migrating releases retain backup/recovery gates. Tests use controlled HTTP/component/module fixtures, not live money or customer data.
