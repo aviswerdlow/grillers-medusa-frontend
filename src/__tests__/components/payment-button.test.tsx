@@ -1,3 +1,4 @@
+import { FINAL_CHARGE_CONSENT_TEXT, FINAL_CHARGE_CONSENT_VERSION } from "@lib/order-review"
 import { reviewAcceptance } from "../../test-fixtures/order-review"
 import { acceptCheckoutReview } from "@lib/data/order-review"
 import { render, screen, waitFor } from "@testing-library/react"
@@ -123,6 +124,8 @@ describe("PaymentButton", () => {
         expect.objectContaining({
           paymentMethodId: "pm_test_123",
           setupIntentId: null,
+          consentVersion: FINAL_CHARGE_CONSENT_VERSION,
+          consentText: FINAL_CHARGE_CONSENT_TEXT,
           acceptance: reviewAcceptance,
         })
       )
@@ -186,6 +189,8 @@ describe("PaymentButton", () => {
         expect.objectContaining({
           paymentMethodId: "pm_new_card",
           setupIntentId: "seti_123",
+          consentVersion: FINAL_CHARGE_CONSENT_VERSION,
+          consentText: FINAL_CHARGE_CONSENT_TEXT,
         })
       )
       expect(

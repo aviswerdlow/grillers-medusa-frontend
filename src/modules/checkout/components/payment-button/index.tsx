@@ -1,5 +1,7 @@
 "use client"
 
+import { FINAL_CHARGE_CONSENT_TEXT, FINAL_CHARGE_CONSENT_VERSION } from "@lib/order-review"
+
 import {
   submitOrderByInvoice,
   submitOrderWithSavedPaymentMethod,
@@ -237,6 +239,8 @@ async function verifyAndPlaceOrder({
     result = await submitOrderWithSavedPaymentMethod({
       paymentMethodId,
       setupIntentId,
+      consentVersion: FINAL_CHARGE_CONSENT_VERSION,
+      consentText: FINAL_CHARGE_CONSENT_TEXT,
       acceptance,
     })
   } catch (err) {
@@ -488,6 +492,8 @@ const NewCardSetupPaymentButton = ({
         orderResult = await submitOrderWithSavedPaymentMethod({
           paymentMethodId,
           setupIntentId: setupIntent.id,
+          consentVersion: FINAL_CHARGE_CONSENT_VERSION,
+          consentText: FINAL_CHARGE_CONSENT_TEXT,
           acceptance,
         })
       } catch (err) {
