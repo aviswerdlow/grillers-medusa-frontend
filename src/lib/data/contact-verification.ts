@@ -1,5 +1,6 @@
 "use server"
 
+import { deferContactVerification } from "./contact-verification-deferral"
 import { requestReceiptEmailCode } from "./receipt-email"
 
 import { revalidateTag } from "next/cache"
@@ -300,7 +301,13 @@ export async function submitContactVerification(
   }
 }
 
-/** The required legacy confirmation has no skip control. */
+/** Deferral records no contact confirmation, marketing choice or receipt change. */
 export async function skipContactVerification(): Promise<{ ok: boolean }> {
-  return { ok: false }
+  try {
+    if (await getStaffImpersonationSession()) return { ok: false }
+    const customer = await retrieveCustomer()
+    if (!customer) return { ok: false }
+    await deferContactVerification(customer.id)
+    return { ok: true }
+  } catch { return { ok: false } }
 }
