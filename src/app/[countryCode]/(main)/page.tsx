@@ -15,7 +15,6 @@ import HolidayBanner from "@modules/home/components/holiday-banner"
 import SpecialtyRow from "@modules/home/components/specialty-row"
 import DeliveryPromiseSection from "@modules/home/components/delivery-promise"
 import LazySection from "@modules/common/components/lazy-section"
-import StandardsComparison from "@modules/common/components/standards-comparison"
 import { getCuratedCollectionCards } from "@lib/data/strapi/curated-collections"
 import { cachedStrapiRequest } from "@lib/strapi"
 import { GetHomePageQuery, type HomePageData } from "@lib/data/strapi/home"
@@ -224,12 +223,7 @@ export default async function Home(props: {
     homepageVariant === "products_earlier" && Boolean(shopCollectionsSection)
   const shouldDeferStory =
     shouldMoveCollectionsEarly || homepageVariant === "compressed_story"
-  const storySupportSections = (
-    <>
-      <StandardsComparison />
-      <LearnEntrySection />
-    </>
-  )
+  const storySupportSections = <LearnEntrySection />
 
   const renderSections = () => {
     if (homeSections.length) {
