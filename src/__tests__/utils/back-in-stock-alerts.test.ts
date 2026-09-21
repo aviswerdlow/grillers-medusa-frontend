@@ -281,7 +281,7 @@ describe("back-in-stock alerting", () => {
     "does not notify historical internal subscriptions classified by %s",
     async (classification) => {
       process.env.MEDUSA_BACKEND_URL = "https://medusa.example.com"
-      process.env.MEDUSA_ADMIN_API_TOKEN = "admin-token"
+      process.env.MEDUSA_READ_ONLY_API_TOKEN = "admin-token"
       global.fetch = jest.fn(async (url: string) => {
         if (
           String(url).startsWith("https://medusa.example.com/admin/products")
