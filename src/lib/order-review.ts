@@ -1,9 +1,21 @@
 export type ReviewPaymentMode = "card" | "card_at_placement" | "invoice"
-export type OrderAcceptance = {
-  reviewId: string
-  requestId: string
-  analyticsConsent: boolean | null
-}
+export const FINAL_CHARGE_CONSENT_VERSION =
+  "catch-weight-final-charge-2026-09-21"
+export const FINAL_CHARGE_CONSENT_TEXT =
+  "For items sold by the pound, checkout prices are estimates; the final food total reflects the actual packed weight. I agree that Griller's Pride will save my card today and charge the final order total when my order is packed and ready to leave."
+export type OrderAcceptance =
+  | {
+      legacy?: false
+      reviewId: string
+      requestId: string
+      analyticsConsent: boolean | null
+    }
+  | {
+      legacy: true
+      reviewId?: never
+      requestId?: never
+      analyticsConsent: boolean | null
+    }
 export type ReviewedAddress = {
   first_name: string
   last_name: string

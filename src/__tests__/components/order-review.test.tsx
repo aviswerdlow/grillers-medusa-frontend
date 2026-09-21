@@ -1,3 +1,4 @@
+import { FINAL_CHARGE_CONSENT_TEXT } from "@lib/order-review"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import CheckoutOrderReview from "@modules/checkout/components/order-review"
 import {
@@ -165,4 +166,29 @@ test("recovery keeps the original acceptance ID and cannot initiate payment", as
   expect(
     await screen.findByText("No completed order was confirmed.")
   ).toBeVisible()
+})
+
+test("the compatibility lane shows the saved catch-weight disclosure and all legal links", async () => {
+  ;(loadCheckoutReview as jest.Mock).mockResolvedValue({ review: null, error: null, legacy: true })
+  render(<CheckoutOrderReview cart={cart} paymentMode="card">{child}</CheckoutOrderReview>)
+  expect(await screen.findByText(FINAL_CHARGE_CONSENT_TEXT)).toBeVisible()
+  expect(screen.getByRole("button", { name: "Place fixture order" })).toBeEnabled()
+  expect(screen.getByRole("link", { name: "Terms of Sale" })).toHaveAttribute("href", "/us/page/terms-of-sale")
+  expect(screen.getByRole("link", { name: "Terms of Use" })).toBeVisible()
+  expect(screen.getByRole("link", { name: "Privacy Policy" })).toBeVisible()
+})
+test.each(["", "not-a-date", "2026-02-30", "2026-13-01"])("malformed date %s never crashes or enables payment", async date => {
+  const review = checkoutReviewFixture(); review.fulfillment.arrival_date = date
+  ;(loadCheckoutReview as jest.Mock).mockResolvedValue({ review, error: null })
+  render(<CheckoutOrderReview cart={cart} paymentMode="card">{child}</CheckoutOrderReview>)
+  expect(await screen.findByRole("alert")).toHaveTextContent("order date could not be confirmed")
+  expect(screen.getByRole("button", { name: "Place fixture order" })).toBeDisabled()
+})
+test("a newly accepted promise disables a previously displayed fallback immediately", async () => {
+  ;(loadCheckoutReview as jest.Mock).mockResolvedValue({ review: null, error: null, legacy: true })
+  const view = render(<CheckoutOrderReview cart={cart} paymentMode="card">{child}</CheckoutOrderReview>)
+  await screen.findByText(FINAL_CHARGE_CONSENT_TEXT)
+  ;(loadCheckoutReview as jest.Mock).mockReturnValue(new Promise(() => {}))
+  view.rerender(<CheckoutOrderReview cart={{ ...cart, metadata: { gp_order_promise_snapshot_id: "accepted_fixture" } }} paymentMode="card">{child}</CheckoutOrderReview>)
+  expect(screen.getByRole("button", { name: "Place fixture order" })).toBeDisabled()
 })

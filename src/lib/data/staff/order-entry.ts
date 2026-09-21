@@ -2758,8 +2758,10 @@ export async function completeStaffPhoneOrder(
         {},
         {
           ...(await staffCartHeaders()),
-          "x-gp-order-review-id": acceptance.reviewId,
-          "x-gp-order-request-id": acceptance.requestId,
+          ...(!acceptance.legacy ? {
+            "x-gp-order-review-id": acceptance.reviewId,
+            "x-gp-order-request-id": acceptance.requestId,
+          } : {}),
         }
       )
       .catch((err) => {
