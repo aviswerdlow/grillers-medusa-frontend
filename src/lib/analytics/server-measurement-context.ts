@@ -12,14 +12,17 @@ const uuid =
 
 /** Current request choice, no new identifier/cookie and no account or email grant. */
 export function serverMeasurementHeaders(
-  cookies: CookieReader
+  cookies: CookieReader,
+  options: { cartActivity?: boolean } = {}
 ): Record<string, string> {
   try {
     const raw = cookies.get("cookie_consent")?.value
     if (!raw) return {}
     const consent = JSON.parse(decodeURIComponent(raw))
     if (
-      consent?.analytics !== true ||
+      (options.cartActivity
+        ? typeof consent?.analytics !== "boolean"
+        : consent?.analytics !== true) ||
       typeof consent.marketing !== "boolean" ||
       !Number.isSafeInteger(consent.timestamp) ||
       consent.timestamp <= 0 ||
@@ -39,6 +42,24 @@ export function serverMeasurementHeaders(
       key?.startsWith("pk_test_") &&
       /^[a-z][a-z0-9-]{2,47}$/.test(rehearsalId || "")
     if (!production && !rehearsal) return {}
+    if (!consent.analytics) {
+      // Cookie analytics choice is not email subscription authority. Carry the
+      // choices without reading identifiers/assignments or creating cookies.
+      return {
+        "x-gp-measurement-context": Buffer.from(
+          JSON.stringify({
+            analytics_consent: false,
+            analytics_consent_at: consent.timestamp,
+            marketing_consent: consent.marketing,
+            test_event: Boolean(rehearsal),
+            analytics_environment: environment,
+            ...(rehearsal ? { rehearsal_id: rehearsalId } : {}),
+            experiment_context: {},
+            experiment_context_status: "unverified",
+          })
+        ).toString("base64url"),
+      }
+    }
     const assignmentCookie = cookies.get(EXPERIMENT_ASSIGNMENTS_COOKIE)?.value
     const assignments = parseStoredAssignments(assignmentCookie)
     let complete = false
