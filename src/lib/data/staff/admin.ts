@@ -5,6 +5,10 @@ import { getAuthHeaders } from "../cookies"
 
 type AnyRecord = Record<string, any>
 
+export class StaffApiError extends Error {
+  constructor(message: string, public status: number) { super(message); this.name = "StaffApiError" }
+}
+
 const MEDUSA_BACKEND_URL = (
   process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
 ).replace(/\/+$/, "")
@@ -72,7 +76,7 @@ export async function adminFetch<T>(
 
   const json = (await res.json().catch(() => ({}))) as AnyRecord
   if (!res.ok) {
-    throw new Error(json.message || json.error || res.statusText)
+    throw new StaffApiError(json.message || json.error || res.statusText, res.status)
   }
   return json as T
 }

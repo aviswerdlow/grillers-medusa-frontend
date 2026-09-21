@@ -1,3 +1,4 @@
+import { communicationsAdminToken } from "@lib/data/background-admin-token"
 import { NextResponse } from "next/server"
 import {
   type ReviewAskKind,
@@ -19,8 +20,8 @@ const ALERT_PATH = "src/app/api/cron/review-acquisition/route.ts"
  * (HTTP 200, scanned:0) but never sends, so we page on it.
  */
 function missingReviewAcquisitionEnv(): string[] {
-  const required = ["MEDUSA_BACKEND_URL", "MEDUSA_READ_ONLY_API_TOKEN"]
-  return required.filter((name) => !process.env[name])
+  const required = ["MEDUSA_BACKEND_URL"]
+  return [...required.filter((name) => !process.env[name]), ...(!communicationsAdminToken() ? ["MEDUSA_COMMUNICATIONS_API_TOKEN or MEDUSA_READ_ONLY_API_TOKEN or MEDUSA_ADMIN_API_TOKEN"] : [])]
 }
 
 /**
@@ -36,7 +37,7 @@ const MEDUSA_BACKEND_URL = (process.env.MEDUSA_BACKEND_URL || "").replace(
   /\/+$/,
   ""
 )
-const ADMIN_TOKEN = process.env.MEDUSA_READ_ONLY_API_TOKEN
+const ADMIN_TOKEN = communicationsAdminToken()
 const ADMIN_AUTH_HEADER = ADMIN_TOKEN
   ? `Basic ${Buffer.from(`${ADMIN_TOKEN}:`).toString("base64")}`
   : ""
@@ -297,15 +298,14 @@ async function recordOrderMetadata(
   order: DeliveredOrder,
   metadata: ReviewMetadata
 ): Promise<boolean> {
-  const next = { ...(order.metadata || {}), ...metadata }
   const ok = await medusaAdminJson(`/admin/orders/${order.id}`, {
-    metadata: next,
+    metadata,
   })
   if (ok) {
     return true
   }
   return medusaAdminJson(`/admin/orders/${order.id}/metadata`, {
-    metadata: next,
+    metadata,
   })
 }
 
@@ -315,9 +315,8 @@ async function recordCustomerMetadata(
 ): Promise<boolean> {
   const customerId = order.customer?.id || order.customer_id
   if (!customerId) return true
-  const next = { ...(order.customer?.metadata || {}), ...metadata }
   return medusaAdminJson(`/admin/customers/${customerId}`, {
-    metadata: next,
+    metadata,
   })
 }
 

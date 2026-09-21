@@ -1012,6 +1012,8 @@ const playbooks: Playbook[] = [
     steps: [
       "A super admin opens Staff Console and chooses Team Access.",
       "Search the customer account by email, name, or phone.",
+      "During the staged staff-access rollout, existing administrator access and order preparation remain available. The launch owner will enable the reviewed permissions only after integration credentials and a separate recovery login are verified.",
+      "If staff order preparation reports an access or service error, stop and ask the administrator to resolve it. Do not use another person's login or a customer checkout to bypass the staff workflow.",
       "Change staff access in Team Access. Customer profile and contact forms cannot grant staff roles, final-charge permission, or clear a staff revocation.",
       "Choose staff or super admin, enter a clear reason, and type the confirmation word.",
       "Turn on Can charge final orders only for staff trusted to press Charge Card & Release. Super admins always have this permission.",

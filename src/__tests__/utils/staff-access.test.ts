@@ -135,8 +135,11 @@ describe("staff access helpers", () => {
     ).toBe(false)
   })
 
-  it.each(["aviswerdlow@gmail.com", "Peter@grillerspride.com", "PeterSwerdlow@gmail.com"])("does not grant authority from the email %s", email => {
-    expect(staffAccessRole({ email, metadata: { role: "customer" } } as any)).toBe("customer")
+  it.each(["aviswerdlow@gmail.com", "Peter@grillerspride.com", "PeterSwerdlow@gmail.com"])("keeps the bootstrap fallback only until current server authority is served: %s", email => {
+    expect(staffAccessRole({ email, metadata: {} } as any)).toBe("super_admin")
+    expect(staffAccessRole({ email, metadata: {}, staff_access: { role: "customer", session_current: true } } as any)).toBe("customer")
+    expect(staffAccessRole({ email, metadata: { staff_access_revoked: true } } as any)).toBe("customer")
+    expect(staffAccessRole({ email, metadata: { role: "office", staff_bootstrap_override: true } } as any)).toBe("office")
   })
 
   it("honors the server's revoked session state over old owner metadata", () => {

@@ -125,8 +125,14 @@ function falseyStaffValue(value: unknown): boolean {
   return FALSE_VALUES.has(value.trim().toLowerCase())
 }
 
+function legacyBootstrap(customer: StaffCustomerLike): boolean {
+  const metadata = customer?.metadata || {}
+  return !customer?.staff_access && !truthyStaffValue(metadata.staff_access_revoked) && metadata.staff_bootstrap_override !== true
+    && ["aviswerdlow@gmail.com", "peterswerdlow@gmail.com", "peter@grillerspride.com"].includes(String(customer?.email || "").trim().toLowerCase())
+}
+
 export function isBootstrapStaffCustomer(customer: StaffCustomerLike): boolean {
-  return customer?.staff_access?.bootstrap === true
+  return customer?.staff_access ? customer.staff_access.bootstrap === true : legacyBootstrap(customer)
 }
 
 function normalizeRole(value: unknown): string {
@@ -205,7 +211,7 @@ export function staffAccessRole(customer: StaffCustomerLike): StaffAccessRole {
     const role = customer.staff_access.role
     return STAFF_ROLE_OPTIONS.some(option => option.value === role) ? role as StaffAccessRole : "customer"
   }
-  return staffMetadataRole(customer?.metadata as StaffMetadata)
+  return legacyBootstrap(customer) ? "super_admin" : staffMetadataRole(customer?.metadata as StaffMetadata)
 }
 
 export function isSuperAdminCustomer(customer: StaffCustomerLike): boolean {

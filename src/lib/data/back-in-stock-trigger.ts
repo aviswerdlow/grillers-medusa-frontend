@@ -1,3 +1,4 @@
+import { backgroundAdminToken } from "./background-admin-token"
 "use server"
 
 import { sendTemplatedEmail } from "@lib/postmark"
@@ -40,7 +41,7 @@ import type { HttpTypes } from "@medusajs/types"
 const STRAPI = (process.env.STRAPI_ENDPOINT || "").replace(/\/+$/, "")
 const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN || ""
 const MEDUSA = (process.env.MEDUSA_BACKEND_URL || "").replace(/\/+$/, "")
-const MEDUSA_ADMIN_TOKEN = process.env.MEDUSA_READ_ONLY_API_TOKEN || ""
+const MEDUSA_ADMIN_TOKEN = backgroundAdminToken()
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ||
   "https://grillers-medusa-frontend.vercel.app"
