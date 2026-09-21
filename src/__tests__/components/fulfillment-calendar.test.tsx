@@ -1,7 +1,11 @@
-import { act, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import FulfillmentCalendarPicker from "@modules/checkout/components/fulfillment-calendar"
 import { getCheckoutCalendar, saveCheckoutCalendar } from "@lib/data/cart"
+import LegacyStaffOrderDate from "@modules/staff/components/phone-order-copilot/legacy-date"
+import { saveLegacyStaffPhoneOrderDate } from "@lib/data/staff/order-entry"
+
+jest.mock("@lib/data/staff/order-entry", () => ({ saveLegacyStaffPhoneOrderDate: jest.fn() }))
 
 jest.mock("@lib/data/cart", () => ({
   getCheckoutCalendar: jest.fn(),
@@ -49,6 +53,42 @@ beforeEach(() => {
 })
 afterEach(() => {
   jest.useRealTimers()
+})
+
+test("renders existing scheduling only after server compatibility approval", async () => {
+  list.mockResolvedValue({ ok: false, legacy: true, error: "Use current scheduling" })
+  const { rerender } = render(<FulfillmentCalendarPicker cart={cart} fulfillmentType="plant_pickup"
+    onSaved={jest.fn()} legacyFallback={<button>Existing schedule</button>} />)
+  expect(await screen.findByRole("button", { name: "Existing schedule" })).toBeInTheDocument()
+  list.mockResolvedValue({ ok: false, error: "Confirm your calendar promise" })
+  rerender(<FulfillmentCalendarPicker cart={{ ...cart, metadata: { fulfillment_calendar_selection_v1: "signed" } }}
+    fulfillmentType="plant_pickup" onSaved={jest.fn()} legacyFallback={<button>Existing schedule</button>} />)
+  expect(screen.queryByRole("button", { name: "Existing schedule" })).not.toBeInTheDocument()
+  expect(await screen.findByRole("alert")).toHaveTextContent("Confirm your calendar promise")
+})
+
+test("required-calendar outages do not render existing scheduling", async () => {
+  list.mockResolvedValue({ ok: false, error: "Calendar unavailable" })
+  render(<FulfillmentCalendarPicker cart={cart} fulfillmentType="plant_pickup"
+    onSaved={jest.fn()} legacyFallback={<button>Existing schedule</button>} />)
+  expect(await screen.findByRole("alert")).toHaveTextContent("Calendar unavailable")
+  expect(screen.queryByRole("button", { name: "Existing schedule" })).not.toBeInTheDocument()
+})
+
+test("a changed staff draft cannot prepare payment from a late legacy-date save", async () => {
+  let resolve!: (value: unknown) => void
+  ;(saveLegacyStaffPhoneOrderDate as jest.Mock).mockReturnValue(new Promise(done => { resolve = done }))
+  const onSaved = jest.fn()
+  const { unmount } = render(<LegacyStaffOrderDate cartId="cart_fixture" inventoryOverrideReview onSaved={onSaved} />)
+  const button = screen.getByRole("button", { name: "Save date and continue" })
+  fireEvent.change(screen.getByLabelText("Scheduled date"), { target: { value: "2026-10-08" } })
+  expect(button).toBeDisabled()
+  await userEvent.click(screen.getByRole("checkbox"))
+  await userEvent.click(button)
+  expect(saveLegacyStaffPhoneOrderDate).toHaveBeenCalledWith(expect.objectContaining({ staffOverrideConfirmed: true }))
+  unmount()
+  await act(async () => { resolve({ ok: true, data: { state: "selected" } }) })
+  expect(onSaved).not.toHaveBeenCalled()
 })
 
 test.each([

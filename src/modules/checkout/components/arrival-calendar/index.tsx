@@ -7,11 +7,13 @@ import type {
   FulfillmentBlackouts,
 } from "@lib/util/eligible-arrival-dates"
 import FulfillmentCalendarPicker from "../fulfillment-calendar"
+import LegacyArrivalCalendar from "./legacy-calendar"
 
-// Keep the checkout parent contract while retiring browser-side date rules.
+// The server controls when the new calendar replaces existing scheduling.
 export default function ArriveFoodCalendar({
   cart,
   setError,
+  ...legacyProps
 }: {
   cart: StoreCart
   setError: (error: string | null) => void
@@ -33,6 +35,7 @@ export default function ArriveFoodCalendar({
       cart={cart}
       fulfillmentType="ups_shipping"
       shippingOptionId={optionId}
+      legacyFallback={<LegacyArrivalCalendar cart={cart} setError={setError} {...legacyProps} />}
       onSaved={() => {
         setError(null)
         router.refresh()

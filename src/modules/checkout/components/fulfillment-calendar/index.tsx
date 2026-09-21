@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import type { StoreCart } from "@medusajs/types"
 import {
   getCheckoutCalendar,
@@ -9,6 +9,7 @@ import {
 } from "@lib/data/cart"
 import {
   calendarViewKey,
+  hasCalendarPromise,
   formatCalendarDate,
   type FulfillmentCalendarPage,
   type FulfillmentCalendarChoice,
@@ -25,6 +26,7 @@ type Props = {
     save: typeof saveCheckoutCalendar
   }
   inventoryOverrideReview?: boolean
+  legacyFallback?: ReactNode
   onSaved: () => void | Promise<void>
 }
 const customerActions = {
@@ -42,6 +44,7 @@ export default function FulfillmentCalendarPicker({
   pickupLocation,
   actions = customerActions,
   inventoryOverrideReview = false,
+  legacyFallback,
   onSaved,
 }: Props) {
   const [chosenRouteId, setChosenRouteId] = useState("")
@@ -57,6 +60,7 @@ export default function FulfillmentCalendarPicker({
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [expired, setExpired] = useState(false)
+  const [legacy, setLegacy] = useState(false)
   const notice = useRef<HTMLParagraphElement>(null)
   const sequence = useRef(0)
   const savingRef = useRef(false)
@@ -76,6 +80,7 @@ export default function FulfillmentCalendarPicker({
     setOverrideConfirmed(false)
     setMessage(null)
     setExpired(false)
+    setLegacy(false)
     try {
       const result = await actions.load({
         cartId: cart.id,
@@ -85,6 +90,10 @@ export default function FulfillmentCalendarPicker({
       })
       if (sequence.current !== request || currentKey.current !== key) return
       if (result.ok) setPage(result.data)
+      else if (result.legacy) {
+        setLegacy(true)
+        setMessage("Refresh dates to check your order’s current schedule.")
+      }
       else setMessage(result.error)
     } catch {
       if (sequence.current === request && currentKey.current === key)
@@ -188,6 +197,8 @@ export default function FulfillmentCalendarPicker({
   }
 
   const empty = page && !page.calendar.choices.length
+  if (!loading && legacy && legacyFallback && !hasCalendarPromise(cart.metadata))
+    return <>{legacyFallback}</>
   return (
     <section
       className="space-y-4"

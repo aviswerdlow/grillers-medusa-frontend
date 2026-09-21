@@ -40,6 +40,14 @@ import {
 import { buildOrderSmsConsentMetadata } from "@lib/util/order-sms-consent"
 import { isExpectedNextRedirect } from "@lib/util/next-redirect"
 import type { CalendarActionResult, FulfillmentCalendarPage, FulfillmentCalendarDraft } from "@lib/fulfillment-calendar"
+import { fulfillmentDateKey } from "@lib/fulfillment-calendar"
+import {
+  CALENDAR_PATH,
+  CALENDAR_REQUIRED_MESSAGE,
+  calendarHttpStatus,
+  legacyCalendarCart,
+  validateCalendarOrLegacy,
+} from "@lib/fulfillment-calendar-rollout"
 import {
   clearedCheckoutFulfillmentMetadata,
   planCheckoutAddressFulfillmentTransition,
@@ -655,8 +663,8 @@ export async function deleteLineItem(lineId: string) {
     .catch(medusaError)
 }
 
-/** Legacy callers may clear a date; choosing one requires the displayed
- * server calendar revision and its exact option/window. */
+/** Legacy scheduling remains available only while the backend has not enabled
+ * calendar enforcement and the cart has no existing calendar promise. */
 export async function setRequestedDeliveryDate({
   cartId,
   date,
@@ -664,9 +672,36 @@ export async function setRequestedDeliveryDate({
   cartId: string
   date: string
 }) {
-  if (date)
-    throw new Error("Please choose and confirm an available date in checkout.")
   const active = await getCartStaffContext()
+  const headers = await cartHeadersForStaffContext(active)
+  if (date) {
+    const result = await validateCalendarOrLegacy(calendarReaders(cartId, headers))
+    if (result.state !== "legacy" || !fulfillmentDateKey(date))
+      throw new Error(CALENDAR_REQUIRED_MESSAGE)
+    const { cart } = result
+    const { isArrivalDateValid, computeQuickBooksDueDateForArrival, normalizeUpsServiceCode } =
+      await import("@lib/util/eligible-arrival-dates")
+    const { getAtlantaDeliveryZipConfig } = await import("@lib/data/strapi/fulfillment")
+    const { getFulfillmentBlackouts } = await import("@lib/data/strapi/checkout")
+    const [atlantaZipConfig, blackouts] = await Promise.all([
+      getAtlantaDeliveryZipConfig(), getFulfillmentBlackouts(),
+    ])
+    const destinationZip = cart.shipping_address?.postal_code?.trim() || ""
+    const type = cart.metadata?.fulfillmentType
+    const service = normalizeUpsServiceCode(cart.shipping_methods?.at(-1)?.name || "")
+    const method = type === "plant_pickup" || type === "atlanta_delivery" || type === "southeast_pickup"
+      ? type : service === "OVERNIGHT" ? "ups_overnight"
+      : service === "2ND_DAY_AIR" ? "ups_2day" : service === "3_DAY_SELECT" ? "ups_3day" : "ups_ground"
+    if (method !== "southeast_pickup" && !isArrivalDateValid(date, {
+      method, destinationZip, atlantaZipConfig, blackouts,
+    })) throw new Error("That arrival date isn't available for the selected shipping method. Please pick a different date.")
+    await sdk.store.cart.update(cartId, withStaffCartMetadata({ metadata: {
+      requestedDeliveryDate: date,
+      qbdDueDate: computeQuickBooksDueDateForArrival(date, { method, destinationZip, blackouts }) || "",
+    } }, active, "requested_delivery_date_update"), {}, headers)
+    revalidateTag(await getCacheTag("carts"))
+    return
+  }
   await sdk.store.cart.update(
     cartId,
     withStaffCartMetadata(
@@ -689,7 +724,7 @@ export async function setRequestedDeliveryDate({
       "requested_delivery_date_clear"
     ),
     {},
-    await cartHeadersForStaffContext(active)
+    headers
   )
   revalidateTag(await getCacheTag("carts"))
 }
@@ -705,6 +740,20 @@ function calendarErrorMessage(error: unknown) {
   return status === 409
     ? "Your order or the available dates changed. Refresh dates and choose again."
     : "We couldn’t confirm available dates. Please refresh dates or choose another fulfillment option."
+}
+
+function calendarReaders(cartId: string, headers: Record<string, string>) {
+  return {
+    cartId,
+    readCart: () => retrieveCart(cartId, { fresh: true, throwOnFetchError: true }),
+    readCapability: () => sdk.client.fetch(CALENDAR_PATH, {
+      method: "GET", cache: "no-store", headers,
+    }),
+    validate: () => sdk.client.fetch<{ state?: unknown; summary?: unknown }>(CALENDAR_PATH, {
+      method: "POST", cache: "no-store", headers,
+      body: { action: "validate", cart_id: cartId },
+    }),
+  }
 }
 
 export async function getCheckoutCalendar(input: {
@@ -724,19 +773,27 @@ export async function getCheckoutCalendar(input: {
         error:
           "This fulfillment option is unavailable. Please choose another option.",
       }
+    const headers = await cartHeadersForStaffContext(active)
     const data = await sdk.client.fetch<
       Omit<FulfillmentCalendarPage, "shippingOptionId">
     >("/store/grillers/checkout/fulfillment-calendar", {
       method: "POST",
       cache: "no-store",
-      headers: await cartHeadersForStaffContext(active),
+      headers,
       body: {
         action: "list",
         cart_id: input.cartId,
         shipping_option_id: optionId,
         ...(input.routeId ? { route_id: input.routeId } : {}),
       },
+    }).catch(async (error) => {
+      if (await legacyCalendarCart({
+        ...calendarReaders(input.cartId, headers),
+        observation: calendarHttpStatus(error),
+      })) return null
+      throw error
     })
+    if (!data) return { ok: false, legacy: true, error: "Use the available scheduling options below." }
     return { ok: true, data: { ...data, shippingOptionId: optionId } }
   } catch (error) {
     return { ok: false, error: calendarErrorMessage(error) }
@@ -837,18 +894,7 @@ export async function saveCheckoutCalendar(input: {
 
 export async function verifyCartCalendarForCheckout(cartId: string) {
   const active = await getCartStaffContext()
-  try {
-    await sdk.client.fetch("/store/grillers/checkout/fulfillment-calendar", {
-      method: "POST",
-      cache: "no-store",
-      headers: await cartHeadersForStaffContext(active),
-      body: { action: "validate", cart_id: cartId },
-    })
-  } catch {
-    throw new Error(
-      "Please return to fulfillment and confirm an available date before placing your order."
-    )
-  }
+  await validateCalendarOrLegacy(calendarReaders(cartId, await cartHeadersForStaffContext(active)))
 }
 
 /**
@@ -887,11 +933,26 @@ export async function setFulfillmentDetails({
 }) {
   const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
+  let legacyDate = false
+  let qbdDueDate = ""
   if (scheduledDate || scheduledTimeWindow) {
-    throw new Error("Please choose and confirm an available date in checkout.")
+    const result = await validateCalendarOrLegacy(calendarReaders(cartId, headers))
+    if (result.state !== "legacy" || !fulfillmentDateKey(scheduledDate))
+      throw new Error(CALENDAR_REQUIRED_MESSAGE)
+    legacyDate = true
+    if (fulfillmentType !== "ups_shipping") {
+      const { computeQuickBooksDueDateForArrival } = await import("@lib/util/eligible-arrival-dates")
+      qbdDueDate = computeQuickBooksDueDateForArrival(scheduledDate, {
+        method: fulfillmentType, destinationZip: fulfillmentZip,
+      }) || ""
+    }
   }
   const metadata = {
-    ...clearedCheckoutFulfillmentMetadata(),
+    ...(legacyDate ? {
+      scheduledDate: fulfillmentType === "ups_shipping" ? "" : scheduledDate,
+      scheduledTimeWindow: scheduledTimeWindow || "",
+      qbdDueDate,
+    } : clearedCheckoutFulfillmentMetadata()),
     fulfillmentType,
     fulfillmentZip,
     pickupLocationId: pickupLocationId || "",

@@ -40,6 +40,8 @@ import type {
   FulfillmentCalendarDraft,
   FulfillmentCalendarPage,
 } from "@lib/fulfillment-calendar"
+import { fulfillmentDateKey } from "@lib/fulfillment-calendar"
+import { CALENDAR_PATH, calendarHttpStatus, legacyCalendarCart, validateCalendarOrLegacy } from "@lib/fulfillment-calendar-rollout"
 
 type AnyRecord = Record<string, any>
 
@@ -255,7 +257,7 @@ async function storeFetch<T>(
 
   const json = (await res.json().catch(() => ({}))) as AnyRecord
   if (!res.ok) {
-    throw new Error(json.message || json.error || res.statusText)
+    throw Object.assign(new Error(json.message || json.error || res.statusText), { status: res.status })
   }
   return json as T
 }
@@ -2350,14 +2352,18 @@ async function phoneCalendarRequest(body: Record<string, unknown>) {
 }
 
 async function validatePhoneCartCalendar(cartId: string) {
-  const result = await phoneCalendarRequest({
-    action: "validate",
-    cart_id: cartId,
-  })
-  if (result.state !== "valid" || !result.summary)
-    throw new Error(
-      "Confirm an available delivery or pickup date before preparing payment."
-    )
+  return validateCalendarOrLegacy({ ...phoneCalendarReaders(cartId), preserveValidationError: true })
+}
+
+function phoneCalendarReaders(cartId: string) {
+  return {
+    cartId,
+    readCart: async () => (await ownedPhoneCart(cartId)).cart,
+    readCapability: async () => storeFetch(CALENDAR_PATH, {
+      method: "GET", headers: await staffCartHeaders(),
+    }),
+    validate: () => phoneCalendarRequest({ action: "validate", cart_id: cartId }),
+  }
 }
 
 function phoneCalendarOption(cart: HttpTypes.StoreCart, optionId?: string) {
@@ -2387,7 +2393,13 @@ export async function getStaffPhoneOrderCalendar(input: {
       cart_id: cart.id,
       shipping_option_id: optionId,
       ...(input.routeId ? { route_id: input.routeId } : {}),
+    }).catch(async (error) => {
+      if (await legacyCalendarCart({
+        ...phoneCalendarReaders(cart.id), observation: calendarHttpStatus(error),
+      })) return null
+      throw error
     })
+    if (!data) return { ok: false, legacy: true, error: "Use the current scheduling fields below." }
     return {
       ok: true,
       data: { ...data, shippingOptionId: optionId } as FulfillmentCalendarPage,
@@ -2397,6 +2409,77 @@ export async function getStaffPhoneOrderCalendar(input: {
       ok: false,
       error: err?.message || "Could not load staff order dates.",
     }
+  }
+}
+
+async function settlePhoneCartDate(
+  cart: HttpTypes.StoreCart,
+  optionId: string,
+  headers: Awaited<ReturnType<typeof staffCartHeaders>>
+) {
+  // #318 inventory override receipts bind the requested date. The backend
+  // reissues each receipt under the current staff identity for this choice.
+  for (const item of cart.items || []) {
+    const m = (item.metadata || {}) as AnyRecord
+    if (m.inventory_override_reason && m.inventory_override_note) {
+      await sdk.store.cart.updateLineItem(
+        cart.id,
+        item.id,
+        {
+          quantity: item.quantity,
+          metadata: {
+            inventory_override_reason: m.inventory_override_reason,
+            inventory_override_note: m.inventory_override_note,
+          },
+        },
+        {},
+        headers
+      )
+    }
+  }
+  // Reprice and preserve the package snapshot for the selected dispatch date.
+  await sdk.store.cart.addShippingMethod(
+    cart.id,
+    { option_id: optionId },
+    {},
+    headers
+  )
+  await sdk.store.cart.update(
+    cart.id,
+    { metadata: { fulfillmentSelectionStatus: "settled" } },
+    {},
+    headers
+  )
+}
+
+export async function saveLegacyStaffPhoneOrderDate(input: {
+  cartId: string
+  date: string
+  timeWindow?: string
+  staffOverrideConfirmed?: boolean
+}): Promise<CalendarActionResult<{ state: "selected" }>> {
+  try {
+    // Ownership and office authority are re-read by this check, not inherited
+    // from the earlier draft or from the fallback shown in the browser.
+    const result = await validatePhoneCartCalendar(input.cartId)
+    if (result.state !== "legacy" || !fulfillmentDateKey(input.date))
+      throw new Error("Refresh dates and choose an available date before continuing.")
+    const { cart } = result
+    const optionId = phoneCalendarOption(cart)
+    if (cart.items?.some(item => item.metadata?.inventory_override_reason || item.metadata?.inventory_override_note) &&
+        input.staffOverrideConfirmed !== true)
+      throw new Error("Review and confirm the inventory exceptions for this date before continuing.")
+    const headers = await staffCartHeaders()
+    await sdk.store.cart.update(cart.id, { metadata: {
+      scheduledDate: input.date,
+      requestedDeliveryDate: input.date,
+      scheduledTimeWindow: input.timeWindow?.trim() || "",
+      fulfillmentSelectionStatus: "pending",
+    } }, {}, headers)
+    await settlePhoneCartDate(cart, optionId, headers)
+    return { ok: true, data: { state: "selected" } }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not save the order date." }
   }
 }
 
@@ -2472,39 +2555,7 @@ export async function saveStaffPhoneOrderCalendar(input: {
       {},
       headers
     )
-    // #318 inventory override receipts bind the requested date. The backend
-    // reissues each receipt under the current staff identity for this choice.
-    for (const item of cart.items || []) {
-      const m = (item.metadata || {}) as AnyRecord
-      if (m.inventory_override_reason && m.inventory_override_note) {
-        await sdk.store.cart.updateLineItem(
-          cart.id,
-          item.id,
-          {
-            quantity: item.quantity,
-            metadata: {
-              inventory_override_reason: m.inventory_override_reason,
-              inventory_override_note: m.inventory_override_note,
-            },
-          },
-          {},
-          headers
-        )
-      }
-    }
-    // Reprice and preserve the package snapshot for the selected dispatch date.
-    await sdk.store.cart.addShippingMethod(
-      cart.id,
-      { option_id: optionId },
-      {},
-      headers
-    )
-    await sdk.store.cart.update(
-      cart.id,
-      { metadata: { fulfillmentSelectionStatus: "settled" } },
-      {},
-      headers
-    )
+    await settlePhoneCartDate(cart, optionId, headers)
     return { ok: true, data: { state: "selected" } }
   } catch (err: any) {
     return {
