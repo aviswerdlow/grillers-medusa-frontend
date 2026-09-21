@@ -8,7 +8,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { SubmitButton } from "@modules/checkout/components/submit-button"
 import { jitsuTrack } from "@lib/jitsu"
-import { submitContactVerification } from "@lib/data/contact-verification"
+import { submitContactVerification, skipContactVerification } from "@lib/data/contact-verification"
 import {
   SMS_MARKETING_DISCLOSURE,
   SMS_MARKETING_OPT_IN_LABEL,
@@ -35,8 +35,8 @@ const sectionNumber = (n: number) => (
 /**
  * First-login verification for migrated customers: primary mobile + SMS
  * opt-in (optional — TCPA consent is never a condition of purchase),
- * primary email, and default shipping address. One submit; NOT skippable —
- * details must be confirmed before the account dashboard is reachable.
+ * primary email, and default shipping address. A session-scoped deferral keeps
+ * the account reachable without claiming confirmation or consent.
  */
 const ContactVerification = ({
   customer,
@@ -46,7 +46,9 @@ const ContactVerification = ({
   const router = useRouter()
   const [requestId, setRequestId] = useState("")
   useEffect(() => { setRequestId(crypto.randomUUID()) }, [])
-  const [state, formAction] = useActionState(submitContactVerification, null)
+  const [state, formAction, confirming] = useActionState(submitContactVerification, null)
+  const [skipping, setSkipping] = useState(false)
+  const [skipError, setSkipError] = useState<string | null>(null)
 
   const hasCandidates = phoneCandidates.length > 0
   const [phoneChoice, setPhoneChoice] = useState(
@@ -384,19 +386,29 @@ const ContactVerification = ({
         </section>
 
         <div role="alert" aria-live="polite">
-          <ErrorMessage error={state?.error || null} data-testid="contact-verification-error" />
+          <ErrorMessage error={skipError || state?.error || null} data-testid="contact-verification-error" />
         </div>
 
         <div className="flex flex-col gap-y-3">
           <SubmitButton
             className="w-full"
             data-testid="contact-verification-submit"
-            disabled={!requestId}
+            disabled={!requestId || skipping}
           >
             Confirm my details
           </SubmitButton>
         </div>
       </form>
+      <button type="button" className="mt-4 min-h-[44px] w-full text-sm underline disabled:opacity-50"
+        disabled={skipping || confirming} onClick={async () => {
+          setSkipping(true); setSkipError(null)
+          try {
+            const result = await skipContactVerification()
+            if (!result.ok) { setSkipError("We could not continue. Please sign in again or try once more."); return }
+            router.push(`/${countryCode}/account`); router.refresh()
+          } catch { setSkipError("We could not continue. Please try again.") }
+          finally { setSkipping(false) }
+        }}>Do this later</button>
     </div>
   )
 }

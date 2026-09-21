@@ -1,7 +1,8 @@
+import { skipContactVerification, submitContactVerification } from "@lib/data/contact-verification"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ContactVerification from "@modules/account/components/contact-verification"
-jest.mock("@lib/data/contact-verification",()=>({submitContactVerification:jest.fn()}))
+jest.mock("@lib/data/contact-verification",()=>({submitContactVerification:jest.fn(),skipContactVerification:jest.fn()}))
 jest.mock("@lib/jitsu",()=>({jitsuTrack:jest.fn()}))
 jest.mock("next/navigation",()=>({useRouter:()=>({push:jest.fn(),refresh:jest.fn()}),useParams:()=>({countryCode:"us"})}))
 jest.mock("@modules/checkout/components/submit-button",()=>({SubmitButton:({children,...props}:any)=><button {...props}>{children}</button>}))
@@ -24,4 +25,11 @@ it("associates new-address fields and exposes an accessible error region",async(
  expect(screen.getByLabelText(/First name/)).toHaveAttribute("id")
  expect(screen.getByLabelText(/Street address/)).toHaveAttribute("id")
  expect(screen.getByRole("alert")).toBeInTheDocument()
+})
+
+it("can defer without submitting invalid or missing contact fields",async()=>{
+ const user=userEvent.setup();(skipContactVerification as jest.Mock).mockResolvedValue({ok:true})
+ render(<ContactVerification customer={{id:"cus_test",email:"synthetic@example.invalid",metadata:{},addresses:[]} as any} countryCode="us" phoneCandidates={[]} />)
+ await user.click(screen.getByRole("button",{name:"Do this later"}))
+ expect(skipContactVerification).toHaveBeenCalledTimes(1);expect(submitContactVerification).not.toHaveBeenCalled()
 })
