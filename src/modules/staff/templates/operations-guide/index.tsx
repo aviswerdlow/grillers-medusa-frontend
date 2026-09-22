@@ -274,6 +274,7 @@ const sections: GuideSection[] = [
       "On desktop, click a main navigation label to open its menu. Moving the pointer across the navigation does not open a menu; click the same label again, click outside, or press Escape to close it.",
       "In the cart, each line shows its customer-safe SKU, quantity, and discount-aware extended Total so a customer can adjust quantities against a budget. Larger screens also show the per-pack Price in its own column.",
       "Use /us/navigation as a plain index of products and collections when staff need a fast reference page.",
+      "Keyboard help: use Tab and Shift+Tab to move through account and address fields. Show password and Hide password work with Enter or Space. When a password reset reports a short or mismatched password, correct the field that receives focus before submitting again.",
     ],
     watch: [
       "Do not promise a product fact unless it appears in Strapi, Medusa, or current staff guidance.",
