@@ -25,7 +25,8 @@
     "experiments:report": "node scripts/experiments/report.mjs",
     "experiments:promote": "node scripts/experiments/promote-winner.mjs",
     "postmark:ensure-templates": "node scripts/postmark/ensure-templates.js --apply",
-    "lint:strict": "node scripts/lint-with-baseline.cjs --strict"
+    "lint:strict": "node scripts/lint-with-baseline.cjs --strict",
+    "lint:baseline": "node scripts/generate-lint-baseline.cjs"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.2",

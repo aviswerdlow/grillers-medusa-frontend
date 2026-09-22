@@ -290,36 +290,6 @@
       ]
     },
     {
-      "path": "src/modules/checkout/components/shipping/index.tsx",
-      "sha256": "0416ee0483ee8475d44082c3bb167b08be488f7bb49cbaec323c6dd05054adb3",
-      "errors": [
-        {
-          "ruleId": "@typescript-eslint/no-floating-promises",
-          "line": 337,
-          "column": 5,
-          "endLine": 337,
-          "endColumn": 72,
-          "message": "Definition for rule '@typescript-eslint/no-floating-promises' was not found.",
-          "count": 1
-        }
-      ]
-    },
-    {
-      "path": "src/modules/common/components/breadcrumb/index.tsx",
-      "sha256": "b65f5b24906ee7e4ba3bbffa0d7274c66a2c06e7fc325a1453068d48067f45dc",
-      "errors": [
-        {
-          "ruleId": "@typescript-eslint/no-unused-vars",
-          "line": 137,
-          "column": 3,
-          "endLine": 137,
-          "endColumn": 64,
-          "message": "Definition for rule '@typescript-eslint/no-unused-vars' was not found.",
-          "count": 1
-        }
-      ]
-    },
-    {
       "path": "src/modules/common/components/cart-helpers/index.tsx",
       "sha256": "8aed7887833fc21f571408374f012c400141f557b44bfad79c376573a3cf36d7",
       "errors": [
