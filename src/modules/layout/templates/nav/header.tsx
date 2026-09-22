@@ -8,6 +8,7 @@ import type { HttpTypes } from "@medusajs/types"
 import { MobileNavMenu } from "./menu"
 import SearchBar from "./search-bar"
 import MobileSearch from "./mobile-search"
+import { ShieldCheck } from "lucide-react"
 
 type HeaderProps = {
   navLinks: HeaderNavLink[]
@@ -17,7 +18,6 @@ type HeaderProps = {
 }
 
 const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
-  const contactPhone = phoneNumber || "(770) 454-8108"
   return (
     <header className="relative inset-x-0 z-40 bg-white border-b border-[#000/25]">
       <a
@@ -68,22 +68,22 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
             <HeaderCountrySelect regions={regions} />
           </div>
 
-          {contactPhone && (
+          {phoneNumber && (
             <a
-              href={`tel:${contactPhone.replace(/\D/g, "")}`}
+              href={`tel:${phoneNumber.replace(/\D/g, "")}`}
               className="hidden md:inline-flex min-h-[44px] items-center whitespace-nowrap text-sm font-maison-neue text-Charcoal hover:underline"
             >
-              {contactPhone}
+              {phoneNumber}
             </a>
           )}
 
           <div className="flex items-center gap-1 sm:gap-4">
             {/* Mobile Phone (tap-to-call) */}
-            {contactPhone && (
+            {phoneNumber && (
               <a
-                href={`tel:${contactPhone.replace(/\D/g, "")}`}
+                href={`tel:${phoneNumber.replace(/\D/g, "")}`}
                 className="md:hidden min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-Charcoal hover:text-Gold focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold rounded"
-                aria-label={`Call Griller's Pride at ${contactPhone}`}
+                aria-label={`Call Griller's Pride at ${phoneNumber}`}
               >
                 <svg
                   className="w-6 h-6 fill-current"
@@ -105,6 +105,31 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
           </div>
         </div>
       </nav>
+      <div className="hidden md:flex items-center justify-center gap-2 border-t border-Charcoal/10 bg-Scroll/70 px-4 py-2 font-maison-neue text-[12px] text-Charcoal">
+        <ShieldCheck
+          aria-hidden="true"
+          className="h-4 w-4 shrink-0 text-Charcoal"
+          strokeWidth={1.75}
+        />
+        <span className="font-semibold">Kosher supervision shown by item</span>
+        {["OU", "Star-K", "CHK", "CRC"].map((cert) => (
+          <LocalizedClientLink
+            key={cert}
+            href="/kashruth/hechsherim"
+            prefetch={false}
+            className="inline-flex h-6 min-w-10 items-center justify-center rounded-full border border-Charcoal/20 bg-white px-2 font-maison-neue-mono text-[11px] font-semibold tracking-wide transition-colors hover:border-Gold hover:text-Gold focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold"
+          >
+            {cert}
+          </LocalizedClientLink>
+        ))}
+        <LocalizedClientLink
+          href="/kashruth/hechsherim"
+          prefetch={false}
+          className="ml-1 font-maison-neue-mono text-[11px] font-semibold uppercase tracking-wide underline underline-offset-4 transition-colors hover:text-Gold focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold"
+        >
+          Supervision details
+        </LocalizedClientLink>
+      </div>
     </header>
   )
 }

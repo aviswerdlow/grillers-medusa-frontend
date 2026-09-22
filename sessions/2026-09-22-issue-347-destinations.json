@@ -1,0 +1,12 @@
+[
+  {
+    "url": "https://grillers-medusa-frontend.vercel.app/us/collections/kosher-beef",
+    "status": 200,
+    "products": 169
+  },
+  {
+    "url": "https://grillers-medusa-frontend.vercel.app/us/collections/kosher-chicken",
+    "status": 200,
+    "products": 77
+  }
+]

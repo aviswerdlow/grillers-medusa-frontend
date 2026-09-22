@@ -43,7 +43,7 @@ const Hero = ({ data, countryCode = "us" }: HeroProps) => {
       <div className="w-full max-w-5xl text-center px-5 py-8 md:py-12 gap-5 flex flex-col items-center relative z-10">
         <div className="max-w-[820px]">
           <p className="mb-4 font-maison-neue-mono text-p-sm-mono font-bold uppercase tracking-wide text-Gold drop-shadow">
-            Griller&apos;s Pride · Doraville, Georgia
+            Premium Kosher Meat, Shipped Frozen to Your Door
           </p>
           <h1
             id="home-hero-heading"
@@ -59,7 +59,6 @@ const Hero = ({ data, countryCode = "us" }: HeroProps) => {
           {[
             ["Beef", "kosher-beef"],
             ["Chicken", "kosher-chicken"],
-            ["Prepared dishes", "kosher-prepared-food"],
           ].map(([label, slug]) => (
             <Link
               key={slug}
