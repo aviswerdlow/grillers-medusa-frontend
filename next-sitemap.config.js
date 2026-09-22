@@ -7,12 +7,13 @@ const { createHash, randomUUID } = require("node:crypto")
 const {
   publicOrigin,
   privatePaths,
+  privateSitemapPaths,
   isPublicPath,
   isIndexableDeployment,
 } = require("./src/lib/util/site-policy.cjs")
 const siteUrl = publicOrigin()
 const excludedPaths = [
-  ...privatePaths,
+  ...privateSitemapPaths,
   "/opengraph-image.jpg",
   "/twitter-image.jpg",
   "/*.jsp",

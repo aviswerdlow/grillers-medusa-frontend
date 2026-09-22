@@ -1,8 +1,12 @@
 const checkEnvVariables = require("./check-env-variables")
 const path = require("path")
-const { crawlerHeaders } = require("./src/lib/util/site-policy.cjs")
+const {
+  crawlerHeaders,
+  assertProductionIndexingConfiguration,
+} = require("./src/lib/util/site-policy.cjs")
 
 checkEnvVariables()
+assertProductionIndexingConfiguration()
 
 /**
  * @type {import('next').NextConfig}

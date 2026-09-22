@@ -33,16 +33,34 @@ function publicOrigin(env = process.env) {
   return origin(env.NEXT_PUBLIC_BASE_URL || preview || "http://localhost:8000")
 }
 function isIndexableDeployment(env = process.env) {
-  if (env.VERCEL_ENV !== "production" || !configuredCanonical(env)) return false
-  const url = new URL(canonicalOrigin(env))
+  const configured = env.NEXT_PUBLIC_CANONICAL_BASE_URL
+  if (env.VERCEL_ENV !== "production" || !/^https:\/\//i.test(configured || ""))
+    return false
+  const url = new URL(origin(configured))
   return (
     url.protocol === "https:" &&
     !url.hostname.endsWith(".vercel.app") &&
     url.hostname !== "localhost"
   )
 }
+function assertProductionIndexingConfiguration(env = process.env) {
+  if (env.VERCEL_ENV !== "production") return
+  if (isIndexableDeployment(env)) return
+  if (env.GP_PRODUCTION_NOINDEX_CONFIRMED === "true") return
+  throw new Error(
+    "Production build requires NEXT_PUBLIC_CANONICAL_BASE_URL on an approved HTTPS non-vercel.app host, or GP_PRODUCTION_NOINDEX_CONFIRMED=true after Avi approves noindex"
+  )
+}
 const privateRoots = ["account", "cart", "checkout", "order", "api"]
 const privatePaths = privateRoots.flatMap((root) => [
+  `/${root}$`,
+  `/${root}/*`,
+  `/us/${root}$`,
+  `/us/${root}/*`,
+  `/*/${root}$`,
+  `/*/${root}/*`,
+])
+const privateSitemapPaths = privateRoots.flatMap((root) => [
   `/${root}`,
   `/${root}/*`,
   `/us/${root}`,
@@ -91,7 +109,9 @@ module.exports = {
   canonicalOrigin,
   publicOrigin,
   isIndexableDeployment,
+  assertProductionIndexingConfiguration,
   privatePaths,
+  privateSitemapPaths,
   isPublicPath,
   crawlerHeaders,
 }

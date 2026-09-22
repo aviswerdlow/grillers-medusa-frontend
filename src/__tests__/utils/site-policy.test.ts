@@ -3,8 +3,10 @@ const {
   publicOrigin,
   canonicalOrigin,
   isIndexableDeployment,
+  assertProductionIndexingConfiguration,
   isPublicPath,
   crawlerHeaders,
+  privatePaths,
 } = require("../../lib/util/site-policy.cjs")
 const { getPathMatch } = require("next/dist/shared/lib/router/utils/path-match")
 const originalEnv = process.env
@@ -49,6 +51,71 @@ test("preview URLs remain on the preview and cannot become indexable through pro
       NEXT_PUBLIC_CANONICAL_BASE_URL: "https://alias.vercel.app",
     })
   ).toBe(false)
+})
+test("production build requires an explicit indexable canonical host or Avi's noindex confirmation", () => {
+  expect(() => assertProductionIndexingConfiguration(production)).not.toThrow()
+  expect(() =>
+    assertProductionIndexingConfiguration({ VERCEL_ENV: "preview" })
+  ).not.toThrow()
+  expect(() =>
+    assertProductionIndexingConfiguration({ VERCEL_ENV: "production" })
+  ).toThrow(/NEXT_PUBLIC_CANONICAL_BASE_URL/)
+  expect(
+    isIndexableDeployment({
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_PRODUCTION_BASE_URL: "https://www.grillerspride.com",
+    })
+  ).toBe(false)
+  expect(
+    isIndexableDeployment({
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_CANONICAL_BASE_URL: "www.grillerspride.com",
+    })
+  ).toBe(false)
+  expect(() =>
+    assertProductionIndexingConfiguration({
+      VERCEL_ENV: "production",
+      GP_PRODUCTION_NOINDEX_CONFIRMED: "true",
+    })
+  ).not.toThrow()
+  expect(() =>
+    assertProductionIndexingConfiguration({
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_CANONICAL_BASE_URL:
+        "https://grillers-medusa-frontend.vercel.app",
+    })
+  ).toThrow(/GP_PRODUCTION_NOINDEX_CONFIRMED/)
+})
+
+test("robots private paths do not hide public order information", () => {
+  const matches = (pattern: string, path: string) => {
+    const exact = pattern.endsWith("$")
+    const source = exact ? pattern.slice(0, -1) : pattern
+    const escaped = source
+      .split("*")
+      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join(".*")
+    return new RegExp(`^${escaped}${exact ? "$" : ""}`).test(path)
+  }
+  for (const path of [
+    "/us/holidays/order-deadlines",
+    "/us/page/order-sms-terms",
+    "/us/page/order-sms-privacy",
+  ]) {
+    expect(privatePaths.some((pattern: string) => matches(pattern, path))).toBe(
+      false
+    )
+  }
+  for (const path of [
+    "/us/order",
+    "/us/order/confirmation",
+    "/ca/cart",
+    "/ca/account/settings",
+  ]) {
+    expect(privatePaths.some((pattern: string) => matches(pattern, path))).toBe(
+      true
+    )
+  }
 })
 test.each([
   "/us/account",
