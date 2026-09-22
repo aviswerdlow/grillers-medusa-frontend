@@ -19,7 +19,10 @@ export default function HeroCta({
           text: "Reorder your favorites",
           href: `/${countryCode}/account/reorder`,
         }
-      : { text: null, href: null }
+      : {
+          text: "Shop Kosher Beef",
+          href: `/${countryCode}/collections/kosher-beef`,
+        }
   const ctaText = editorialText || fallbackCta.text
   const ctaHref = editorialHref || fallbackCta.href
 
