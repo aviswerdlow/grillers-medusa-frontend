@@ -80,7 +80,7 @@ const ProductCard = ({ hit }: { hit: StrapiProductData }) => {
 
   const price = variant?.Price?.CalculatedPriceNumber
   const display =
-    typeof price === "number"
+    typeof price === "number" && price > 0
       ? formatCardPriceDisplay(
           price,
           hit.Metadata,

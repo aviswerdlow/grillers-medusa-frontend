@@ -41,7 +41,6 @@ export const ProductCard = memo(function ProductCard({
   previouslyOrdered?: boolean
   imageSizes?: string
   priority?: boolean
-  hydrateCarouselOnView?: boolean
 }) {
   const [isAdding, setIsAdding] = useState(false)
   const variant = product?.MedusaProduct?.Variants?.[0]
@@ -92,7 +91,7 @@ export const ProductCard = memo(function ProductCard({
 
   const price = variant?.Price?.CalculatedPriceNumber
   const priceDisplay =
-    typeof price === "number"
+    typeof price === "number" && price > 0
       ? formatCardPriceDisplay(
           price,
           product.Metadata,
@@ -230,7 +229,6 @@ export default function StrapiProductGrid({
             countryCode={countryCode}
             viewMode={viewMode}
             imageSizes={gridImageSizes}
-            hydrateCarouselOnView={false}
             priority={viewMode === "grid" ? index < 2 : index === 0}
             previouslyOrdered={
               !!product.MedusaProduct?.ProductId &&
