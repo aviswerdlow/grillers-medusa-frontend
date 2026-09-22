@@ -34,7 +34,7 @@ const configuredTimeout = Number(process.env.STRAPI_FETCH_TIMEOUT_MS)
 const STRAPI_FETCH_TIMEOUT_MS =
   Number.isSafeInteger(configuredTimeout) && configuredTimeout > 0
     ? configuredTimeout
-    : 5_000
+    : 20_000
 
 const strapiClient = new GraphQLClient(
   `${process.env.STRAPI_ENDPOINT}/graphql`,

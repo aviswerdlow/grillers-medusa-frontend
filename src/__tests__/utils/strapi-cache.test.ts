@@ -56,7 +56,7 @@ describe("cachedStrapiRequest", () => {
     }
   })
 
-  it("uses a five-second transport deadline by default", async () => {
+  it("keeps the twenty-second transport deadline for slower cached queries", async () => {
     const original = process.env.STRAPI_FETCH_TIMEOUT_MS
     const originalFetch = global.fetch
     delete process.env.STRAPI_FETCH_TIMEOUT_MS
@@ -67,7 +67,7 @@ describe("cachedStrapiRequest", () => {
       await mockGraphqlClientOptions.fetch?.("https://strapi.test/graphql", {
         method: "POST",
       })
-      expect(deadline).toHaveBeenCalledWith(5000)
+      expect(deadline).toHaveBeenCalledWith(20000)
     } finally {
       deadline.mockRestore()
       global.fetch = originalFetch

@@ -55,7 +55,7 @@ export async function emitStoreCatalogLoadFailureAlert({
       : "Store catalog failed to load from Strapi",
     path: "src/lib/data/strapi/collections.ts",
     source: "medusa-server",
-    fingerprint: `store_catalog:${stage}`,
+    fingerprint: `store_catalog:${stage}:${recovered ? "degraded" : "failed"}`,
     dedupeWindowMs: 5 * 60 * 1000,
     meta: {
       catalog_surface: "store",

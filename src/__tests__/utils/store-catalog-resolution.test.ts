@@ -1,6 +1,7 @@
 import {
   resolveEmptyStoreCatalogDecision,
   isProductionBuildPhase,
+  isSoftEmptyStoreCatalog,
 } from "@lib/store-catalog-resolution"
 
 describe("resolveEmptyStoreCatalogDecision", () => {
@@ -35,6 +36,20 @@ describe("resolveEmptyStoreCatalogDecision", () => {
     expect(
       resolveEmptyStoreCatalogDecision({ loadFailed: true, isBuildPhase: true })
     ).toBe("render_soft")
+  })
+})
+
+describe("isSoftEmptyStoreCatalog", () => {
+  it("noindexes only a failed cold catalogue, not a recovered or healthy one", () => {
+    expect(
+      isSoftEmptyStoreCatalog({ loadFailed: true, visibleProductCount: 0 })
+    ).toBe(true)
+    expect(
+      isSoftEmptyStoreCatalog({ loadFailed: false, visibleProductCount: 0 })
+    ).toBe(false)
+    expect(
+      isSoftEmptyStoreCatalog({ loadFailed: true, visibleProductCount: 12 })
+    ).toBe(false)
   })
 })
 

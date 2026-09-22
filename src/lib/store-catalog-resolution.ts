@@ -19,6 +19,13 @@
  */
 export type EmptyStoreCatalogDecision = "fail_empty" | "render_soft"
 
+export function isSoftEmptyStoreCatalog(input: {
+  loadFailed: boolean
+  visibleProductCount: number
+}): boolean {
+  return input.loadFailed && input.visibleProductCount === 0
+}
+
 export function resolveEmptyStoreCatalogDecision(input: {
   /** True when getStoreProducts' onLoadFailure fired unrecovered (both queries failed). */
   loadFailed: boolean
