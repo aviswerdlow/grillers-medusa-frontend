@@ -1,5 +1,6 @@
 const checkEnvVariables = require("./check-env-variables")
 const path = require("path")
+const { buildLegacyRedirects } = require("./src/lib/util/legacy-redirects.cjs")
 
 checkEnvVariables()
 
@@ -80,6 +81,7 @@ const nextConfig = {
   // /us/wholesale legacy alias now redirects. (#79, #94)
   async redirects() {
     return [
+      ...buildLegacyRedirects(),
       { source: "/us/about", destination: "/us/page/about-us", permanent: true },
       { source: "/us/about-us", destination: "/us/page/about-us", permanent: true },
       { source: "/us/contact", destination: "/us/customer-service", permanent: true },
