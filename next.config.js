@@ -4,6 +4,7 @@ const {
   crawlerHeaders,
   assertProductionIndexingConfiguration,
 } = require("./src/lib/util/site-policy.cjs")
+const { buildLegacyRedirects } = require("./src/lib/util/legacy-redirects.cjs")
 
 checkEnvVariables()
 assertProductionIndexingConfiguration()
@@ -88,6 +89,7 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      ...buildLegacyRedirects(),
       {
         source: "/us/about",
         destination: "/us/page/about-us",
