@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+
 import { RadioGroup } from "@headlessui/react"
 import { isStripe as isStripeFunc, paymentInfoMap } from "@lib/constants"
 import {
@@ -48,12 +50,12 @@ const NetWeightDisclaimer = () => (
         <p className="text-sm text-gray-600 leading-relaxed">
           Your card is saved today. We charge the final total when your order is
           packed and ready to leave.{" "}
-          <a
+          <Link
             href="/page/catch-weight-pricing"
             className="text-Gold hover:text-Gold/80 underline"
           >
             Learn more
-          </a>
+          </Link>
         </p>
       </div>
     </div>
@@ -532,17 +534,17 @@ const Payment = ({
 
               <p className="text-xs text-gray-500 mt-4 leading-relaxed text-center">
                 By clicking Place Order, you agree to our{" "}
-                <a href="/terms" className="text-Gold hover:underline">
+                <Link href="/terms" className="text-Gold hover:underline">
                   Terms of Use
-                </a>
+                </Link>
                 ,{" "}
-                <a href="/terms-of-sale" className="text-Gold hover:underline">
+                <Link href="/terms-of-sale" className="text-Gold hover:underline">
                   Terms of Sale
-                </a>
+                </Link>
                 , and{" "}
-                <a href="/privacy" className="text-Gold hover:underline">
+                <Link href="/privacy" className="text-Gold hover:underline">
                   Privacy Policy
-                </a>
+                </Link>
                 .
               </p>
             </div>
