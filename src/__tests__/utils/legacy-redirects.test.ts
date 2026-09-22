@@ -2,8 +2,8 @@ export {}
 const assert = require('node:assert/strict')
 const { getPathMatch } = require('next/dist/shared/lib/router/utils/path-match')
 const { buildLegacyRedirects, literalQuery } = require('../../lib/util/legacy-redirects.cjs')
-const manifest = require('../../lib/data/legacy-redirect-manifest.json')
-const skuMap = require('../../lib/data/legacy-listid-sku-map.json')
+import manifest from "../../lib/data/legacy-redirect-manifest.json"
+import skuMap from "../../lib/data/legacy-listid-sku-map.json"
 
 test('each product redirect has a unique, eligible ListID identity; SKU names never choose the target', () => {
   for (const row of manifest.rows.filter(r => r.list_id && r.disposition === 'redirect')) {
@@ -15,7 +15,7 @@ test('each product redirect has a unique, eligible ListID identity; SKU names ne
 })
 test('every manifest redirect compiles and matches its actual encoded legacy path and mixed case', () => {
   const rows = manifest.rows.filter(r => r.disposition === 'redirect')
-  const rules = buildLegacyRedirects()
+  const rules: Array<{source:string;destination:string;has?:Array<{key:string;value:string}>}> = buildLegacyRedirects()
   assert.equal(rules.length, rows.length)
   rules.forEach((rule, i) => {
     const match = getPathMatch(rule.source, {strict: true, sensitive: false})
@@ -24,7 +24,7 @@ test('every manifest redirect compiles and matches its actual encoded legacy pat
     assert.ok(rule.destination.startsWith('/us'))
     for (const condition of rule.has || []) {
       const original = rows[i].source_query[condition.key]
-      const value = new URLSearchParams(`${condition.key}=${encodeURIComponent(original)}`).get(condition.key)
+      const value = new URLSearchParams(`${condition.key}=${encodeURIComponent(original)}`).get(condition.key) || ""
       const pattern = new RegExp(`^(?:${condition.value})$`)
       assert.ok(pattern.test(value))
       assert.ok(pattern.test(value.toUpperCase()))
@@ -36,7 +36,7 @@ test('category encodings and regexp punctuation preserve exact query meaning', (
   const expected = 'Meat:Soup, Stew & Cholent (Bulk)'
   const pattern = new RegExp(`^(?:${literalQuery(expected)})$`)
   for (const query of ['cat=' + encodeURIComponent(expected), new URLSearchParams({cat: expected}).toString()]) {
-    assert.ok(pattern.test(new URLSearchParams(query).get('cat')))
+    assert.ok(pattern.test(new URLSearchParams(query).get('cat') || ''))
   }
   assert.ok(!pattern.test('Meat:SoupX Stew & Cholent Bulk'))
 })
