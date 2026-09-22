@@ -200,6 +200,7 @@ const BillingAddress = ({
         />
         <CountrySelect
           name="billing_address.country_code"
+          aria-label="Billing country"
           autoComplete="country"
           region={cart?.region}
           value={formData["billing_address.country_code"]}

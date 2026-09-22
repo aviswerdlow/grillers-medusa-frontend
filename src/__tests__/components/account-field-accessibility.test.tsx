@@ -5,6 +5,7 @@ import Register from "@modules/account/components/register"
 import ForgotPassword from "@modules/account/components/forgot-password"
 import ResetPassword from "@modules/account/components/reset-password"
 import AddressFormFields from "@modules/account/components/address-card/address-form-fields"
+import BillingAddress from "@modules/checkout/components/billing_address"
 import { login, completePasswordReset } from "@lib/data/customer"
 jest.mock("@lib/data/customer", () => ({
   login: jest.fn(async () => "Check your sign-in details."),
@@ -117,4 +118,18 @@ it("keeps two address forms independently named and focused", async () => {
     expect(second).toHaveFocus()
   }
   expect(shipping.getByRole("combobox", { name: "State" })).toBeInTheDocument()
+})
+
+it("names the checkout billing country without changing its submitted field", () => {
+  render(
+    <BillingAddress
+      cart={{
+        billing_address: { country_code: "us" },
+        region: { countries: [{ iso_2: "us", display_name: "United States" }] },
+      } as any}
+    />
+  )
+  const country = screen.getByRole("combobox", { name: "Billing country" })
+  expect(country).toHaveValue("us")
+  expect(country).toHaveAttribute("name", "billing_address.country_code")
 })
