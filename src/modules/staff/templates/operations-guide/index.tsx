@@ -269,6 +269,7 @@ const sections: GuideSection[] = [
     howTo: [
       "Use /us/store for the full catalog. It is powered directly by Strapi product records so customer-safe names, descriptions, images, and merchandising stay current.",
       "Use /us/search when a customer is looking for a product by name or SKU. Search is live and should surface customer-safe titles.",
+      "The homepage puts retail products and collections first. Recipes, cut guidance, and storage/thawing share one section; wholesale follows the retail content. Confirm product claims on the specific item instead of applying a homepage promise to the whole catalog.",
       "Use /us/collections for curated shopping paths. Individual collection pages may be Strapi product collections, product tags, or curated collections.",
       "Use a product page when confirming exact packaging, price mode, ingredient disclosure, kosher status, shipping eligibility, and whether a waitlist is offered.",
       "On desktop, click a main navigation label to open its menu. Moving the pointer across the navigation does not open a menu; click the same label again, click outside, or press Escape to close it.",
