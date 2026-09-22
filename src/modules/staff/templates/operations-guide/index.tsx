@@ -262,6 +262,7 @@ const sections: GuideSection[] = [
       "The customer site is the normal shopping experience. Staff should understand it because the staff console can enter a customer's account and use the same flow.",
     useFor: [
       "Browsing the homepage, store, search, collections, recipes, butcher guide, shipping pages, kashruth pages, legal pages, customer service, and site navigation.",
+      "Email signup never opens automatically. Guests reading recipes or guides may see an Email updates button after one minute and halfway down the page. It opens only when selected; closing it snoozes future prompts for 30 days. Subscribed customers remain suppressed, and the footer signup stays available.",
       "Viewing product pages with Strapi product titles, photos, ingredient disclosures, kosher status, shipping eligibility, and waitlist options.",
       "Adding products to cart, choosing fulfillment, paying by card, and receiving confirmation emails.",
       "Letting customers sign in, save addresses, manage saved cards, use wishlist, reorder from current or legacy history, and view order details.",
