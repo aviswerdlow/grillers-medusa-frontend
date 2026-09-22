@@ -1,5 +1,6 @@
 jest.mock("server-only", () => ({}))
 
+import { emitStorefrontOpsAlert } from "@lib/ops-alert"
 import { sdk } from "@lib/config"
 import {
   addCustomerAddress,
@@ -103,5 +104,39 @@ describe("first-login SMS phone integrity", () => {
     expect(result?.error).toMatch(/mobile|choose which number/i)
     expect(mockedFetch).not.toHaveBeenCalled()
     expect(mockedAddCustomerAddress).not.toHaveBeenCalled()
+  })
+})
+
+
+describe("contact endpoint rollout alerts", () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockedGetStaffImpersonationSession.mockResolvedValue(null)
+    mockedRetrieveCustomer.mockResolvedValue({ ...migratedCustomer, addresses: [{ id: "addr_test" }] })
+  })
+  it.each([404, 503])("contact submit %s alerts only on an unexpected outage", async status => {
+    mockedFetch.mockImplementation(async (path) => {
+      if (path === "/store/customers/me/contact") throw { response: { status } }
+      return {} as any
+    })
+    const form = new FormData()
+    form.set("primary_phone", "4045550100")
+    form.set("primary_address_id", "addr_test")
+    form.set("contact_revision", "0")
+    form.set("contact_request_id", "synthetic-contact-request-01")
+    const result = await submitContactVerification(null, form)
+    expect(result?.success).toBe(false)
+    if (status === 404) {
+      expect(emitStorefrontOpsAlert).not.toHaveBeenCalled()
+      expect(result?.error).toMatch(/Do this later/)
+    } else expect(emitStorefrontOpsAlert).toHaveBeenCalledTimes(1)
+  })
+  it("still alerts on an address 404 rather than suppressing unrelated failures", async () => {
+    mockedFetch.mockRejectedValue({ status: 404 })
+    const form = new FormData()
+    form.set("primary_phone", "4045550100")
+    form.set("primary_address_id", "addr_test")
+    await submitContactVerification(null, form)
+    expect(emitStorefrontOpsAlert).toHaveBeenCalledTimes(1)
   })
 })

@@ -27,7 +27,8 @@ export async function updatePrimaryContact(
         error: "Enter a valid 10-digit US mobile number.",
       }
     let compatibility = false
-    const optedIn = formData.get("sms_marketing_opt_in") === "on"
+    const optedIn = formData.get("sms_marketing_choice_unavailable") === "true"
+      ? undefined : formData.get("sms_marketing_opt_in") === "on"
     try {
       await sdk.client.fetch("/store/customers/me/contact", {
         method: "POST",
@@ -54,7 +55,7 @@ export async function updatePrimaryContact(
         throw new Error("Customer context changed")
       // Current backend main supports ordinary profile edits. Record only the
       // checkbox actually shown/chosen; no attestation/provenance is invented.
-      const metadata = optedIn
+      const metadata = optedIn === undefined ? {} : optedIn
         ? buildSmsMarketingConsentMetadata({ phone, source: "account_profile" })
         : {
             sms_marketing_opt_in: false,

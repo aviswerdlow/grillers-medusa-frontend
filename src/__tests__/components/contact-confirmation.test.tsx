@@ -10,7 +10,7 @@ beforeEach(()=>{Object.defineProperty(globalThis.crypto,"randomUUID",{configurab
 it("offers one primary destination and keyboard-operable optional marketing with truthful copy",async()=>{
  const user=userEvent.setup()
  render(<ContactVerification customer={{id:"cus_test",email:"synthetic@example.invalid",metadata:{},addresses:[{id:"addr_test",address_1:"1 Test Street"}]} as any}
- countryCode="us" phoneCandidates={[{value:"4045550100",sources:["account"]},{value:"7705550100",sources:["saved address"]}]} />)
+ marketingStatus={{status:"not_subscribed",phone:null,consented_at:null,opted_out_at:null}} countryCode="us" phoneCandidates={[{value:"4045550100",sources:["account"]},{value:"7705550100",sources:["saved address"]}]} />)
  expect(screen.getByRole("checkbox")).not.toBeChecked()
  expect(screen.getByText(/does not verify ownership by text/)).toBeInTheDocument()
  await user.click(screen.getByRole("radio",{name:/A different number/}))
@@ -32,4 +32,15 @@ it("can defer without submitting invalid or missing contact fields",async()=>{
  render(<ContactVerification customer={{id:"cus_test",email:"synthetic@example.invalid",metadata:{},addresses:[]} as any} countryCode="us" phoneCandidates={[]} />)
  await user.click(screen.getByRole("button",{name:"Do this later"}))
  expect(skipContactVerification).toHaveBeenCalledTimes(1);expect(submitContactVerification).not.toHaveBeenCalled()
+})
+
+
+it("preserves the subscribed current phone and clears consent for a different destination",async()=>{
+ const user=userEvent.setup()
+ render(<ContactVerification customer={{id:"cus_test",email:"synthetic@example.invalid",metadata:{},addresses:[]} as any} countryCode="us"
+ marketingStatus={{status:"subscribed",phone:"4045550100",consented_at:"2026-01-01T00:00:00Z",opted_out_at:null}}
+ phoneCandidates={[{value:"4045550100",sources:["account"]},{value:"7705550100",sources:["saved address"]}]} />)
+ expect(screen.getByRole("checkbox")).toBeChecked()
+ await user.click(screen.getByRole("radio",{name:/770/}))
+ expect(screen.getByRole("checkbox")).not.toBeChecked()
 })

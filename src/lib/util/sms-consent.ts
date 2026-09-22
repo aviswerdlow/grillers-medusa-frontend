@@ -66,3 +66,11 @@ export function buildSmsMarketingConsentMetadata(input: {
     sms_consent_method: SMS_MARKETING_CONSENT_METHOD,
   }
 }
+
+
+/** Existing subscription applies only to the exact current destination. */
+export function hasCurrentSmsSubscription(status: { status: string; phone: string | null } | null | undefined, phone: unknown): boolean {
+  const currentPhone = normalizeSmsMarketingPhone(phone)
+  return Boolean(currentPhone && status?.status === "subscribed" &&
+    normalizeSmsMarketingPhone(status.phone) === currentPhone)
+}

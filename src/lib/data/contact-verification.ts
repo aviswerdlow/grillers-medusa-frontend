@@ -1,5 +1,6 @@
 "use server"
 
+import { calendarHttpStatus } from "@lib/fulfillment-calendar-rollout"
 import { deferContactVerification } from "./contact-verification-deferral"
 import { requestReceiptEmailCode } from "./receipt-email"
 
@@ -77,7 +78,8 @@ export async function submitContactVerification(
   }
 
   // ── Primary mobile ────────────────────────────────────────────────
-  const smsOptIn = formData.get("sms_marketing_opt_in") === "on"
+  const smsOptIn = formData.get("sms_marketing_choice_unavailable") === "true"
+    ? undefined : formData.get("sms_marketing_opt_in") === "on"
   const phoneChoice = (formData.get("primary_phone") as string) || ""
   const otherPhoneRaw = (formData.get("primary_phone_other") as string) || ""
   const candidates = collectPhoneCandidates(customer)
@@ -279,6 +281,9 @@ export async function submitContactVerification(
 
     return { success: true, error: null, smsOptedIn: smsOptIn, receiptEmailPending: Boolean(preferredEmail) }
   } catch (error: any) {
+    if (stage === "customer_update" && calendarHttpStatus(error) === 404) {
+      return { success: false, error: "Contact confirmation is not available yet. Choose ‘Do this later’ to continue; your saved address is kept." }
+    }
     await emitStorefrontOpsAlert({
       alertKind: "contact_verification_failed",
       severity: "warn",

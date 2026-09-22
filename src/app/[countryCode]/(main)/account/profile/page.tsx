@@ -66,7 +66,7 @@ export default async function Profile() {
           <ProfileEmail customer={customer} receipt={receiptEmail} canManage={canManageSmsMarketing} />
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <ProfilePhone customer={customer} />
+          <ProfilePhone customer={customer} marketingStatus={smsMarketingStatus} />
         </div>
         {canManageSmsMarketing && (
           <div className="bg-white rounded-xl border border-gray-200 p-6">

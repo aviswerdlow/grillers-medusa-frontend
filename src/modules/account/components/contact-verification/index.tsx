@@ -10,6 +10,7 @@ import { SubmitButton } from "@modules/checkout/components/submit-button"
 import { jitsuTrack } from "@lib/jitsu"
 import { submitContactVerification, skipContactVerification } from "@lib/data/contact-verification"
 import {
+  hasCurrentSmsSubscription,
   SMS_MARKETING_DISCLOSURE,
   SMS_MARKETING_OPT_IN_LABEL,
 } from "@lib/util/sms-consent"
@@ -20,7 +21,10 @@ import {
 
 import { contactRevision } from "@lib/util/customer-contact-state"
 
+import type { SmsMarketingStatusResponse } from "@lib/data/sms-marketing"
+
 type Props = {
+  marketingStatus?: SmsMarketingStatusResponse | null
   customer: HttpTypes.StoreCustomer
   phoneCandidates: PhoneCandidate[]
   countryCode: string
@@ -42,6 +46,7 @@ const ContactVerification = ({
   customer,
   phoneCandidates,
   countryCode,
+  marketingStatus = null,
 }: Props) => {
   const router = useRouter()
   const [requestId, setRequestId] = useState("")
@@ -54,6 +59,7 @@ const ContactVerification = ({
   const [phoneChoice, setPhoneChoice] = useState(
     hasCandidates ? phoneCandidates[0].value : "other"
   )
+  const [smsOptIn, setSmsOptIn] = useState(hasCurrentSmsSubscription(marketingStatus, phoneCandidates[0]?.value))
   const [emailChoice, setEmailChoice] = useState<"current" | "different">(
     "current"
   )
@@ -98,6 +104,7 @@ const ContactVerification = ({
       </p>
 
       <form action={formAction} className="mt-8 flex flex-col gap-y-8">
+        <input type="hidden" name="sms_marketing_choice_unavailable" value={String(!marketingStatus)} />
         <input type="hidden" name="contact_revision" value={contactRevision(customer.metadata)} />
         <input type="hidden" name="contact_request_id" value={requestId} />
         {/* ── 1 · Mobile number + texts ─────────────────────────── */}
@@ -123,7 +130,7 @@ const ContactVerification = ({
                   name="primary_phone"
                   value={candidate.value}
                   checked={phoneChoice === candidate.value}
-                  onChange={() => setPhoneChoice(candidate.value)}
+                  onChange={() => { setPhoneChoice(candidate.value); setSmsOptIn(false) }}
                   className="mt-1 h-4 w-4 accent-Gold"
                 />
                 <span>
@@ -140,7 +147,7 @@ const ContactVerification = ({
                 name="primary_phone"
                 value="other"
                 checked={phoneChoice === "other"}
-                onChange={() => setPhoneChoice("other")}
+                onChange={() => { setPhoneChoice("other"); setSmsOptIn(false) }}
                 className="mt-1 h-4 w-4 accent-Gold"
                 data-testid="phone-other-radio"
               />
@@ -160,6 +167,7 @@ const ContactVerification = ({
                   type="tel"
                   autoComplete="mobile tel"
                   required
+                  onChange={() => setSmsOptIn(false)}
                   data-testid="phone-other-input"
                 />
               </div>
@@ -170,11 +178,7 @@ const ContactVerification = ({
             Saving confirms this is your number. It does not verify ownership by text.
             Order texts are a separate, optional choice at checkout.
           </p>
-          {/* Must stay unchecked-by-default: TCPA "express written consent"
-              requires the subscriber's own affirmative action, and Twilio
-              toll-free verification rejected the number (code 30446) over
-              exactly this. Pre-checking also contradicts the consent
-              declaration in our carrier filing. */}
+          {/* Reflect an existing subscription only for its current number. */}
           <label className="mt-4 flex cursor-pointer items-start gap-x-3 rounded-md bg-ui-bg-subtle p-3">
             <input
               className="mt-1 h-4 w-4 shrink-0 accent-Gold"
@@ -182,6 +186,9 @@ const ContactVerification = ({
               id="sms_marketing_opt_in"
               type="checkbox"
               value="on"
+              checked={smsOptIn}
+              disabled={!marketingStatus}
+              onChange={(event) => setSmsOptIn(event.target.checked)}
               data-testid="sms-marketing-opt-in"
             />
             <span className="text-left">

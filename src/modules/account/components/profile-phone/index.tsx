@@ -7,14 +7,20 @@ import AccountInfo from "../account-info"
 import { formatPhone, stripPhone } from "@lib/util/format-phone"
 import { contactRevision } from "@lib/util/customer-contact-state"
 import {
+  hasCurrentSmsSubscription,
   SMS_MARKETING_DISCLOSURE,
   SMS_MARKETING_OPT_IN_LABEL,
 } from "@lib/util/sms-consent"
 import { updatePrimaryContact } from "@lib/data/primary-contact"
 
-type Props = { customer: HttpTypes.StoreCustomer }
+import type { SmsMarketingStatusResponse } from "@lib/data/sms-marketing"
 
-export default function ProfilePhone({ customer }: Props) {
+type Props = { customer: HttpTypes.StoreCustomer; marketingStatus?: SmsMarketingStatusResponse | null }
+
+export default function ProfilePhone({ customer, marketingStatus = null }: Props) {
+  const [smsOptIn, setSmsOptIn] = useState(hasCurrentSmsSubscription(marketingStatus, customer.phone))
+  useEffect(() => { setSmsOptIn(hasCurrentSmsSubscription(marketingStatus, customer.phone)) },
+    [customer.phone, marketingStatus?.status, marketingStatus?.phone])
   const [successState, setSuccessState] = useState(false)
   const [requestId, setRequestId] = useState("")
   useEffect(() => {
@@ -29,6 +35,7 @@ export default function ProfilePhone({ customer }: Props) {
   }, [state])
   return (
     <form action={formAction} className="w-full">
+      <input type="hidden" name="sms_marketing_choice_unavailable" value={String(!marketingStatus)} />
       <input
         type="hidden"
         name="contact_revision"
@@ -65,6 +72,7 @@ export default function ProfilePhone({ customer }: Props) {
             defaultValue={
               customer.phone ? formatPhone(stripPhone(customer.phone)) : ""
             }
+            onChange={() => setSmsOptIn(false)}
             data-testid="phone-input"
           />
           <p className="text-small-regular text-ui-fg-subtle">
@@ -76,6 +84,9 @@ export default function ProfilePhone({ customer }: Props) {
             <input
               type="checkbox"
               name="sms_marketing_opt_in"
+              checked={smsOptIn}
+              disabled={!marketingStatus}
+              onChange={(event) => setSmsOptIn(event.target.checked)}
               className="mt-1 h-4 w-4 shrink-0"
             />
             <span>
@@ -85,6 +96,7 @@ export default function ProfilePhone({ customer }: Props) {
               </span>
             </span>
           </label>
+          {!marketingStatus && <p role="status" className="text-xs">Text preferences are unavailable. Your existing choice will be kept for an unchanged number.</p>}
           <p className="text-xs text-ui-fg-subtle">
             Leave this unchecked to stop marketing texts. Order-update texts
             have their own optional choice at checkout. Past orders are not

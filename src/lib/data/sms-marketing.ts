@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidateTag } from "next/cache"
+import { calendarHttpStatus } from "@lib/fulfillment-calendar-rollout"
 
 import { sdk } from "@lib/config"
 import { getAuthHeaders, getCacheTag } from "@lib/data/cookies"
@@ -167,24 +168,32 @@ export async function submitSmsMarketingOptIn(
       }
     }
 
-    // Medusa metadata updates replace the object we send. Re-read immediately
-    // before composing it so a concurrent profile update in another tab is not
-    // overwritten by the snapshot loaded before the status round trip.
     const freshCustomer = await retrieveAuthenticatedCustomer()
     if (!freshCustomer || freshCustomer.id !== customer.id) {
       return { success: false, error: "Please sign in again to continue." }
     }
 
-    const metadata = {
-      ...(freshCustomer.metadata || {}),
-      ...buildSmsMarketingConsentMetadata({
-        phone,
-        source: "account_profile",
-        consentedAt: submittedAt,
-      }),
+    try {
+      await sdk.client.fetch("/store/customers/me/contact", {
+        method: "POST",
+        headers,
+        body: {
+          phone,
+          expected_revision: Number(formData.get("contact_revision")),
+          request_id: formData.get("contact_request_id"),
+          sms_marketing_opt_in: true,
+        },
+      })
+    } catch (error) {
+      if (calendarHttpStatus(error) !== 404 ||
+          freshCustomer.metadata?.primary_contact_v1 != null ||
+          freshCustomer.metadata?.contact_confirmation_v2 != null) throw error
+      // Native Medusa merges metadata keys. Send only this consent choice;
+      // replaying profile metadata can overwrite staff authority and notes.
+      await sdk.store.customer.update({ phone, metadata: buildSmsMarketingConsentMetadata({
+        phone, source: "account_profile", consentedAt: submittedAt,
+      }) }, {}, headers)
     }
-
-    await sdk.store.customer.update({ phone, metadata }, {}, headers)
 
     const cacheTag = await getCacheTag("customers")
     revalidateTag(cacheTag)
