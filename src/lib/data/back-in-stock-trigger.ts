@@ -1,5 +1,6 @@
-import { backgroundAdminToken } from "./background-admin-token"
 "use server"
+
+import { backgroundAdminToken } from "./background-admin-token"
 
 import { sendTemplatedEmail } from "@lib/postmark"
 import { isWaitlistEligible } from "@lib/util/waitlist-eligibility"
