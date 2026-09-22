@@ -12,7 +12,7 @@
     "build": "next build && node scripts/fix-parallel-route-manifests.js",
     "postbuild": "next-sitemap",
     "start": "next start -p 8000",
-    "lint": "next lint",
+    "lint": "node scripts/lint-with-baseline.cjs",
     "analyze": "ANALYZE=true next build",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -24,7 +24,8 @@
     "smoke:storefront-backend": "node scripts/smoke-storefront-backend.mjs",
     "experiments:report": "node scripts/experiments/report.mjs",
     "experiments:promote": "node scripts/experiments/promote-winner.mjs",
-    "postmark:ensure-templates": "node scripts/postmark/ensure-templates.js --apply"
+    "postmark:ensure-templates": "node scripts/postmark/ensure-templates.js --apply",
+    "lint:strict": "node scripts/lint-with-baseline.cjs --strict"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.2",
