@@ -270,6 +270,7 @@ const sections: GuideSection[] = [
       "Use /us/store for the full catalog. It is powered directly by Strapi product records so customer-safe names, descriptions, images, and merchandising stay current.",
       "Use /us/search when a customer is looking for a product by name or SKU. Search is live and should surface customer-safe titles.",
       "Use /us/collections for curated shopping paths. Individual collection pages may be Strapi product collections, product tags, or curated collections.",
+      "Product cards put the pack amount first. Est. marks catch-weight totals; the secondary per-pound rate appears only when a pack weight is available. Open the product photo or name for the full gallery and product details. Collection order still comes from the catalog owner.",
       "Use a product page when confirming exact packaging, price mode, ingredient disclosure, kosher status, shipping eligibility, and whether a waitlist is offered.",
       "On desktop, click a main navigation label to open its menu. Moving the pointer across the navigation does not open a menu; click the same label again, click outside, or press Escape to close it.",
       "In the cart, each line shows its customer-safe SKU, quantity, and discount-aware extended Total so a customer can adjust quantities against a budget. Larger screens also show the per-pack Price in its own column.",

@@ -9,7 +9,8 @@ import { experimentCartMetadata } from "@lib/experiments/client-context"
 import { trackAddToCart } from "@lib/gtm"
 import { jitsuTrack } from "@lib/jitsu"
 import { reportClientOpsAlert } from "@lib/client-ops-alert"
-import { formatProductPriceDisplay } from "@lib/util/price-display"
+import { formatCardPriceDisplay } from "@lib/util/card-price-display"
+import ProductCardFacts from "@modules/common/components/product-card-facts"
 import { dispatchCartUpdated } from "@lib/util/cart-events"
 import { isVariantPurchasable } from "@lib/util/product-availability"
 import type { StrapiProductData } from "types/strapi"
@@ -77,157 +78,66 @@ const ProductCard = ({ hit }: { hit: StrapiProductData }) => {
     })
   }
 
+  const price = variant?.Price?.CalculatedPriceNumber
+  const display =
+    typeof price === "number"
+      ? formatCardPriceDisplay(
+          price,
+          hit.Metadata,
+          variant?.Sku,
+          (
+            hit.MedusaProduct as
+              | { PricingMode?: "per_lb" | "fixed_price" }
+              | undefined
+          )?.PricingMode
+        )
+      : null
+  const href = `/products/${hit.MedusaProduct?.Handle}`
   return (
-  <article>
-    <LocalizedClientLink
-      href={`/products/${hit?.MedusaProduct?.Handle}`}
-      className="block"
-      onClick={handleProductClick}
-    >
-      <figure className="relative w-full aspect-square bg-gray-50">
-        <Image
-          src={hit?.FeaturedImage?.url ?? "https://placehold.co/400x400"}
-          alt={hit.Title}
-          fill
-          className="object-cover"
-        />
-      </figure>
-    </LocalizedClientLink>
-
-    <div className="py-8">
+    <article className="flex h-full min-w-0 flex-col gap-2">
       <LocalizedClientLink
-        href={`/products/${hit?.MedusaProduct?.Handle}`}
-        className="block"
+        href={href}
+        onClick={handleProductClick}
+        className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-Gold"
       >
-        <h4
-          id={`hit-${hit.id}-title`}
-          className="text-h4 font-gyst font-bold text-Charcoal pb-3 border-b border-Charcoal hover:text-VibrantRed transition-colors"
-        >
-          {hit.Title}
-        </h4>
-      </LocalizedClientLink>
-      
-      {hit?.MedusaProduct?.Variants?.[0]?.Price?.CalculatedPriceNumber && (() => {
-        // Per-lb vs fixed-price decision sourced from Strapi
-        // MedusaProduct.PricingMode → Metadata.PricingMode → bundled
-        // QB-derived SKU map → weight heuristic.
-        const display = formatProductPriceDisplay(
-          hit.MedusaProduct.Variants[0].Price.CalculatedPriceNumber,
-          hit?.Metadata,
-          hit?.MedusaProduct?.Variants?.[0]?.Sku,
-          (hit?.MedusaProduct as { PricingMode?: "per_lb" | "fixed_price" } | undefined)?.PricingMode
-        )
-        return (
-          <div className="text-Charcoal py-7 border-b border-Charcoal">
-            <div className="inline-flex items-baseline gap-2">
-              <span className="text-h3 font-gyst">{display.primary}</span>
-              {display.primaryLabel && (
-                <span className="text-p-sm-mono font-maison-neue-mono uppercase">
-                  {display.primaryLabel}
-                </span>
-              )}
-            </div>
-            {display.secondary && (
-              <p className="text-p-sm font-maison-neue text-Charcoal/60 mt-1">
-                {display.secondary}
-              </p>
-            )}
-          </div>
-        )
-      })()}
-
-      {/* Enhanced Product Metadata */}
-      <div className="py-6 space-y-4">
-        {/* Dietary & Preparation Badges */}
-        <div className="flex flex-wrap gap-3 text-xs font-maison-neue-mono uppercase text-Charcoal">
-          {hit?.Metadata?.GlutenFree && (
-            <span className="inline-flex items-center">
-              <Image
-                src="/images/icons/icon-circle-check.svg"
-                width={20}
-                height={20}
-                alt="Gluten Free"
-                className="mr-1"
-              />
-              Gluten Free
-            </span>
-          )}
-          {hit?.Metadata?.Uncooked && (
-            <span className="inline-flex items-center">
-              <Image
-                src="/images/icons/icon-circle-check.svg"
-                width={20}
-                height={20}
-                alt="Uncooked"
-                className="mr-1"
-              />
-              Uncooked
-            </span>
-          )}
-          {hit?.Metadata?.Cooked && (
-            <span className="inline-flex items-center">
-              <Image
-                src="/images/icons/icon-circle-check.svg"
-                width={20}
-                height={20}
-                alt="Ready to Eat"
-                className="mr-1"
-              />
-              Ready to Eat
-            </span>
-          )}
-        </div>
-
-        {/* Pack Information Grid */}
-        <div className="grid grid-cols-3 gap-2">
-          {hit?.Metadata?.AvgPackWeight && (
-            <div className="border border-gray-200 rounded-lg p-3 bg-white">
-              <p className="text-xs font-maison-neue-mono uppercase text-gray-500 mb-1">Weight</p>
-              <p className="text-sm font-bold font-maison-neue text-Charcoal">{hit.Metadata.AvgPackWeight}</p>
-            </div>
-          )}
-          {hit?.Metadata?.Serves && (
-            <div className="border border-gray-200 rounded-lg p-3 bg-white">
-              <p className="text-xs font-maison-neue-mono uppercase text-gray-500 mb-1">Serves</p>
-              <p className="text-sm font-bold font-maison-neue text-Charcoal">{hit.Metadata.Serves}</p>
-            </div>
-          )}
-          {hit?.Metadata?.PiecesPerPack && (
-            <div className="border border-gray-200 rounded-lg p-3 bg-white">
-              <p className="text-xs font-maison-neue-mono uppercase text-gray-500 mb-1">Pieces</p>
-              <p className="text-sm font-bold font-maison-neue text-Charcoal">{hit.Metadata.PiecesPerPack}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center justify-between pt-4">
-        <LocalizedClientLink
-          href={`/products/${hit?.MedusaProduct?.Handle}`}
-          className="min-h-[44px] inline-flex gap-3 items-center hover:opacity-70 focus-visible:opacity-100 focus-visible:underline transition-opacity py-2"
-        >
-          <span className="text-Charcoal font-rexton text-h6 font-bold uppercase">
-            View Details
-          </span>
+        <figure className="relative aspect-square overflow-hidden bg-gray-50">
           <Image
-            src={"/images/icons/arrow-right.svg"}
-            width={21}
-            height={12}
-            alt="view details"
+            src={hit.FeaturedImage?.url || "https://placehold.co/400x400"}
+            alt={hit.Title}
+            fill
+            sizes="(max-width: 639px) 50vw, 33vw"
+            className="object-cover"
           />
-        </LocalizedClientLink>
-
-        <button
-          onClick={handleAddToCart}
-          disabled={isAdding || !canAddToCart}
-          className="px-6 py-2 rounded-[5px] border border-Charcoal bg-Gold text-Charcoal font-rexton text-xs font-bold uppercase transition-opacity hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isAdding ? "Adding..." : canAddToCart ? "Add to Cart" : "Out of stock"}
-        </button>
-      </div>
-    </div>
-  </article>
+        </figure>
+        <h2 className="mt-3 min-h-[44px] break-words font-gyst text-base font-bold leading-snug text-Charcoal sm:text-xl">
+          {hit.Title}
+        </h2>
+      </LocalizedClientLink>
+      <ProductCardFacts metadata={hit.Metadata} />
+      {display && (
+        <div className="mt-auto pt-2 text-Charcoal">
+          <p>
+            <span className="font-gyst text-xl sm:text-2xl">
+              {display.primary}
+            </span>{" "}
+            <span className="font-maison-neue text-xs">
+              {display.primaryLabel}
+            </span>
+          </p>
+          <p className="mt-1 font-maison-neue text-xs leading-relaxed text-Charcoal/70">
+            {display.secondary}
+          </p>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={handleAddToCart}
+        disabled={isAdding || !canAddToCart}
+        className="mt-2 min-h-[44px] w-full rounded-[5px] border border-Charcoal bg-Gold px-3 py-2 font-maison-neue text-sm font-bold text-Charcoal disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-Charcoal"
+      >
+        {isAdding ? "Adding..." : canAddToCart ? "Add to Cart" : "Out of stock"}
+      </button>
+    </article>
   )
 }
 
