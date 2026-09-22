@@ -7,7 +7,7 @@ import skuMap from "../../lib/data/legacy-listid-sku-map.json"
 
 test('each product redirect has a unique, eligible ListID identity; SKU names never choose the target', () => {
   for (const row of manifest.rows.filter(r => r.list_id && r.disposition === 'redirect')) {
-    const matches = skuMap.filter(p => p.qbd_list_id === row.list_id || p.variant_list_ids.includes(row.list_id))
+    const matches = skuMap.filter(p => p.qbd_list_id === row.list_id || p.variant_list_ids.includes(row.list_id || ""))
     assert.equal(matches.length, 1)
     assert.equal(matches[0].eligible, true)
     assert.equal(row.destination, '/us/products/' + matches[0].handle)
@@ -23,7 +23,7 @@ test('every manifest redirect compiles and matches its actual encoded legacy pat
     assert.ok(match(rows[i].source_path.toUpperCase()), rule.source)
     assert.ok(rule.destination.startsWith('/us'))
     for (const condition of rule.has || []) {
-      const original = rows[i].source_query[condition.key]
+      const original = (rows[i].source_query as Record<string, string | undefined>)[condition.key] || ""
       const value = new URLSearchParams(`${condition.key}=${encodeURIComponent(original)}`).get(condition.key) || ""
       const pattern = new RegExp(`^(?:${condition.value})$`)
       assert.ok(pattern.test(value))
