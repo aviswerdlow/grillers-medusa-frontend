@@ -4,41 +4,20 @@ const fs = require("node:fs")
 const path = require("node:path")
 const { createHash, randomUUID } = require("node:crypto")
 
-const privatePaths = [
-  "/checkout",
-  "/checkout/*",
-  "/account",
-  "/account/*",
-  "/cart",
-  "/order/*",
-  "/api/*",
-]
-
+const {
+  publicOrigin,
+  privatePaths,
+  isPublicPath,
+  isIndexableDeployment,
+} = require("./src/lib/util/site-policy.cjs")
+const siteUrl = publicOrigin()
 const excludedPaths = [
   ...privatePaths,
   "/opengraph-image.jpg",
   "/twitter-image.jpg",
+  "/*.jsp",
+  "/SPD/*",
 ]
-
-const normalizeSiteUrl = (value) => {
-  const url = value || "https://grillers-medusa-frontend.vercel.app"
-  const withProtocol = /^https?:\/\//i.test(url) ? url : `https://${url}`
-  return withProtocol.replace(/\/$/, "")
-}
-
-const canonicalProductionUrl = normalizeSiteUrl(
-  process.env.NEXT_PUBLIC_CANONICAL_BASE_URL ||
-    process.env.NEXT_PUBLIC_PRODUCTION_BASE_URL ||
-    "https://grillers-medusa-frontend.vercel.app"
-)
-
-const siteUrl = normalizeSiteUrl(
-  process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_ENV === "production"
-      ? canonicalProductionUrl
-      : process.env.NEXT_PUBLIC_VERCEL_URL || process.env.VERCEL_URL) ||
-    canonicalProductionUrl
-)
 
 const crawlerUserAgents = [
   "*",
@@ -148,7 +127,9 @@ async function emitSitemapSourceFailureAlert({
     : "sitemap_source_degraded"
   const title = willThrow
     ? `Sitemap ${source} source failed without fallback`
-    : `Sitemap ${source} source failed; ${fallbackCount ? "using previous entries" : "omitting unverified entries"}`
+    : `Sitemap ${source} source failed; ${
+        fallbackCount ? "using previous entries" : "omitting unverified entries"
+      }`
   const alertSource = "storefront-build"
 
   try {
@@ -259,7 +240,8 @@ async function dynamicSitemapEntries({ source, load, fallbackKind }) {
   } catch (error) {
     // Old product URLs have no current eligibility proof. Reusing them can
     // publish an item that has since become an internal production input.
-    const fallbackEntries = fallbackKind === "products" ? [] : existingSitemapEntries(fallbackKind)
+    const fallbackEntries =
+      fallbackKind === "products" ? [] : existingSitemapEntries(fallbackKind)
     const willThrow =
       fallbackEntries.length === 0 && shouldFailClosedWithoutSitemapFallback()
 
@@ -453,14 +435,16 @@ module.exports = {
   robotsTxtOptions: {
     policies: crawlerUserAgents.map((userAgent) => ({
       userAgent,
-      allow: "/",
-      disallow: privatePaths,
+      ...(isIndexableDeployment()
+        ? { allow: "/", disallow: privatePaths }
+        : { disallow: ["/"] }),
     })),
     additionalSitemaps: [
       // Add any additional sitemaps here if needed
     ],
   },
   additionalPaths: async () => {
+    if (!isIndexableDeployment()) return []
     const now = new Date().toISOString()
     const staticEntries = staticPublicPaths.map((entry) => ({
       loc: entry.path,
@@ -491,10 +475,15 @@ module.exports = {
       ...learnEntries,
       ...productEntries,
       ...recipeEntries,
-    ]
+    ].filter(
+      (entry, index, entries) =>
+        isPublicPath(entry.loc) &&
+        entries.findIndex((other) => other.loc === entry.loc) === index
+    )
   },
   // Transform function to customize sitemap entries
   transform: async (config, path) => {
+    if (!isIndexableDeployment() || !isPublicPath(path)) return null
     // Higher priority for main pages
     let priority = config.priority
     let changefreq = config.changefreq
