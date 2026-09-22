@@ -19,7 +19,7 @@ const WholesaleBand: React.FC = () => {
           </h2>
           <p className="mb-6 max-w-[460px] font-maison-neue text-p-md leading-relaxed text-Charcoal/75">
             Weekly catering, school lunch programs, simchas, or restaurant
-            supply. We&apos;d love to talk.
+            supply. Approved business accounts receive their agreed payment terms.
           </p>
           <LocalizedClientLink
             href="/page/wholesale"
@@ -44,8 +44,8 @@ const WholesaleBand: React.FC = () => {
               simchas, we&apos;d love to talk.
             </p>
             <p className="font-maison-neue text-p-md text-Charcoal/60">
-              Volume pricing &middot; Standing orders &middot; Net-30 terms
-              &middot; Custom packaging
+              Volume pricing &middot; Standing orders &middot; Account-specific terms
+              for approved businesses &middot; Custom packaging
             </p>
           </div>
 

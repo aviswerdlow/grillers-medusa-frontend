@@ -277,6 +277,7 @@ const sections: GuideSection[] = [
     ],
     watch: [
       "Do not promise a product fact unless it appears in Strapi, Medusa, or current staff guidance.",
+      "Business payment terms are account-specific and require approval. The wholesale page is an application/contact path, not a promise of Net 30 or automatic credit. Confirm the approved account terms in QuickBooks; no backup card is required.",
       "If a page shows a QuickBooks accounting title to customers, treat that as a bug. Customer-facing names should come from Strapi or Medusa.",
       "For catch-weight items, the cart line Total is still an estimate until staff record the actual weight. Do not promise it as the final charge.",
       "If a product is intentionally inactive, customers should not see a normal back-in-stock promise for it.",
