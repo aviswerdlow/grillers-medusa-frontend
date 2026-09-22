@@ -14,7 +14,6 @@ type ProductTemplateProps = {
   product: HttpTypes.StoreProduct
   region: HttpTypes.StoreRegion
   countryCode: string
-  strapiCommonPdpData: any | Promise<any>
   strapiProductData: any
   purchaseHistoryItem?: PurchaseHistoryItem | null
   pdpExperimentVariant?: string | null
@@ -24,7 +23,6 @@ type ProductTemplateProps = {
 async function PdpEducationSections({
   strapiProductData,
 }: {
-  strapiCommonPdpData: any | Promise<any>
   strapiProductData: any
 }) {
   return (
@@ -38,7 +36,6 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
   product,
   region,
   countryCode,
-  strapiCommonPdpData,
   strapiProductData,
   purchaseHistoryItem,
   pdpExperimentVariant,
@@ -70,7 +67,6 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
       </Suspense>
       <Suspense fallback={null}>
         <PdpEducationSections
-          strapiCommonPdpData={strapiCommonPdpData}
           strapiProductData={strapiProductData}
         />
       </Suspense>
