@@ -47,3 +47,13 @@ test('unresolved and retired fixtures never silently redirect to the homepage', 
   assert.throws(() => buildLegacyRedirects([{...row,source_path:'/us',destination:'/us'}]), /loop/)
   assert.throws(() => buildLegacyRedirects([{...row,destination:'/us/a'},{...row,destination:'/us/b'}]), /Duplicate/)
 })
+
+test('plain Home.jsp rule covers the refresh query without a shadowed rule', () => {
+  const home = manifest.rows.filter(r => r.source_path === '/Home.jsp')
+  assert.equal(home.length, 2)
+  assert.equal(home.find(r => r.source_query.refresh === 'true')?.disposition, 'covered')
+  const rules = buildLegacyRedirects().filter((r: { source: string }) => r.source === '/Home.jsp')
+  assert.equal(rules.length, 1)
+  assert.equal(rules[0].destination, '/us')
+  assert.equal(rules[0].has, undefined)
+})

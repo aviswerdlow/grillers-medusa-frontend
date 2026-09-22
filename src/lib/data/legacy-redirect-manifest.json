@@ -6,7 +6,8 @@
   "identity_fetched_at": "2026-09-22T18:56:42.349311+00:00",
   "summary": {
     "hold": 265,
-    "redirect": 374
+    "redirect": 373,
+    "covered": 1
   },
   "rows": [
     {
@@ -3047,10 +3048,10 @@
       "source_sha256": "c06f3a60cfbc1ef38adfe12ea574f21ac19fc43d806186244ad26ab2878bf5d0",
       "list_id": null,
       "category": null,
-      "destination": "/us",
-      "disposition": "redirect",
+      "destination": null,
+      "disposition": "covered",
       "owner": "Storefront",
-      "reason": "Legacy home to current home."
+      "reason": "The unconditional /Home.jsp redirect also carries this query; a separate rule is shadowed."
     },
     {
       "legacy_url": "https://www.grillerspride.com/SPD/-franks-in-blanks---franks-in-blanks----beef-cocktail-franks-in-a-blanket-o--800008F8-1434400065.jsp",
