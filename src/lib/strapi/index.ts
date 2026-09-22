@@ -1,5 +1,6 @@
 import { GraphQLClient } from "graphql-request"
 import { unstable_cache } from "next/cache"
+import { withStrapiTimeout } from "@lib/util/strapi-timeout"
 import { strapiCacheTagsForRequest, type StrapiCacheTag } from "./cache-tags"
 
 // Strapi content is editor-managed and edits must reflect on the site
@@ -29,9 +30,11 @@ import { strapiCacheTagsForRequest, type StrapiCacheTag } from "./cache-tags"
 // client covers every call-site, current and future. On timeout the
 // request rejects fast and each surface's existing fail-open fallback
 // takes over. Data Cache hits return instantly and are unaffected.
-const STRAPI_FETCH_TIMEOUT_MS = Number(
-  process.env.STRAPI_FETCH_TIMEOUT_MS || 20_000
-)
+const configuredTimeout = Number(process.env.STRAPI_FETCH_TIMEOUT_MS)
+const STRAPI_FETCH_TIMEOUT_MS =
+  Number.isSafeInteger(configuredTimeout) && configuredTimeout > 0
+    ? configuredTimeout
+    : 5_000
 
 const strapiClient = new GraphQLClient(
   `${process.env.STRAPI_ENDPOINT}/graphql`,
@@ -78,12 +81,17 @@ export default strapiClient
 type CachedRequestOptions = {
   revalidateSeconds?: number
   tags?: StrapiCacheTag[]
+  // Opt in only for public display content, never checkout/policy authority.
+  staleOnError?: boolean
+  timeoutMs?: number
+  onError?: (error: unknown, recovered: boolean) => void
 }
 
 type CachedFetcher = (serializedVariables: string) => Promise<unknown>
 
 const cachedFetchers = new Map<string, CachedFetcher>()
 const inFlightCachedRequests = new Map<string, Promise<unknown>>()
+const lastSuccessfulDisplayResults = new Map<string, unknown>()
 
 function queryHash(query: string) {
   let hash = 0
@@ -110,7 +118,7 @@ function normalizeCachedRequestOptions(
   }
 }
 
-export function cachedStrapiRequest<T>(
+export async function cachedStrapiRequest<T>(
   name: string,
   query: string,
   variables?: Record<string, unknown>,
@@ -143,18 +151,37 @@ export function cachedStrapiRequest<T>(
 
   const serializedVariables = JSON.stringify(variables || {})
   const requestKey = `${fetcherKey}|${serializedVariables}`
-  const existingRequest = inFlightCachedRequests.get(requestKey)
-  if (existingRequest) return existingRequest as Promise<T>
-
-  // A cold build/render can ask for the same layout data from many routes at
-  // once. unstable_cache persists the result but does not guarantee that
-  // concurrent misses share one upstream request, so explicitly coalesce the
-  // in-process miss and prevent a Strapi thundering herd.
-  const request = keyed(serializedVariables).finally(() => {
-    if (inFlightCachedRequests.get(requestKey) === request) {
-      inFlightCachedRequests.delete(requestKey)
+  let request = inFlightCachedRequests.get(requestKey)
+  if (!request) {
+    // Data Cache owns persistence/ISR; coalesce concurrent cold reads locally.
+    const pending = keyed(serializedVariables).finally(() => {
+      if (inFlightCachedRequests.get(requestKey) === pending) {
+        inFlightCachedRequests.delete(requestKey)
+      }
+    })
+    request = pending
+    inFlightCachedRequests.set(requestKey, pending)
+  }
+  const displayOptions = typeof options === "object" ? options : undefined
+  try {
+    const result = await (displayOptions?.timeoutMs
+      ? withStrapiTimeout(request, displayOptions.timeoutMs, name)
+      : request)
+    if (displayOptions?.staleOnError) {
+      lastSuccessfulDisplayResults.set(requestKey, result)
     }
-  })
-  inFlightCachedRequests.set(requestKey, request)
-  return request as Promise<T>
+    return result as T
+  } catch (error) {
+    const recovered = Boolean(
+      displayOptions?.staleOnError &&
+        lastSuccessfulDisplayResults.has(requestKey)
+    )
+    try {
+      displayOptions?.onError?.(error, recovered)
+    } catch {
+      /* alert only */
+    }
+    if (recovered) return lastSuccessfulDisplayResults.get(requestKey) as T
+    throw error
+  }
 }

@@ -55,9 +55,8 @@ export async function emitStoreCatalogLoadFailureAlert({
       : "Store catalog failed to load from Strapi",
     path: "src/lib/data/strapi/collections.ts",
     source: "medusa-server",
-    fingerprint: recovered
-      ? `store_catalog:${stage}:degraded`
-      : "store_catalog:all_queries_failed",
+    fingerprint: `store_catalog:${stage}`,
+    dedupeWindowMs: 5 * 60 * 1000,
     meta: {
       catalog_surface: "store",
       stage,
@@ -82,6 +81,7 @@ export async function emitStoreCatalogEmptyAlert({
     path: "src/app/[countryCode]/(main)/store/page.tsx",
     source: "medusa-server",
     fingerprint: "store_catalog:empty",
+    dedupeWindowMs: 5 * 60 * 1000,
     meta: {
       catalog_surface: "store",
       raw_product_count: rawCount,
@@ -98,7 +98,8 @@ export async function emitStoreCatalogInventoryMissingAlert({
   await emitStorefrontOpsAlert({
     alertKind: "store_catalog_inventory_missing",
     severity: "warn",
-    title: "Store catalog has product cards without live inventory observations",
+    title:
+      "Store catalog has product cards without live inventory observations",
     path: "src/app/[countryCode]/(main)/store/page.tsx",
     source: "medusa-server",
     fingerprint: "store_catalog:inventory_missing",

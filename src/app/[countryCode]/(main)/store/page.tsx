@@ -82,16 +82,8 @@ export default async function StorePage(props: Params) {
         `Store catalog resolved with no visible products (${rawProducts.length} raw products)`
       )
     }
-    if (decision === "preserve_stale") {
-      // Transient Strapi failure at runtime: throw so Next's ISR keeps serving the
-      // last-good cached page instead of an empty store or a hard timeout.
-      throw new Error(
-        "Store catalog Strapi load failed; preserving the last-good ISR render"
-      )
-    }
-    // decision === "render_soft": transient Strapi failure during `next build`.
-    // Do NOT fail the deploy — fall through and render the store shell with no
-    // products; ISR repopulates /store within `revalidate` once Strapi recovers.
+    // No cached catalogue exists in this cold process. Keep navigation usable
+    // with an explicit retry state; successful refreshes repopulate the cards.
   }
   const enrichedProducts = await enrichStrapiProductsWithMedusaPrices(
     visibleProducts,
@@ -157,6 +149,19 @@ export default async function StorePage(props: Params) {
   return (
     <>
       <ExperimentExposure assignment={plpExperiment} />
+      {catalogLoadFailed && visibleProducts.length === 0 && (
+        <p role="status" className="content-container py-8">
+          The catalogue is temporarily unavailable.{" "}
+          <a href={`/${countryCode}/store`} className="underline">
+            Try again
+          </a>
+          {" or "}
+          <a href={`/${countryCode}`} className="underline">
+            browse our home page
+          </a>
+          .
+        </p>
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(storeJsonLd) }}

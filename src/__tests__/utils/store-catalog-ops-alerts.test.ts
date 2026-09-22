@@ -29,7 +29,8 @@ describe("store catalog ops alerts", () => {
       expect.objectContaining({
         alertKind: "store_catalog_load_degraded",
         severity: "warn",
-        fingerprint: "store_catalog:primary:degraded",
+        fingerprint: "store_catalog:primary",
+        dedupeWindowMs: 300000,
         path: "src/lib/data/strapi/collections.ts",
         meta: expect.objectContaining({
           catalog_surface: "store",
@@ -55,7 +56,8 @@ describe("store catalog ops alerts", () => {
       expect.objectContaining({
         alertKind: "store_catalog_load_failed",
         severity: "page",
-        fingerprint: "store_catalog:all_queries_failed",
+        fingerprint: "store_catalog:legacy",
+        dedupeWindowMs: 300000,
         meta: expect.objectContaining({
           stage: "legacy",
           recovered: false,
