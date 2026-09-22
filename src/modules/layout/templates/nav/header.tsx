@@ -8,7 +8,6 @@ import type { HttpTypes } from "@medusajs/types"
 import { MobileNavMenu } from "./menu"
 import SearchBar from "./search-bar"
 import MobileSearch from "./mobile-search"
-import { ShieldCheck } from "lucide-react"
 
 type HeaderProps = {
   navLinks: HeaderNavLink[]
@@ -18,6 +17,7 @@ type HeaderProps = {
 }
 
 const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
+  const contactPhone = phoneNumber || "(770) 454-8108"
   return (
     <header className="relative inset-x-0 z-40 bg-white border-b border-[#000/25]">
       <a
@@ -26,10 +26,10 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
       >
         Skip to main content
       </a>
-      <nav className="flex items-center justify-between w-full h-[106px] px-3 lg:px-8 gap-2">
+      <nav className="flex items-center justify-between w-full h-[76px] md:h-[88px] px-3 lg:px-8 gap-2">
         <MobileNavMenu navLinks={navLinks} navCounts={navCounts} />
 
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-4">
           <LocalizedClientLink
             href="/"
             data-testid="nav-store-link"
@@ -46,14 +46,14 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
               aria-hidden="true"
               className="h-[36px] w-[82px]"
             />
-            <span className="hidden md:inline text-xl font-rexton font-bold text-[#2D479D] uppercase tracking-wider">
+            <span className="hidden xl:inline text-xl font-rexton font-bold text-[#2D479D] uppercase tracking-wider whitespace-nowrap">
               Griller&apos;s <span className="text-Gold">&#9733;</span> Pride
             </span>
           </LocalizedClientLink>
         </div>
 
         {/* Search Bar */}
-        <div className="hidden md:block w-1/2 max-w-[558px] h-[50px] mx-4">
+        <div className="hidden md:block min-w-0 flex-1 max-w-[558px] h-[50px] mx-3">
           <SearchBar />
           {/* <input
             type="search"
@@ -62,28 +62,28 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
           /> */}
         </div>
 
-        <div className="flex items-center gap-8">
+        <div className="flex shrink-0 items-center gap-2 lg:gap-5">
           {/* Country Selector - Desktop */}
           <div className="hidden md:block">
             <HeaderCountrySelect regions={regions} />
           </div>
 
-          {phoneNumber && (
+          {contactPhone && (
             <a
-              href={`tel:${phoneNumber.replace(/\D/g, "")}`}
-              className="hidden md:inline-block text-p-md font-maison-neue text-Charcoal hover:underline"
+              href={`tel:${contactPhone.replace(/\D/g, "")}`}
+              className="hidden md:inline-flex min-h-[44px] items-center whitespace-nowrap text-sm font-maison-neue text-Charcoal hover:underline"
             >
-              {phoneNumber}
+              {contactPhone}
             </a>
           )}
 
           <div className="flex items-center gap-1 sm:gap-4">
             {/* Mobile Phone (tap-to-call) */}
-            {phoneNumber && (
+            {contactPhone && (
               <a
-                href={`tel:${phoneNumber.replace(/\D/g, "")}`}
+                href={`tel:${contactPhone.replace(/\D/g, "")}`}
                 className="md:hidden min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-Charcoal hover:text-Gold focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold rounded"
-                aria-label={`Call Griller's Pride at ${phoneNumber}`}
+                aria-label={`Call Griller's Pride at ${contactPhone}`}
               >
                 <svg
                   className="w-6 h-6 fill-current"
@@ -105,31 +105,6 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
           </div>
         </div>
       </nav>
-      <div className="hidden md:flex items-center justify-center gap-2 border-t border-Charcoal/10 bg-Scroll/70 px-4 py-2 font-maison-neue text-[12px] text-Charcoal">
-        <ShieldCheck
-          aria-hidden="true"
-          className="h-4 w-4 shrink-0 text-Charcoal"
-          strokeWidth={1.75}
-        />
-        <span className="font-semibold">Kosher supervision shown by item</span>
-        {["OU", "Star-K", "CHK", "CRC"].map((cert) => (
-          <LocalizedClientLink
-            key={cert}
-            href="/kashruth/hechsherim"
-            prefetch={false}
-            className="inline-flex h-6 min-w-10 items-center justify-center rounded-full border border-Charcoal/20 bg-white px-2 font-maison-neue-mono text-[11px] font-semibold tracking-wide transition-colors hover:border-Gold hover:text-Gold focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold"
-          >
-            {cert}
-          </LocalizedClientLink>
-        ))}
-        <LocalizedClientLink
-          href="/kashruth/hechsherim"
-          prefetch={false}
-          className="ml-1 font-maison-neue-mono text-[11px] font-semibold uppercase tracking-wide underline underline-offset-4 transition-colors hover:text-Gold focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold"
-        >
-          Supervision details
-        </LocalizedClientLink>
-      </div>
     </header>
   )
 }
