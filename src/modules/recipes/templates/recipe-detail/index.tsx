@@ -343,7 +343,10 @@ const RecipeTemplate = ({
             </div>
             {PublishedDate && (
               <p className="mt-1 text-p-md font-maison-neue text-Charcoal/80">
-                Published {new Date(PublishedDate).toLocaleDateString()}
+                Published{" "}
+                {new Date(PublishedDate).toLocaleDateString("en-US", {
+                  timeZone: "UTC",
+                })}
               </p>
             )}
             {ShortDescription && (
