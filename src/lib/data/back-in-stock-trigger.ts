@@ -1,5 +1,7 @@
 "use server"
 
+import { backgroundAdminToken } from "./background-admin-token"
+
 import { sendTemplatedEmail } from "@lib/postmark"
 import { isWaitlistEligible } from "@lib/util/waitlist-eligibility"
 import { isInternalMedusaProduct } from "@lib/util/internal-products"
@@ -33,14 +35,14 @@ import type { HttpTypes } from "@medusajs/types"
  * Env required:
  *   - STRAPI_ENDPOINT, STRAPI_API_TOKEN
  *   - POSTMARK_SERVER_TOKEN (+ POSTMARK_DEFAULT_FROM)
- *   - MEDUSA_BACKEND_URL, MEDUSA_ADMIN_API_TOKEN
+ *   - MEDUSA_BACKEND_URL, MEDUSA_READ_ONLY_API_TOKEN
  *   - NEXT_PUBLIC_SITE_URL (for the restock URL in the email body)
  */
 
 const STRAPI = (process.env.STRAPI_ENDPOINT || "").replace(/\/+$/, "")
 const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN || ""
 const MEDUSA = (process.env.MEDUSA_BACKEND_URL || "").replace(/\/+$/, "")
-const MEDUSA_ADMIN_TOKEN = process.env.MEDUSA_ADMIN_API_TOKEN || ""
+const MEDUSA_ADMIN_TOKEN = backgroundAdminToken()
 const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ||
   "https://grillers-medusa-frontend.vercel.app"

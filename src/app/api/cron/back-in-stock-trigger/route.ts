@@ -1,3 +1,4 @@
+import { backgroundAdminToken } from "@lib/data/background-admin-token"
 import { NextResponse } from "next/server"
 import { runBackInStockTrigger } from "@lib/data/back-in-stock-trigger"
 import {
@@ -20,10 +21,9 @@ function missingBackInStockEnv(): string[] {
     "STRAPI_ENDPOINT",
     "STRAPI_API_TOKEN",
     "MEDUSA_BACKEND_URL",
-    "MEDUSA_ADMIN_API_TOKEN",
     "POSTMARK_SERVER_TOKEN",
   ]
-  return required.filter((name) => !process.env[name])
+  return [...required.filter((name) => !process.env[name]), ...(!backgroundAdminToken() ? ["MEDUSA_READ_ONLY_API_TOKEN or MEDUSA_ADMIN_API_TOKEN"] : [])]
 }
 
 /**

@@ -81,6 +81,23 @@ describe("staff team access ops alerts", () => {
     expect(mockEmitStorefrontOpsAlert).not.toHaveBeenCalled()
   })
 
+  it("revokes an initial administrator through the versioned backend action, without sending role metadata or actor claims", async () => {
+    mockAdminFetch.mockResolvedValueOnce({ customer: { id: "cus_target", email: "peter@grillerspride.com",
+      metadata: { gp_staff_role: "super_admin", staff_access_version: 3 },
+      staff_access: { role: "super_admin", bootstrap: true, session_current: true, final_charge_enabled: true } } })
+      .mockResolvedValueOnce({ customer: { id: "cus_target", email: "peter@grillerspride.com",
+        metadata: { gp_staff_role: "customer", staff_access_version: 4 },
+        staff_access: { role: "customer", bootstrap: true, session_current: true, final_charge_enabled: false } } })
+    const { updateStaffTeamRole } = await import("@lib/data/staff/team-access")
+    const result = await updateStaffTeamRole({ customerId: "cus_target", role: "customer", reason: "Authorized fixture revocation", confirmation: "REMOVE STAFF" })
+    expect(result).toMatchObject({ ok: true, user: { role: "customer", finalChargeEnabled: false, isBootstrapSuperAdmin: true } })
+    expect(mockAdminFetch).toHaveBeenCalledTimes(2)
+    const [endpoint, request] = mockAdminFetch.mock.calls[1]
+    expect(endpoint).toBe("/admin/grillers/staff-access/customers/cus_target")
+    expect(JSON.parse(request.body)).toEqual({ role: "customer", final_charge_enabled: false,
+      reason: "Authorized fixture revocation", confirmation: "REMOVE STAFF", expected_version: 3 })
+  })
+
   it("emits a page alert when persisting a valid role update fails", async () => {
     mockAdminFetch
       .mockResolvedValueOnce({

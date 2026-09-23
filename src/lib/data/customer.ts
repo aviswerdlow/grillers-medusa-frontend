@@ -567,29 +567,9 @@ export const retrieveAuthenticatedCustomer =
       })
   }
 
-export const retrieveAuthenticatedCustomerForStaffAccess =
-  async (): Promise<HttpTypes.StoreCustomer | null> => {
-    const customer = await retrieveAuthenticatedCustomer()
-    if (!customer) return null
-
-    if (isStaffCustomer(customer)) {
-      return customer
-    }
-
-    try {
-      const adminCustomer = await retrieveAdminCustomer(customer.id)
-      if (!isStaffCustomer(adminCustomer as HttpTypes.StoreCustomer | null)) {
-        return customer
-      }
-
-      return {
-        ...customer,
-        metadata: adminCustomer?.metadata || customer.metadata,
-      } as HttpTypes.StoreCustomer
-    } catch {
-      return customer
-    }
-  }
+// The Store response carries current server-derived authority. An admin fallback
+// would give a stale/revoked session another path back into staff tools.
+export const retrieveAuthenticatedCustomerForStaffAccess = retrieveAuthenticatedCustomer
 
 export async function getActiveStaffImpersonation(): Promise<{
   session: StaffImpersonationSession

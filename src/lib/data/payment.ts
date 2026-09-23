@@ -32,6 +32,8 @@ export async function getPaymentContextHeaders() {
   const active = await getActiveStaffImpersonation().catch(() => null)
 
   if (active) {
+    if (!headers.authorization) throw new Error("Sign in again to use staff payment tools.")
+    headers["x-gp-staff-authorization"] = headers.authorization
     headers["x-gp-staff-target-customer-id"] = active.session.targetCustomerId
     headers["x-gp-staff-actor-customer-id"] = active.session.staffCustomerId
   }

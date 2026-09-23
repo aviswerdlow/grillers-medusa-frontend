@@ -3,6 +3,7 @@
 import { sdk } from "@lib/config"
 import { getActiveStaffImpersonation } from "@lib/data/customer"
 import { staffAuditFields } from "@lib/data/staff/admin"
+import { createStaffCart, staffCartHeaders } from "@lib/data/staff/cart-authority"
 import { ATLANTA_DELIVERY_ZIP_DAYS } from "@lib/util/atlanta-delivery-zips"
 import { isSameAddressKey } from "@lib/util/compare-addresses"
 import { normalizeDeliveryZip } from "@lib/util/delivery-zip"
@@ -86,7 +87,7 @@ async function cartHeadersForStaffContext(active: ActiveStaffContext) {
   if (!active) return headers
 
   return {
-    ...headers,
+    ...(await staffCartHeaders()),
     "x-gp-staff-target-customer-id": active.session.targetCustomerId,
     "x-gp-staff-actor-customer-id": active.session.staffCustomerId,
   }
@@ -357,18 +358,17 @@ export async function getOrSetCart(countryCode: string) {
   const headers = await cartHeadersForStaffContext(active)
 
   if (!cart) {
-    const cartResp = await sdk.store.cart.create(
-      withStaffCartMetadata(
-        {
-          region_id: region.id,
-          ...(active ? { email: active.session.targetEmail } : {}),
-        },
-        active,
-        "cart_created"
-      ),
-      {},
-      headers
+    const input = withStaffCartMetadata(
+      {
+        region_id: region.id,
+        ...(active ? { email: active.session.targetEmail } : {}),
+      },
+      active,
+      "cart_created"
     )
+    const cartResp = active
+      ? await createStaffCart(input, "staff_impersonation", active.session.targetCustomerId)
+      : await sdk.store.cart.create(input, {}, headers)
     cart = cartResp.cart
 
     await setCurrentCartId(cart.id, active)
