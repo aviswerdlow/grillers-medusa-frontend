@@ -2,14 +2,12 @@ import React from "react"
 import { Metadata } from "next"
 
 import Hero from "@modules/home/components/hero"
-import TrustBand from "@modules/home/components/trust-band"
 import BestsellersSection from "@modules/home/components/shop-bestsellers"
 import KosherPromiseSection from "@modules/home/components/kosher-promise"
 import WholesaleBand from "@modules/home/components/wholesale-band"
 import ShopCollectionsSection from "@modules/home/components/shop-collections"
 import LearnEntrySection from "@modules/home/components/learn-entry"
 import FollowUsSection from "@modules/home/components/follow-us"
-import BlogExploreSection from "@modules/home/components/blog-explore"
 import PersonalizedReorderRow from "@modules/home/components/personalized-reorder-row"
 import HolidayBanner from "@modules/home/components/holiday-banner"
 import SpecialtyRow from "@modules/home/components/specialty-row"
@@ -247,112 +245,118 @@ export default async function Home(props: {
 
   const renderSections = () => {
     if (homeSections.length) {
-      return homeSections.map((section: any, index: number) => {
-        const isAboveFold = index < 3
+      const readingOrder = [
+        "ComponentHomeHero",
+        "ComponentHomeBestsellers",
+        "ComponentHomeShopCollections",
+        "ComponentHomeKosherPromise",
+        "ComponentHomeBlogExplore",
+        "ComponentHomeFollowUs",
+      ]
+      return [...homeSections]
+        .sort(
+          (a: any, b: any) =>
+            readingOrder.indexOf(a.__typename) -
+            readingOrder.indexOf(b.__typename)
+        )
+        .map((section: any, index: number) => {
+          const isAboveFold = index < 3
 
-        switch (section.__typename) {
-          case "ComponentHomeHero":
-            return (
-              <React.Fragment key={section.__typename}>
-                <Hero data={section} countryCode={countryCode} />
-                <TrustBand phoneNumber={null} />
-                <HolidayBanner />
-              </React.Fragment>
-            )
-          case "ComponentHomeBestsellers":
-            return (
-              <React.Fragment key={section.__typename}>
-                <PersonalizedReorderRow countryCode={countryCode} />
-                <React.Suspense fallback={null}>
-                  <BestsellersSection
-                    data={section}
-                    countryCode={countryCode}
-                  />
-                </React.Suspense>
-                {shouldMoveCollectionsEarly && shopCollectionsSection && (
-                  <>
-                    <React.Suspense fallback={null}>
-                      <ShopCollectionsBlock
-                        data={shopCollectionsSection}
-                        countryCode={countryCode}
-                        collectionsPromise={homeCuratedCollectionsPromise}
-                      />
-                    </React.Suspense>
-                    <React.Suspense fallback={null}>
-                      <DeliveryPromiseBlock countryCode={countryCode} />
-                    </React.Suspense>
-                  </>
-                )}
-                {!hasShopCollectionsSection && (
-                  <>
-                    <React.Suspense fallback={null}>
-                      <ShopCollectionsBlock
-                        data={fallbackCollectionsSection}
-                        countryCode={countryCode}
-                        collectionsPromise={homeCuratedCollectionsPromise}
-                      />
-                    </React.Suspense>
-                    <React.Suspense fallback={null}>
-                      <DeliveryPromiseBlock countryCode={countryCode} />
-                    </React.Suspense>
-                    {!shouldDeferStory && storySupportSections}
-                  </>
-                )}
-              </React.Fragment>
-            )
-          case "ComponentHomeKosherPromise":
-            return (
-              <React.Fragment key={section.__typename}>
-                <React.Suspense fallback={null}>
-                  <SpecialtyRow countryCode={countryCode} />
-                </React.Suspense>
-                <KosherPromiseSection data={section} />
-                <WholesaleBand />
-                {shouldDeferStory && storySupportSections}
-              </React.Fragment>
-            )
-          case "ComponentHomeShopCollections":
-            if (shouldMoveCollectionsEarly) {
+          switch (section.__typename) {
+            case "ComponentHomeHero":
+              return (
+                <React.Fragment key={section.__typename}>
+                  <Hero data={section} countryCode={countryCode} />
+                  <HolidayBanner />
+                </React.Fragment>
+              )
+            case "ComponentHomeBestsellers":
+              return (
+                <React.Fragment key={section.__typename}>
+                  <PersonalizedReorderRow countryCode={countryCode} />
+                  <React.Suspense fallback={null}>
+                    <BestsellersSection
+                      data={section}
+                      countryCode={countryCode}
+                    />
+                  </React.Suspense>
+                  {shouldMoveCollectionsEarly && shopCollectionsSection && (
+                    <>
+                      <React.Suspense fallback={null}>
+                        <ShopCollectionsBlock
+                          data={shopCollectionsSection}
+                          countryCode={countryCode}
+                          collectionsPromise={homeCuratedCollectionsPromise}
+                        />
+                      </React.Suspense>
+                      <React.Suspense fallback={null}>
+                        <DeliveryPromiseBlock countryCode={countryCode} />
+                      </React.Suspense>
+                    </>
+                  )}
+                  {!hasShopCollectionsSection && (
+                    <>
+                      <React.Suspense fallback={null}>
+                        <ShopCollectionsBlock
+                          data={fallbackCollectionsSection}
+                          countryCode={countryCode}
+                          collectionsPromise={homeCuratedCollectionsPromise}
+                        />
+                      </React.Suspense>
+                      <React.Suspense fallback={null}>
+                        <DeliveryPromiseBlock countryCode={countryCode} />
+                      </React.Suspense>
+                      {!shouldDeferStory && storySupportSections}
+                    </>
+                  )}
+                </React.Fragment>
+              )
+            case "ComponentHomeKosherPromise":
+              return (
+                <React.Fragment key={section.__typename}>
+                  <React.Suspense fallback={null}>
+                    <SpecialtyRow countryCode={countryCode} />
+                  </React.Suspense>
+                  <KosherPromiseSection data={section} />
+                  {shouldDeferStory && storySupportSections}
+                </React.Fragment>
+              )
+            case "ComponentHomeShopCollections":
+              if (shouldMoveCollectionsEarly) {
+                return null
+              }
+
+              return (
+                <React.Fragment key={section.__typename}>
+                  <React.Suspense fallback={null}>
+                    <ShopCollectionsBlock
+                      data={section}
+                      countryCode={countryCode}
+                      collectionsPromise={homeCuratedCollectionsPromise}
+                    />
+                  </React.Suspense>
+                  <React.Suspense fallback={null}>
+                    <DeliveryPromiseBlock countryCode={countryCode} />
+                  </React.Suspense>
+                  {!shouldDeferStory && storySupportSections}
+                </React.Fragment>
+              )
+            case "ComponentHomeTestimonial":
               return null
-            }
-
-            return (
-              <React.Fragment key={section.__typename}>
-                <React.Suspense fallback={null}>
-                  <ShopCollectionsBlock
-                    data={section}
-                    countryCode={countryCode}
-                    collectionsPromise={homeCuratedCollectionsPromise}
-                  />
-                </React.Suspense>
-                <React.Suspense fallback={null}>
-                  <DeliveryPromiseBlock countryCode={countryCode} />
-                </React.Suspense>
-                {!shouldDeferStory && storySupportSections}
-              </React.Fragment>
-            )
-          case "ComponentHomeTestimonial":
-            return null
-          case "ComponentHomeFollowUs":
-            return isAboveFold ? (
-              <FollowUsSection key={section.__typename} data={section} />
-            ) : (
-              <LazySection key={section.__typename} minHeight="360px">
-                <FollowUsSection data={section} />
-              </LazySection>
-            )
-          case "ComponentHomeBlogExplore":
-            return isAboveFold ? (
-              <BlogExploreSection key={section.__typename} data={section} />
-            ) : (
-              <LazySection key={section.__typename} minHeight="360px">
-                <BlogExploreSection data={section} />
-              </LazySection>
-            )
-          default:
-            return null
-        }
-      })
+            case "ComponentHomeFollowUs":
+              return isAboveFold ? (
+                <FollowUsSection key={section.__typename} data={section} />
+              ) : (
+                <LazySection key={section.__typename} minHeight="360px">
+                  <FollowUsSection data={section} />
+                </LazySection>
+              )
+            case "ComponentHomeBlogExplore":
+              return null // Recipes and guides share the single Learn & cook section.
+            default:
+              return null
+          }
+        })
     }
     return null
   }
@@ -373,6 +377,7 @@ export default async function Home(props: {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
       />
       {renderSections()}
+      <WholesaleBand />
     </>
   )
 }
