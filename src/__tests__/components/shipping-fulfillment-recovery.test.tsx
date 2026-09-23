@@ -48,11 +48,10 @@ jest.mock("@lib/hooks/use-cart-title-map", () => ({
 jest.mock("@modules/checkout/components/arrival-calendar", () => () => null)
 
 const clearFulfillmentDetailsMock =
-  clearFulfillmentDetails as jest.MockedFunction<
-    typeof clearFulfillmentDetails
-  >
-const setFulfillmentDetailsMock =
-  setFulfillmentDetails as jest.MockedFunction<typeof setFulfillmentDetails>
+  clearFulfillmentDetails as jest.MockedFunction<typeof clearFulfillmentDetails>
+const setFulfillmentDetailsMock = setFulfillmentDetails as jest.MockedFunction<
+  typeof setFulfillmentDetails
+>
 const setShippingMethodMock = setShippingMethod as jest.MockedFunction<
   typeof setShippingMethod
 >
@@ -100,12 +99,7 @@ describe("UPS dead-end fulfillment recovery", () => {
 
   it("returns Atlanta customers to normal scheduling instead of creating a pending selection", async () => {
     const user = userEvent.setup()
-    render(
-      <Shipping
-        cart={upsDeadEndCart}
-        availableShippingMethods={[]}
-      />
-    )
+    render(<Shipping cart={upsDeadEndCart} availableShippingMethods={[]} />)
 
     await user.click(
       await screen.findByRole("button", { name: "Choose Atlanta Delivery" })
@@ -122,36 +116,20 @@ describe("UPS dead-end fulfillment recovery", () => {
     expect(setShippingMethodMock).not.toHaveBeenCalled()
   })
 
-  it("preserves direct plant-pickup recovery and settles it through method attachment", async () => {
+  it("returns plant pickup to scheduling without inventing a same-day date", async () => {
     const user = userEvent.setup()
-    render(
-      <Shipping
-        cart={upsDeadEndCart}
-        availableShippingMethods={[]}
-      />
-    )
+    render(<Shipping cart={upsDeadEndCart} availableShippingMethods={[]} />)
 
     await user.click(
       await screen.findByRole("button", { name: "Switch to Plant Pickup" })
     )
 
     await waitFor(() => {
-      expect(setFulfillmentDetailsMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          cartId: "cart_123",
-          fulfillmentType: "plant_pickup",
-          fulfillmentZip: "00000",
-        })
-      )
-      expect(findShippingOptionByTypeMock).toHaveBeenCalledWith(
-        "cart_123",
-        "plant_pickup"
-      )
-      expect(setShippingMethodMock).toHaveBeenCalledWith({
-        cartId: "cart_123",
-        shippingMethodId: "plant_pickup_option",
-      })
+      expect(clearFulfillmentDetailsMock).toHaveBeenCalledWith("cart_123")
+      expect(routerRefresh).toHaveBeenCalled()
     })
-    expect(clearFulfillmentDetailsMock).not.toHaveBeenCalled()
+    expect(setFulfillmentDetailsMock).not.toHaveBeenCalled()
+    expect(setShippingMethodMock).not.toHaveBeenCalled()
+    expect(findShippingOptionByTypeMock).not.toHaveBeenCalled()
   })
 })
