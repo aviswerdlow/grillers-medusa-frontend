@@ -1,63 +1,63 @@
 {
   "version": 1,
   "issue": "https://github.com/aviswerdlow/grillers-pride-strategy/issues/377",
-  "sourceBase": "bff19fd1871543a58f556bb4f7635384b6d9ad4c",
+  "sourceBase": "bb993eacc7a141a9a881dfc8fb8d98959fa4244f",
   "policy": "Only these diagnostic counts on exact unchanged source files are accepted. New or changed errors remain fatal. Remove entries when owners fix the source.",
   "files": [
     {
       "path": "src/__tests__/utils/profile-sms-marketing-page.test.tsx",
-      "sha256": "8677c54439d8f1ec0e86e225c9dbd74c467ad92b1fb42124bc80729f1f8678f7",
+      "sha256": "c80fa86e350b05f5d8b81b0cb4bbd88cd88e58feeaac4f8d9a51119e76373b1c",
       "errors": [
         {
           "ruleId": "react/display-name",
-          "line": 26,
+          "line": 30,
           "column": 61,
-          "endLine": 28,
+          "endLine": 32,
           "endColumn": 2,
           "message": "Component definition is missing display name",
           "count": 1
         },
         {
           "ruleId": "react/display-name",
-          "line": 29,
+          "line": 33,
           "column": 62,
-          "endLine": 31,
+          "endLine": 35,
           "endColumn": 2,
           "message": "Component definition is missing display name",
           "count": 1
         },
         {
           "ruleId": "react/display-name",
-          "line": 32,
+          "line": 36,
           "column": 62,
-          "endLine": 34,
+          "endLine": 38,
           "endColumn": 2,
           "message": "Component definition is missing display name",
           "count": 1
         },
         {
           "ruleId": "react/display-name",
-          "line": 35,
+          "line": 39,
           "column": 65,
-          "endLine": 37,
+          "endLine": 41,
           "endColumn": 2,
           "message": "Component definition is missing display name",
           "count": 1
         },
         {
           "ruleId": "react/display-name",
-          "line": 38,
+          "line": 42,
           "column": 72,
-          "endLine": 40,
+          "endLine": 44,
           "endColumn": 2,
           "message": "Component definition is missing display name",
           "count": 1
         },
         {
           "ruleId": "react/display-name",
-          "line": 44,
+          "line": 48,
           "column": 5,
-          "endLine": 48,
+          "endLine": 52,
           "endColumn": 6,
           "message": "Component definition is missing display name",
           "count": 1
@@ -89,8 +89,8 @@
       ]
     },
     {
-      "path": "src/modules/checkout/components/arrival-calendar/index.tsx",
-      "sha256": "609c286fbc8103254e29e8e720ac293057470a7604f0a7f538a49b73100274d7",
+      "path": "src/modules/checkout/components/arrival-calendar/legacy-calendar.tsx",
+      "sha256": "92f4f5e70e3c8c224067eb11a2903e76493c63c1b05e1dd4f3acf3ab34b10c71",
       "errors": [
         {
           "ruleId": "react/no-unescaped-entities",
@@ -159,11 +159,11 @@
     },
     {
       "path": "src/modules/checkout/components/fulfillment-step/index.tsx",
-      "sha256": "ce232a2928a0284eda75d9e05411838a023ab6bfc3c972f75dd1134e30062f4a",
+      "sha256": "596bd9ae377e96d20acf2ab3912216cbd0431559ab09ff0d64f8e38283cca83f",
       "errors": [
         {
           "ruleId": "react/no-unescaped-entities",
-          "line": 856,
+          "line": 775,
           "column": 53,
           "endLine": null,
           "endColumn": null,
@@ -172,7 +172,7 @@
         },
         {
           "ruleId": "react/no-unescaped-entities",
-          "line": 865,
+          "line": 784,
           "column": 29,
           "endLine": null,
           "endColumn": null,
@@ -181,7 +181,7 @@
         },
         {
           "ruleId": "react/no-unescaped-entities",
-          "line": 868,
+          "line": 787,
           "column": 82,
           "endLine": null,
           "endColumn": null,
@@ -255,11 +255,11 @@
     },
     {
       "path": "src/modules/staff/components/phone-order-copilot/index.tsx",
-      "sha256": "be9e9da93dd2d4a373f119e9fd2a2087e8050931f96e08520558a9efabda7dc4",
+      "sha256": "3294807fea09e1bdccd6f3527b009fb047d10ce39ad905caf49edfeb69064fc7",
       "errors": [
         {
           "ruleId": "react/no-unescaped-entities",
-          "line": 788,
+          "line": 729,
           "column": 32,
           "endLine": null,
           "endColumn": null,
@@ -268,7 +268,7 @@
         },
         {
           "ruleId": "react/no-unescaped-entities",
-          "line": 788,
+          "line": 729,
           "column": 58,
           "endLine": null,
           "endColumn": null,
