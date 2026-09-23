@@ -2569,7 +2569,7 @@
       "source_sha256": "09caea0b5f9b03c764462e484b1ea86a8189fdf522f55ea8f6b2eaa193bc9737",
       "list_id": null,
       "category": "Kosher Turkey and Duck By Source:Kosher Duck Antibiotic-Free Free Range",
-      "destination": "/us/collections/kosher-turkey",
+      "destination": "/us/collections/kosher-duck",
       "disposition": "redirect",
       "reason": "Avi-approved navigational fallback; no equivalent product, offer or legacy scope is asserted.",
       "policy_lane": "broader_collection"
@@ -2884,7 +2884,7 @@
       "source_sha256": "a4078c27fb93961d99713270d903d80f5892c722f63910dbe510a3602e90ea0f",
       "list_id": null,
       "category": "Specialties - Biltong, Drywors",
-      "destination": "/us/collections/kosher-charcuterie",
+      "destination": "/us/collections/kosher-specialty-charcuterie",
       "disposition": "redirect",
       "reason": "Avi-approved navigational fallback; no equivalent product, offer or legacy scope is asserted.",
       "policy_lane": "broader_collection"
@@ -4099,7 +4099,7 @@
       "source_sha256": "e82c51abfe1a6bfa2acf260060c5f4252218c5e901120f18d60a7485391f18b9",
       "list_id": "390000-1102714368",
       "category": null,
-      "destination": "/us/collections/kosher-charcuterie",
+      "destination": "/us/collections/kosher-specialty-charcuterie",
       "disposition": "redirect",
       "reason": "Avi-approved navigational fallback; no equivalent product, offer or legacy scope is asserted.",
       "policy_lane": "current_category"
@@ -4112,7 +4112,7 @@
       "source_sha256": "5a47ba7cefc14ec63a957fd0e47c5490de4230683eae48e4fe6eda69a7f08a38",
       "list_id": "F30000-1139167617",
       "category": null,
-      "destination": "/us/collections/kosher-charcuterie",
+      "destination": "/us/collections/kosher-specialty-charcuterie",
       "disposition": "redirect",
       "reason": "Avi-approved navigational fallback; no equivalent product, offer or legacy scope is asserted.",
       "policy_lane": "current_category"
@@ -4679,7 +4679,7 @@
       "source_sha256": "bbbcf4fbfa6eb50b504a25c2134206a3b37808920ae21c1d94293c102369fcdd",
       "list_id": "80000679-1328572653",
       "category": null,
-      "destination": "/us/collections/kosher-dairy",
+      "destination": "/us/collections/kosher-cheese",
       "disposition": "redirect",
       "reason": "Avi-approved navigational fallback; no equivalent product, offer or legacy scope is asserted.",
       "policy_lane": "current_category"

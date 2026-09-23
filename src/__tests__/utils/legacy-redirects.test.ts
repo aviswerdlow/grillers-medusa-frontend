@@ -31,6 +31,23 @@ test('approved policy fallbacks cover the former holds without inventing product
   assert.deepEqual(manifest.summary, {redirect: 638, covered: 1})
   assert.equal(manifest.rows.filter(r => r.disposition === 'hold').length, 0)
 })
+test('duck, mozzarella, and biltong fallbacks use the reviewed closer collections', () => {
+  const fixtures: Array<{field: 'category' | 'list_id'; value: string; destination: string}> = [
+    {field: 'category', value: 'Kosher Turkey and Duck By Source:Kosher Duck Antibiotic-Free Free Range', destination: '/us/collections/kosher-duck'},
+    {field: 'list_id', value: '80000679-1328572653', destination: '/us/collections/kosher-cheese'},
+    {field: 'category', value: 'Specialties - Biltong, Drywors', destination: '/us/collections/kosher-specialty-charcuterie'},
+    {field: 'list_id', value: '390000-1102714368', destination: '/us/collections/kosher-specialty-charcuterie'},
+    {field: 'list_id', value: 'F30000-1139167617', destination: '/us/collections/kosher-specialty-charcuterie'},
+  ]
+  for (const fixture of fixtures) {
+    const rows = manifest.rows.filter(row => row[fixture.field] === fixture.value)
+    assert.equal(rows.length, 1, fixture.value)
+    assert.equal(rows[0].policy_lane === 'current_category' || rows[0].policy_lane === 'broader_collection', true)
+    assert.equal(rows[0].destination, fixture.destination)
+    assert.equal(buildLegacyRedirects(rows)[0].destination, fixture.destination)
+  }
+  assert.ok(manifest.rows.find(row => row.list_id === '800005E9-1321290589')?.destination?.startsWith('/us/products/'))
+})
 test('every manifest redirect compiles and matches its actual encoded legacy path and mixed case', () => {
   const rows = manifest.rows.filter(r => r.disposition === 'redirect')
   const rules: Array<{source:string;destination:string;has?:Array<{key:string;value:string}>}> = buildLegacyRedirects()
