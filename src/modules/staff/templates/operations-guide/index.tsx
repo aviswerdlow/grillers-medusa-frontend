@@ -231,7 +231,7 @@ const publicSurfaces = [
     route: "/us/recipes",
     name: "Recipe hub",
     staffUse:
-      "Use for recipe discovery, filters, holiday buckets, and product-related cooking guidance.",
+      "Use for recipe discovery by occasion or cut, then refine with search and filters. Clear the selected category to see all recipes. Published recipe addresses stay the same.",
   },
   {
     route: "/us/learn",
