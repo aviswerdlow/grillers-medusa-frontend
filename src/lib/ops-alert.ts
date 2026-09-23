@@ -12,7 +12,10 @@ type OpsAlertInput = {
   eventId?: string
   url?: string | null
   meta?: Record<string, unknown>
+  dedupeWindowMs?: number
 }
+
+const lastAlertAt = new Map<string, number>()
 
 /**
  * Resolve the gp-analytics ingestion endpoint + auth for SERVER-side emission.
@@ -89,6 +92,16 @@ export async function emitStorefrontOpsAlert(input: OpsAlertInput) {
   const fingerprint =
     input.fingerprint ||
     buildOpsAlertFingerprint(source, input.alertKind, input.title)
+  if (input.dedupeWindowMs) {
+    const key = `${source}:${fingerprint}`
+    const last = lastAlertAt.get(key)
+    if (last !== undefined && Date.now() - last < input.dedupeWindowMs) {
+      clearTimeout(timeout)
+      return { ok: true, skipped: true }
+    }
+    // Claim before awaiting delivery so concurrent failures produce one alert.
+    lastAlertAt.set(key, Date.now())
+  }
 
   // Contract shared with the backend: ClickHouse grillers_pride.events with
   // event_name='ops_alert' and properties carrying alert_kind/severity/

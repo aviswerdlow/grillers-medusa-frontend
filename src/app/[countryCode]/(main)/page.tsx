@@ -26,11 +26,28 @@ import {
 } from "@lib/data/strapi/global"
 import { generateAlternates } from "@lib/util/seo"
 import { getBaseURL } from "@lib/util/env"
-import { withTimeout } from "@lib/util/promise-timeout"
 import { resolveHomeSections } from "@lib/util/home-sections"
 import { emitFallbackHomepageOpsAlert } from "@lib/homepage-ops-alerts"
 import { withCuratedCollectionsTimeoutAlert } from "@lib/curated-collections-ops-alerts"
 import { resolveHomepageCmsPolicies } from "@lib/home-cms-policy"
+import { emitStorefrontOpsAlert } from "@lib/ops-alert"
+import { shouldEmitRuntimeOpsAlerts } from "@lib/util/build-context"
+
+export const maxDuration = 30
+
+function homeCmsFailure(stage: "home" | "global") {
+  return (_error: unknown, recovered: boolean) => {
+    if (!shouldEmitRuntimeOpsAlerts()) return
+    void emitStorefrontOpsAlert({
+      alertKind: "homepage_cms_degraded",
+      title: `Homepage ${stage} content refresh failed`,
+      path: "src/app/[countryCode]/(main)/page.tsx",
+      fingerprint: `homepage_cms:${stage}`,
+      dedupeWindowMs: 5 * 60 * 1000,
+      meta: { stage, recovered_from_cache: recovered },
+    }).catch(() => {})
+  }
+}
 
 type PageProps = {
   params: Promise<{ countryCode: string }>
@@ -77,7 +94,9 @@ export async function generateMetadata({
   try {
     const strapiData = await cachedStrapiRequest<HomePageData>(
       "home-page",
-      GetHomePageQuery
+      GetHomePageQuery,
+      undefined,
+      { staleOnError: true, revalidateSeconds: 300 }
     )
     const seo = strapiData?.home?.SEO
     const socialMeta = strapiData?.home?.SocialMeta
@@ -147,22 +166,23 @@ export default async function Home(props: {
   } = resolveHomepageCmsPolicies()
 
   const [strapiData, globalData] = await Promise.all([
-    withTimeout(
-      cachedStrapiRequest<HomePageData>("home-page", GetHomePageQuery).catch(
-        () => null
-      ),
-      homeCmsPolicy.timeoutMs,
-      null,
-      "home Strapi data"
-    ),
-    withTimeout(
-      cachedStrapiRequest<GlobalData>("home-global", GetGlobalQuery).catch(
-        () => null
-      ),
-      globalCmsPolicy.timeoutMs,
-      null,
-      "home global data"
-    ),
+    cachedStrapiRequest<HomePageData>(
+      "home-page",
+      GetHomePageQuery,
+      undefined,
+      {
+        staleOnError: true,
+        revalidateSeconds: 300,
+        timeoutMs: homeCmsPolicy.timeoutMs,
+        onError: homeCmsFailure("home"),
+      }
+    ).catch(() => null),
+    cachedStrapiRequest<GlobalData>("home-global", GetGlobalQuery, undefined, {
+      staleOnError: true,
+      revalidateSeconds: 300,
+      timeoutMs: globalCmsPolicy.timeoutMs,
+      onError: homeCmsFailure("global"),
+    }).catch(() => null),
   ])
 
   const homeCuratedCollectionsPromise = withCuratedCollectionsTimeoutAlert({

@@ -1,0 +1,11 @@
+# CMS timeout recovery — #334
+
+Tracking: https://github.com/aviswerdlow/grillers-pride-strategy/issues/334
+
+The transport defaults to 20 seconds; the store loader defaults to 8 seconds. Positive integer environment overrides remain available. The loader can return early without aborting the underlying query, allowing a slower successful result to refill Next Data Cache after a publish invalidation. A transport or loader timeout stops the legacy schema retry. Non-timeout schema errors retain compatibility fallback. Vercel Production currently lists `STRAPI_FETCH_TIMEOUT_MS` as pinned; the value was not retrieved. The Vercel owner must confirm it is at least 20 seconds or remove the override before the code default can take effect. Set the store loader bound with `STRAPI_STORE_CATALOG_TIMEOUT_MS=8000`; do not pin the transport to 5 seconds.
+
+The store retains its last successful compacted catalogue per client and returns it when refresh fails. Public homepage/global/rail reads opt into remembered display responses; checkout and policy reads do not. Next Data Cache still supplies persistent caching and five-minute public-content revalidation. The additional remembered result is process-local: a new process without any successful response cannot manufacture a catalogue and renders an actionable retry state with `robots: noindex`. Metadata and page share the same request-scoped catalogue load. Medusa still supplies prices and inventory. A successfully empty catalogue replaces the remembered result.
+
+The homepage declares `maxDuration = 30`. Degradation alerts coalesce by stage and kind for five minutes within each server process, so a recovered warning cannot silence an unrecovered page. The receiver remains responsible for distributed deduplication. Homepage alerts remain suppressed during production builds.
+
+Validation: the focused review-fix suite passed 17 tests across cache, catalogue alerts and render decisions, and `tsc --noEmit` passed. Regression coverage includes the default transport deadline, separate warning/page alert identities and noindex only for a failed cold catalogue. The previously verified primary-timeout → one request → cached-catalogue fixture is unchanged. Exact-head CI and preview evidence are linked from the issue; local tests do not establish Production acceptance.
