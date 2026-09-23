@@ -17,14 +17,24 @@ if (
 }
 
 const deployment = new URL(DEPLOYMENT_URL)
+const productionAliases = new Set([
+  "grillers-medusa-frontend.vercel.app",
+  "www.grillerspride.com",
+])
 if (
   deployment.protocol !== "https:" ||
-  !/^grillers-medusa-frontend-[a-z0-9]+-griller-s-pride\.vercel\.app$/.test(
-    deployment.hostname
+  deployment.username ||
+  deployment.password ||
+  deployment.port ||
+  !(
+    /^grillers-medusa-frontend-[a-z0-9]+-griller-s-pride\.vercel\.app$/.test(
+      deployment.hostname
+    ) || productionAliases.has(deployment.hostname)
   )
 ) {
   throw new Error("Unexpected production deployment URL")
 }
+console.log(`Production warm-up target: ${deployment.hostname}`)
 
 const branchResponse = await fetch(
   `https://api.github.com/repos/${GITHUB_REPOSITORY}/branches/main`,
