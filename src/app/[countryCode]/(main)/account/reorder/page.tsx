@@ -93,7 +93,8 @@ export default async function ReorderPage({
     )
     strapiProducts = await enrichStrapiProductsWithMedusaPrices(
       products,
-      countryCode
+      countryCode,
+      { requireLivePrices: true }
     )
   } catch (error) {
     void emitOrderHistoryDataFailureAlert({

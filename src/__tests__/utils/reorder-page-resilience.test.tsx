@@ -7,6 +7,7 @@ import {
   listPurchaseHistory,
 } from "@lib/data/orders"
 import { getProductsByMedusaLookupRefs } from "@lib/data/strapi/collections"
+import { enrichStrapiProductsWithMedusaPrices } from "@lib/data/products"
 import { emitOrderHistoryDataFailureAlert } from "@lib/order-history-ops-alerts"
 
 jest.mock("@lib/data/customer", () => ({
@@ -58,6 +59,10 @@ const mockListAllLegacyCustomerOrders =
 const mockGetProductsByMedusaLookupRefs =
   getProductsByMedusaLookupRefs as jest.MockedFunction<
     typeof getProductsByMedusaLookupRefs
+  >
+const mockEnrichStrapiProductsWithMedusaPrices =
+  enrichStrapiProductsWithMedusaPrices as jest.MockedFunction<
+    typeof enrichStrapiProductsWithMedusaPrices
   >
 const mockEmitOrderHistoryDataFailureAlert =
   emitOrderHistoryDataFailureAlert as jest.MockedFunction<
@@ -128,6 +133,32 @@ describe("reorder page resilience", () => {
         failureCount: 3,
         path: "src/app/[countryCode]/(main)/account/reorder/page.tsx",
       })
+    )
+  })
+
+  it("requires exact live variant prices when enriching reorder history", async () => {
+    const product = {
+      Title: "Current product",
+      MedusaProduct: {
+        ProductId: "prod_test",
+        Handle: "current-product",
+        Variants: [
+          {
+            VariantId: "var_test",
+            Sku: "SKU-1",
+            Price: { CalculatedPriceNumber: 10 },
+          },
+        ],
+      },
+    } as any
+    mockGetProductsByMedusaLookupRefs.mockResolvedValue([product])
+
+    await ReorderPage({ params: Promise.resolve({ countryCode: "us" }) })
+
+    expect(mockEnrichStrapiProductsWithMedusaPrices).toHaveBeenCalledWith(
+      [product],
+      "us",
+      { requireLivePrices: true }
     )
   })
 })
