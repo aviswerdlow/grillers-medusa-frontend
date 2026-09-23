@@ -46,7 +46,7 @@ test('duck, mozzarella, and biltong fallbacks use the reviewed closer collection
     assert.equal(rows[0].destination, fixture.destination)
     assert.equal(buildLegacyRedirects(rows)[0].destination, fixture.destination)
   }
-  assert.ok(manifest.rows.find(row => row.list_id === '800005E9-1321290589')?.destination.startsWith('/us/products/'))
+  assert.ok(manifest.rows.find(row => row.list_id === '800005E9-1321290589')?.destination?.startsWith('/us/products/'))
 })
 test('every manifest redirect compiles and matches its actual encoded legacy path and mixed case', () => {
   const rows = manifest.rows.filter(r => r.disposition === 'redirect')
