@@ -1,0 +1,281 @@
+{
+  "version": 1,
+  "issue": "https://github.com/aviswerdlow/grillers-pride-strategy/issues/377",
+  "sourceBase": "bb993eacc7a141a9a881dfc8fb8d98959fa4244f",
+  "policy": "Only these diagnostic counts on exact unchanged source files are accepted. New or changed errors remain fatal. Remove entries when owners fix the source.",
+  "files": [
+    {
+      "path": "src/__tests__/utils/profile-sms-marketing-page.test.tsx",
+      "sha256": "c80fa86e350b05f5d8b81b0cb4bbd88cd88e58feeaac4f8d9a51119e76373b1c",
+      "errors": [
+        {
+          "ruleId": "react/display-name",
+          "line": 30,
+          "column": 61,
+          "endLine": 32,
+          "endColumn": 2,
+          "message": "Component definition is missing display name",
+          "count": 1
+        },
+        {
+          "ruleId": "react/display-name",
+          "line": 33,
+          "column": 62,
+          "endLine": 35,
+          "endColumn": 2,
+          "message": "Component definition is missing display name",
+          "count": 1
+        },
+        {
+          "ruleId": "react/display-name",
+          "line": 36,
+          "column": 62,
+          "endLine": 38,
+          "endColumn": 2,
+          "message": "Component definition is missing display name",
+          "count": 1
+        },
+        {
+          "ruleId": "react/display-name",
+          "line": 39,
+          "column": 65,
+          "endLine": 41,
+          "endColumn": 2,
+          "message": "Component definition is missing display name",
+          "count": 1
+        },
+        {
+          "ruleId": "react/display-name",
+          "line": 42,
+          "column": 72,
+          "endLine": 44,
+          "endColumn": 2,
+          "message": "Component definition is missing display name",
+          "count": 1
+        },
+        {
+          "ruleId": "react/display-name",
+          "line": 48,
+          "column": 5,
+          "endLine": 52,
+          "endColumn": 6,
+          "message": "Component definition is missing display name",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/components/wholesale-lead-form/index.tsx",
+      "sha256": "1456d4948f0335e6c725d01e1b34941bc8f44229b4a3285664761342d7f30610",
+      "errors": [
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 143,
+          "column": 18,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        },
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 276,
+          "column": 13,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/modules/checkout/components/arrival-calendar/legacy-calendar.tsx",
+      "sha256": "92f4f5e70e3c8c224067eb11a2903e76493c63c1b05e1dd4f3acf3ab34b10c71",
+      "errors": [
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 430,
+          "column": 66,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/modules/checkout/components/checkout-login-banner/index.tsx",
+      "sha256": "83fc6a2ffc9c59c8106695beee765a8c3162f089f1e00d6d4d111c58212ba124",
+      "errors": [
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 390,
+          "column": 65,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        },
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 427,
+          "column": 36,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/modules/checkout/components/fulfillment-selector/address-form.tsx",
+      "sha256": "d903b439130e8b15cdf334f4bedd1eb18202bcf4d1631dcdef4353a411d6f5dc",
+      "errors": [
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 713,
+          "column": 17,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/modules/checkout/components/fulfillment-selector/scheduling/ups-shipping.tsx",
+      "sha256": "c4e2bb795db3a8021f8287b0ae3dff114840fd9c51c1a9a536ca4bf2abbd1d8c",
+      "errors": [
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 112,
+          "column": 48,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/modules/checkout/components/fulfillment-step/index.tsx",
+      "sha256": "596bd9ae377e96d20acf2ab3912216cbd0431559ab09ff0d64f8e38283cca83f",
+      "errors": [
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 775,
+          "column": 53,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        },
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 784,
+          "column": 29,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        },
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 787,
+          "column": 82,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/modules/common/components/cart-helpers/index.tsx",
+      "sha256": "8aed7887833fc21f571408374f012c400141f557b44bfad79c376573a3cf36d7",
+      "errors": [
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 113,
+          "column": 12,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        },
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 65,
+          "column": 14,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        },
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 71,
+          "column": 35,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/modules/home/components/specialty-row/swiper.tsx",
+      "sha256": "f93fbbbad9b27486c50739db0a6207da0906f00340560bce897fb1dba1729f9e",
+      "errors": [
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 39,
+          "column": 25,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/modules/products/components/notify-back-in-stock/index.tsx",
+      "sha256": "d63c91b8abeaeb8a3bf3a16b64b864acceb82dac05c33a3439711ec48bd6f673",
+      "errors": [
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 79,
+          "column": 46,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/modules/staff/components/phone-order-copilot/index.tsx",
+      "sha256": "3294807fea09e1bdccd6f3527b009fb047d10ce39ad905caf49edfeb69064fc7",
+      "errors": [
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 729,
+          "column": 32,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`\"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.",
+          "count": 1
+        },
+        {
+          "ruleId": "react/no-unescaped-entities",
+          "line": 729,
+          "column": 58,
+          "endLine": null,
+          "endColumn": null,
+          "message": "`\"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.",
+          "count": 1
+        }
+      ]
+    }
+  ]
+}
