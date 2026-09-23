@@ -2,7 +2,11 @@ import { gql } from "graphql-request"
 import strapiClient, { cachedStrapiRequest } from "@lib/strapi"
 import { compactCollectionProducts } from "@lib/util/collection-product"
 import { withTimeout } from "@lib/util/promise-timeout"
-import { isStrapiTimeout, withStrapiTimeout } from "@lib/util/strapi-timeout"
+import {
+  isStrapiTimeout,
+  strapiTransportTimeoutMs,
+  withStrapiTimeout,
+} from "@lib/util/strapi-timeout"
 import type { StrapiSEO, StrapiSocialMeta } from "./seo"
 import type { IngredientDisclosure } from "types/strapi"
 
@@ -1216,8 +1220,15 @@ export async function getStoreProducts(
   client: any,
   options: StoreProductsOptions = {}
 ): Promise<StrapiCollectionProduct[]> {
-  const timeoutMs = storeCatalogTimeoutMs()
   const cacheKey = client || strapiClient
+  const hasStaleCatalog = Boolean(lastSuccessfulStoreCatalog.get(cacheKey)?.length)
+  // An early return is safe only when this process can serve a last-good
+  // catalogue. A true cold miss must outlive the transport's own deadline so
+  // its successful result can populate the shared Next Data Cache.
+  const timeoutMs = hasStaleCatalog
+    ? Math.min(storeCatalogTimeoutMs(), DEFAULT_STORE_CATALOG_TIMEOUT_MS)
+    : strapiTransportTimeoutMs()
+  const queryBoundMs = hasStaleCatalog ? timeoutMs : timeoutMs + 1_000
   const remember = (products: StrapiCollectionProduct[]) => {
     const catalog = compactCollectionProducts(products)
     lastSuccessfulStoreCatalog.set(cacheKey, catalog)
@@ -1237,7 +1248,7 @@ export async function getStoreProducts(
     const products = await withStoreCatalogTimeout(
       fetchPaginatedProducts(client, GetStoreProductsQuery, {}, 1000, 1),
       "primary",
-      timeoutMs
+      queryBoundMs
     )
 
     return remember(products)
@@ -1253,7 +1264,7 @@ export async function getStoreProducts(
     const products = await withStoreCatalogTimeout(
       fetchPaginatedProducts(client, LegacyGetStoreProductsQuery, {}, 1000, 1),
       "legacy",
-      timeoutMs
+      queryBoundMs
     )
 
     notifyStoreCatalogFailure(options, {

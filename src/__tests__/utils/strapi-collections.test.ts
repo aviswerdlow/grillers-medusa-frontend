@@ -236,6 +236,40 @@ describe("Strapi collection product loaders", () => {
     )
   })
 
+  it("lets a cold miss pass the stale bound and fills the catalogue cache", async () => {
+    process.env.STRAPI_STORE_CATALOG_TIMEOUT_MS = "5"
+    process.env.STRAPI_FETCH_TIMEOUT_MS = "40"
+    const products = [{ documentId: "cold-filled", Title: "Cold catalogue" }]
+    const client = {
+      request: jest
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              setTimeout(() => resolve({ products }), 15)
+            })
+        )
+        .mockReturnValueOnce(new Promise(() => {})),
+    }
+
+    await expect(getStoreProducts(client)).resolves.toEqual([
+      expect.objectContaining({ documentId: "cold-filled" }),
+    ])
+
+    const onLoadFailure = jest.fn()
+    await expect(getStoreProducts(client, { onLoadFailure })).resolves.toEqual([
+      expect.objectContaining({ documentId: "cold-filled" }),
+    ])
+    expect(client.request).toHaveBeenCalledTimes(2)
+    expect(onLoadFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: "primary",
+        recovered: true,
+        timeoutMs: 5,
+      })
+    )
+  })
+
   it("does not retry a transport timeout and cannot reuse a different client's catalogue", async () => {
     const warmClient = {
       request: jest
@@ -258,7 +292,7 @@ describe("Strapi collection product loaders", () => {
       expect.objectContaining({
         stage: "primary",
         recovered: false,
-        timeoutMs: 8000,
+        timeoutMs: 20000,
       })
     )
   })

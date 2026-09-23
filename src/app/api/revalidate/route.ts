@@ -1,5 +1,7 @@
 import { revalidateTag } from "next/cache"
 import { NextResponse } from "next/server"
+import { getStoreProducts } from "@lib/data/strapi/collections"
+import strapiClient from "@lib/strapi"
 import {
   LEGACY_STRAPI_CACHE_TAG,
   strapiCacheTagsForWebhook,
@@ -21,6 +23,8 @@ import {
  * that consume it. A product publish refreshes product-backed surfaces without
  * cold-starting header, footer, homepage, and every other Strapi query.
  */
+
+export const maxDuration = 60
 
 export async function POST(request: Request) {
   const expected = process.env.REVALIDATE_SECRET
@@ -52,6 +56,20 @@ export async function POST(request: Request) {
   } catch {
     // Strapi may POST an empty body for some events. The tag mapper preserves
     // the old fail-safe global behavior for that exceptional payload.
+  }
+
+  if (event === "deployment.ready") {
+    // The deployment-status workflow calls this on the new deployment URL.
+    // No tag is invalidated: this read fills that deployment's cold store
+    // query as soon as Vercel reports it ready.
+    const products = await getStoreProducts(strapiClient)
+    const visibleProductCount = products.filter((product) =>
+      Boolean(product.FeaturedImage?.url)
+    ).length
+    return NextResponse.json(
+      { warmed: visibleProductCount > 0, visibleProductCount },
+      { status: visibleProductCount > 0 ? 200 : 503 }
+    )
   }
 
   const tags = [

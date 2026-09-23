@@ -1,3 +1,10 @@
+export function strapiTransportTimeoutMs(): number {
+  const configured = Number(process.env.STRAPI_FETCH_TIMEOUT_MS)
+  return Number.isSafeInteger(configured) && configured > 0
+    ? configured
+    : 20_000
+}
+
 export function isStrapiTimeout(error: unknown, depth = 0): boolean {
   if (!error || typeof error !== "object" || depth > 3) return false
   const value = error as {

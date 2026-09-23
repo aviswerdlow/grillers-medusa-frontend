@@ -1,6 +1,9 @@
 import { GraphQLClient } from "graphql-request"
 import { unstable_cache } from "next/cache"
-import { withStrapiTimeout } from "@lib/util/strapi-timeout"
+import {
+  strapiTransportTimeoutMs,
+  withStrapiTimeout,
+} from "@lib/util/strapi-timeout"
 import { strapiCacheTagsForRequest, type StrapiCacheTag } from "./cache-tags"
 
 // Strapi content is editor-managed and edits must reflect on the site
@@ -30,12 +33,6 @@ import { strapiCacheTagsForRequest, type StrapiCacheTag } from "./cache-tags"
 // client covers every call-site, current and future. On timeout the
 // request rejects fast and each surface's existing fail-open fallback
 // takes over. Data Cache hits return instantly and are unaffected.
-const configuredTimeout = Number(process.env.STRAPI_FETCH_TIMEOUT_MS)
-const STRAPI_FETCH_TIMEOUT_MS =
-  Number.isSafeInteger(configuredTimeout) && configuredTimeout > 0
-    ? configuredTimeout
-    : 20_000
-
 const strapiClient = new GraphQLClient(
   `${process.env.STRAPI_ENDPOINT}/graphql`,
   {
@@ -58,7 +55,8 @@ const strapiClient = new GraphQLClient(
         cache: "no-store",
         // Preserve a caller-supplied signal if one ever appears; today no
         // call-site passes one, so the timeout signal is the bound.
-        signal: reqInit.signal || AbortSignal.timeout(STRAPI_FETCH_TIMEOUT_MS),
+        signal:
+          reqInit.signal || AbortSignal.timeout(strapiTransportTimeoutMs()),
       })
     },
   }

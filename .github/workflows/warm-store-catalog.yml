@@ -1,0 +1,27 @@
+name: Warm store catalog after production deploy
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  warm-store:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production' &&
+      github.event.deployment.creator.login == 'vercel[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Warm the deployed store query
+        env:
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+          DEPLOYMENT_URL: ${{ github.event.deployment_status.environment_url }}
+          GH_TOKEN: ${{ github.token }}
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+        run: node .github/scripts/warm-store-catalog.mjs

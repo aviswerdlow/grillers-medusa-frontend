@@ -15,11 +15,24 @@ jest.mock("next/server", () => ({
   },
 }))
 
+jest.mock("@lib/strapi", () => ({
+  __esModule: true,
+  default: { request: jest.fn() },
+}))
+
+jest.mock("@lib/data/strapi/collections", () => ({
+  getStoreProducts: jest.fn(),
+}))
+
 import { POST } from "../../app/api/revalidate/route"
 import { revalidateTag } from "next/cache"
+import { getStoreProducts } from "@lib/data/strapi/collections"
 
 const mockRevalidateTag = revalidateTag as jest.MockedFunction<
   typeof revalidateTag
+>
+const mockGetStoreProducts = getStoreProducts as jest.MockedFunction<
+  typeof getStoreProducts
 >
 
 describe("Strapi revalidation route", () => {
@@ -59,5 +72,51 @@ describe("Strapi revalidation route", () => {
       ["strapi:model:product"],
       ["strapi"],
     ])
+  })
+
+  it("warms the new deployment's store query without invalidating tags", async () => {
+    mockGetStoreProducts.mockResolvedValueOnce([
+      {
+        documentId: "warm-store-product",
+        Title: "Warm Store Product",
+        FeaturedImage: { url: "https://example.com/product.jpg" },
+      },
+    ])
+    const result = (await POST(
+      new Request("https://storefront.test/api/revalidate", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer revalidate-test-secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ event: "deployment.ready" }),
+      })
+    )) as unknown as {
+      body: { warmed: boolean; visibleProductCount: number }
+      status: number
+    }
+
+    expect(result.status).toBe(200)
+    expect(result.body).toEqual({ warmed: true, visibleProductCount: 1 })
+    expect(mockGetStoreProducts).toHaveBeenCalledTimes(1)
+    expect(mockRevalidateTag).not.toHaveBeenCalled()
+  })
+
+  it("fails the deployment warm-up when no visible products load", async () => {
+    mockGetStoreProducts.mockResolvedValueOnce([])
+    const result = (await POST(
+      new Request("https://storefront.test/api/revalidate", {
+        method: "POST",
+        headers: {
+          authorization: "Bearer revalidate-test-secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ event: "deployment.ready" }),
+      })
+    )) as unknown as { body: { warmed: boolean }; status: number }
+
+    expect(result.status).toBe(503)
+    expect(result.body.warmed).toBe(false)
+    expect(mockRevalidateTag).not.toHaveBeenCalled()
   })
 })
