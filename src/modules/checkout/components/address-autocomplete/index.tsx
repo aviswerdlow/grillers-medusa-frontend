@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef, useCallback, useState } from "react"
+import React, { useEffect, useId, useRef, useCallback, useState } from "react"
 
 type AddressFields = {
   address_1: string
@@ -15,6 +15,7 @@ type AddressAutocompleteProps = {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onAddressSelect: (fields: AddressFields) => void
   name: string
+  id?: string
   label: string
   required?: boolean
   autoComplete?: string
@@ -121,10 +122,14 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   onChange,
   onAddressSelect,
   name,
+  id,
   label,
   required,
   "data-testid": dataTestId,
 }) => {
+  const generatedId = useId()
+  const inputId = id || `gp-address-${generatedId}`
+  const listboxId = `${inputId}-suggestions`
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const onAddressSelectRef = useRef(onAddressSelect)
@@ -204,6 +209,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           ref={inputRef}
           type="text"
           name={name}
+          id={inputId}
           placeholder=" "
           required={required}
           autoComplete="off"
@@ -216,15 +222,15 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           role="combobox"
           aria-expanded={showDropdown}
           aria-autocomplete="list"
-          aria-activedescendant={activeIndex >= 0 ? `addr-suggestion-${activeIndex}` : undefined}
+          aria-controls={showDropdown ? listboxId : undefined}
+          aria-activedescendant={showDropdown && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
         />
         <label
-          htmlFor={name}
-          onClick={() => inputRef.current?.focus()}
+          htmlFor={inputId}
           className="flex items-center justify-center mx-3 px-1 transition-all absolute duration-300 top-3 -z-1 origin-0 text-ui-fg-subtle"
         >
           {label}
-          {required && <span className="text-rose-500">*</span>}
+          {required && <span aria-hidden="true" className="text-rose-500">*</span>}
         </label>
       </div>
 
@@ -232,11 +238,12 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
         <ul
           className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
           role="listbox"
+          id={listboxId}
         >
           {suggestions.map((s, i) => (
             <li
               key={s.placeId}
-              id={`addr-suggestion-${i}`}
+              id={`${listboxId}-${i}`}
               role="option"
               aria-selected={i === activeIndex}
               className={`px-4 py-3 text-sm cursor-pointer transition-colors ${

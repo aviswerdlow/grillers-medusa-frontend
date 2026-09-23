@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useRef, useState } from "react"
 import { completePasswordReset } from "@lib/data/customer"
 import Input from "@modules/common/components/input"
 import { SubmitButton } from "@modules/checkout/components/submit-button"
@@ -15,19 +15,28 @@ const ResetPassword = ({ token, email }: Props) => {
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const errorId = useId()
+  const [invalidField, setInvalidField] = useState<"password" | "confirm" | null>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const confirmRef = useRef<HTMLInputElement>(null)
   const [submitted, setSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setInvalidField(null)
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters.")
+      setInvalidField("password")
+      passwordRef.current?.focus()
       return
     }
     if (password !== confirm) {
       setError("Passwords do not match.")
+      setInvalidField("confirm")
+      confirmRef.current?.focus()
       return
     }
 
@@ -72,6 +81,9 @@ const ResetPassword = ({ token, email }: Props) => {
       <form className="w-full" onSubmit={handleSubmit}>
         <Input
           label="New password"
+          ref={passwordRef}
+          aria-describedby={error ? errorId : undefined}
+          aria-invalid={invalidField === "password" || undefined}
           name="password"
           type="password"
           value={password}
@@ -83,6 +95,9 @@ const ResetPassword = ({ token, email }: Props) => {
         <div className="mt-4">
           <Input
             label="Confirm new password"
+            ref={confirmRef}
+            aria-describedby={error ? errorId : undefined}
+            aria-invalid={invalidField === "confirm" || undefined}
             name="confirm"
             type="password"
             value={confirm}
@@ -92,7 +107,7 @@ const ResetPassword = ({ token, email }: Props) => {
             data-testid="reset-password-confirm"
           />
         </div>
-        {error && <p className="text-sm text-red-500 mt-3">{error}</p>}
+        {error && <p id={errorId} role="alert" className="text-sm text-red-500 mt-3">{error}</p>}
         <SubmitButton
           data-testid="reset-password-submit"
           className="w-full mt-6"
