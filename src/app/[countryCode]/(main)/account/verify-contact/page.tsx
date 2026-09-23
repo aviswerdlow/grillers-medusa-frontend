@@ -1,3 +1,4 @@
+import { retrieveSmsMarketingStatus } from "@lib/data/sms-marketing"
 import { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { retrieveCustomer } from "@lib/data/customer"
@@ -49,6 +50,7 @@ export default async function VerifyContactPage(props: {
 
   return (
     <ContactVerification
+      marketingStatus={await retrieveSmsMarketingStatus()}
       customer={customer}
       phoneCandidates={collectPhoneCandidates(customer)}
       countryCode={countryCode}

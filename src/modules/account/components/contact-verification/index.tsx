@@ -8,8 +8,9 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { SubmitButton } from "@modules/checkout/components/submit-button"
 import { jitsuTrack } from "@lib/jitsu"
-import { submitContactVerification } from "@lib/data/contact-verification"
+import { submitContactVerification, skipContactVerification } from "@lib/data/contact-verification"
 import {
+  hasCurrentSmsSubscription,
   SMS_MARKETING_DISCLOSURE,
   SMS_MARKETING_OPT_IN_LABEL,
 } from "@lib/util/sms-consent"
@@ -18,7 +19,12 @@ import {
   formatPhoneForDisplay,
 } from "@lib/util/contact-verification"
 
+import { contactRevision } from "@lib/util/customer-contact-state"
+
+import type { SmsMarketingStatusResponse } from "@lib/data/sms-marketing"
+
 type Props = {
+  marketingStatus?: SmsMarketingStatusResponse | null
   customer: HttpTypes.StoreCustomer
   phoneCandidates: PhoneCandidate[]
   countryCode: string
@@ -33,21 +39,27 @@ const sectionNumber = (n: number) => (
 /**
  * First-login verification for migrated customers: primary mobile + SMS
  * opt-in (optional — TCPA consent is never a condition of purchase),
- * primary email, and default shipping address. One submit; NOT skippable —
- * details must be confirmed before the account dashboard is reachable.
+ * primary email, and default shipping address. A session-scoped deferral keeps
+ * the account reachable without claiming confirmation or consent.
  */
 const ContactVerification = ({
   customer,
   phoneCandidates,
   countryCode,
+  marketingStatus = null,
 }: Props) => {
   const router = useRouter()
-  const [state, formAction] = useActionState(submitContactVerification, null)
+  const [requestId, setRequestId] = useState("")
+  useEffect(() => { setRequestId(crypto.randomUUID()) }, [])
+  const [state, formAction, confirming] = useActionState(submitContactVerification, null)
+  const [skipping, setSkipping] = useState(false)
+  const [skipError, setSkipError] = useState<string | null>(null)
 
   const hasCandidates = phoneCandidates.length > 0
   const [phoneChoice, setPhoneChoice] = useState(
     hasCandidates ? phoneCandidates[0].value : "other"
   )
+  const [smsOptIn, setSmsOptIn] = useState(hasCurrentSmsSubscription(marketingStatus, phoneCandidates[0]?.value))
   const [emailChoice, setEmailChoice] = useState<"current" | "different">(
     "current"
   )
@@ -74,7 +86,7 @@ const ContactVerification = ({
         customer_id: customer.id,
         sms_opt_in: Boolean(state.smsOptedIn),
       })
-      router.push(`/${countryCode}/account?verified=1`)
+      router.push(state.receiptEmailPending ? `/${countryCode}/account/profile` : `/${countryCode}/account?verified=1`)
       router.refresh()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,12 +99,14 @@ const ContactVerification = ({
         let&apos;s confirm your details
       </h1>
       <p className="mt-2 text-base-regular text-ui-fg-subtle">
-        You&apos;re one of our long-time customers, and this is our new home.
-        Take 60 seconds to confirm how we reach you and where we ship — then
-        you&apos;re all set.
+        Please confirm your primary mobile and shipping address for the new site.
+        Text updates are optional.
       </p>
 
       <form action={formAction} className="mt-8 flex flex-col gap-y-8">
+        <input type="hidden" name="sms_marketing_choice_unavailable" value={String(!marketingStatus)} />
+        <input type="hidden" name="contact_revision" value={contactRevision(customer.metadata)} />
+        <input type="hidden" name="contact_request_id" value={requestId} />
         {/* ── 1 · Mobile number + texts ─────────────────────────── */}
         <section className="rounded-lg border border-ui-border-base bg-ui-bg-base p-5">
           <div className="flex items-center gap-x-3">
@@ -102,7 +116,7 @@ const ContactVerification = ({
             </h2>
           </div>
           <p className="mt-2 text-small-regular text-ui-fg-subtle">
-            Which of these is the best mobile number for your customer profile?
+            Choose one primary mobile number for your account. Saved addresses and past orders keep their original contact details.
           </p>
 
           <div className="mt-4 flex flex-col gap-y-2" data-testid="phone-candidates">
@@ -116,7 +130,7 @@ const ContactVerification = ({
                   name="primary_phone"
                   value={candidate.value}
                   checked={phoneChoice === candidate.value}
-                  onChange={() => setPhoneChoice(candidate.value)}
+                  onChange={() => { setPhoneChoice(candidate.value); setSmsOptIn(false) }}
                   className="mt-1 h-4 w-4 accent-Gold"
                 />
                 <span>
@@ -133,7 +147,7 @@ const ContactVerification = ({
                 name="primary_phone"
                 value="other"
                 checked={phoneChoice === "other"}
-                onChange={() => setPhoneChoice("other")}
+                onChange={() => { setPhoneChoice("other"); setSmsOptIn(false) }}
                 className="mt-1 h-4 w-4 accent-Gold"
                 data-testid="phone-other-radio"
               />
@@ -149,26 +163,32 @@ const ContactVerification = ({
                 <Input
                   label="Mobile number"
                   name="primary_phone_other"
+                  id="primary_phone_other"
                   type="tel"
                   autoComplete="mobile tel"
                   required
+                  onChange={() => setSmsOptIn(false)}
                   data-testid="phone-other-input"
                 />
               </div>
             ) : null}
           </div>
 
-          {/* Must stay unchecked-by-default: TCPA "express written consent"
-              requires the subscriber's own affirmative action, and Twilio
-              toll-free verification rejected the number (code 30446) over
-              exactly this. Pre-checking also contradicts the consent
-              declaration in our carrier filing. */}
+          <p className="mt-3 text-small-regular text-ui-fg-subtle">
+            Saving confirms this is your number. It does not verify ownership by text.
+            Order texts are a separate, optional choice at checkout.
+          </p>
+          {/* Reflect an existing subscription only for its current number. */}
           <label className="mt-4 flex cursor-pointer items-start gap-x-3 rounded-md bg-ui-bg-subtle p-3">
             <input
               className="mt-1 h-4 w-4 shrink-0 accent-Gold"
               name="sms_marketing_opt_in"
+              id="sms_marketing_opt_in"
               type="checkbox"
               value="on"
+              checked={smsOptIn}
+              disabled={!marketingStatus}
+              onChange={(event) => setSmsOptIn(event.target.checked)}
               data-testid="sms-marketing-opt-in"
             />
             <span className="text-left">
@@ -201,7 +221,7 @@ const ContactVerification = ({
             <h2 className="text-large-semi text-ui-fg-base">Your email</h2>
           </div>
           <p className="mt-2 text-small-regular text-ui-fg-subtle">
-            Order confirmations and receipts go here.
+            Your sign-in email currently receives order confirmations and receipts.
           </p>
 
           <div className="mt-4 flex flex-col gap-y-2">
@@ -244,6 +264,7 @@ const ContactVerification = ({
                 <Input
                   label="Preferred email"
                   name="preferred_email"
+                  id="preferred_email"
                   type="email"
                   autoComplete="email"
                   required
@@ -251,8 +272,8 @@ const ContactVerification = ({
                 />
                 <p className="mt-1 text-xs text-ui-fg-subtle">
                   You&apos;ll still sign in with {customer.email}, and
-                  receipts stay there for now — we&apos;ll confirm this
-                  address with you before switching anything over.
+                  receipts stay there until you enter the verification code
+                  we send to this address. You can finish this in your profile.
                 </p>
               </div>
             ) : null}
@@ -322,20 +343,20 @@ const ContactVerification = ({
               <div className="grid grid-cols-1 gap-3 pl-7 small:grid-cols-2">
                 <Input
                   label="First name"
-                  name="new_first_name"
+                  name="new_first_name" id="new_first_name"
                   autoComplete="given-name"
                   defaultValue={customer.first_name || ""}
                 />
                 <Input
                   label="Last name"
-                  name="new_last_name"
+                  name="new_last_name" id="new_last_name"
                   autoComplete="family-name"
                   defaultValue={customer.last_name || ""}
                 />
                 <div className="small:col-span-2">
                   <Input
                     label="Street address"
-                    name="new_address_1"
+                    name="new_address_1" id="new_address_1"
                     autoComplete="address-line1"
                     required
                   />
@@ -343,25 +364,25 @@ const ContactVerification = ({
                 <div className="small:col-span-2">
                   <Input
                     label="Apt, suite, etc. (optional)"
-                    name="new_address_2"
+                    name="new_address_2" id="new_address_2"
                     autoComplete="address-line2"
                   />
                 </div>
                 <Input
                   label="City"
-                  name="new_city"
+                  name="new_city" id="new_city"
                   autoComplete="address-level2"
                   required
                 />
                 <Input
                   label="State"
-                  name="new_province"
+                  name="new_province" id="new_province"
                   autoComplete="address-level1"
                   required
                 />
                 <Input
                   label="ZIP code"
-                  name="new_postal_code"
+                  name="new_postal_code" id="new_postal_code"
                   autoComplete="postal-code"
                   required
                 />
@@ -371,17 +392,30 @@ const ContactVerification = ({
           </div>
         </section>
 
-        <ErrorMessage error={state?.error || null} data-testid="contact-verification-error" />
+        <div role="alert" aria-live="polite">
+          <ErrorMessage error={skipError || state?.error || null} data-testid="contact-verification-error" />
+        </div>
 
         <div className="flex flex-col gap-y-3">
           <SubmitButton
             className="w-full"
             data-testid="contact-verification-submit"
+            disabled={!requestId || skipping}
           >
             Confirm my details
           </SubmitButton>
         </div>
       </form>
+      <button type="button" className="mt-4 min-h-[44px] w-full text-sm underline disabled:opacity-50"
+        disabled={skipping || confirming} onClick={async () => {
+          setSkipping(true); setSkipError(null)
+          try {
+            const result = await skipContactVerification()
+            if (!result.ok) { setSkipError("We could not continue. Please sign in again or try once more."); return }
+            router.push(`/${countryCode}/account`); router.refresh()
+          } catch { setSkipError("We could not continue. Please try again.") }
+          finally { setSkipping(false) }
+        }}>Do this later</button>
     </div>
   )
 }

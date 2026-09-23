@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef } from "react"
+import { useActionState, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { HttpTypes } from "@medusajs/types"
 
@@ -8,6 +8,7 @@ import {
   submitSmsMarketingOptIn,
   type SmsMarketingStatusResponse,
 } from "@lib/data/sms-marketing"
+import { contactRevision } from "@lib/util/customer-contact-state"
 import { formatPhone } from "@lib/util/format-phone"
 import {
   normalizeSmsMarketingPhone,
@@ -26,6 +27,8 @@ type Props = {
 
 const ProfileSmsMarketing = ({ customer, marketingStatus }: Props) => {
   const router = useRouter()
+  const [requestId, setRequestId] = useState("")
+  useEffect(() => { setRequestId(crypto.randomUUID()) }, [])
   const formRef = useRef<HTMLFormElement>(null)
   const [state, formAction] = useActionState(submitSmsMarketingOptIn, null)
   const normalizedPhone = normalizeSmsMarketingPhone(customer.phone)
@@ -51,6 +54,7 @@ const ProfileSmsMarketing = ({ customer, marketingStatus }: Props) => {
     // used. Reset immediately so React never leaves the checkbox selected
     // after a successful submission, then refresh the server-owned status.
     formRef.current?.reset()
+    setRequestId(crypto.randomUUID())
     router.refresh()
   }, [router, state?.receipt])
 
@@ -61,6 +65,8 @@ const ProfileSmsMarketing = ({ customer, marketingStatus }: Props) => {
       className="w-full"
       data-testid="sms-marketing-profile-form"
     >
+      <input type="hidden" name="contact_revision" value={contactRevision(customer.metadata)} />
+      <input type="hidden" name="contact_request_id" value={requestId} />
       <div className="flex flex-col gap-y-4">
         <div>
           <div className="flex flex-wrap items-center justify-between gap-2">

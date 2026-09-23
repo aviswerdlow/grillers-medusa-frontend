@@ -66,6 +66,8 @@ const mockedFetch = sdk.client.fetch as jest.MockedFunction<
 
 function optedInForm(phone = "(404) 555-0100") {
   const form = new FormData()
+  form.set("contact_revision", "0")
+  form.set("contact_request_id", "synthetic-contact-request-01")
   form.set("phone", phone)
   form.set("sms_marketing_opt_in", "on")
   return form
@@ -86,12 +88,15 @@ describe("signed-in SMS marketing action", () => {
     })
     mockedGetCacheTag.mockResolvedValue("customers-tag")
     mockedUpdate.mockResolvedValue({} as any)
-    mockedFetch.mockResolvedValue({
+    mockedFetch.mockImplementation(async (_path, options) => {
+      if (options?.method === "POST") throw { status: 404 }
+      return {
       status: "not_subscribed",
       phone: null,
       consented_at: null,
       opted_out_at: null,
-    } as any)
+    } as any
+    })
   })
 
   it("hard-blocks staff impersonation before any customer read or write", async () => {
@@ -209,7 +214,6 @@ describe("signed-in SMS marketing action", () => {
     expect(body).toMatchObject({
       phone: "4045550100",
       metadata: {
-        favorite_cut: "brisket",
         sms_marketing_opt_in: true,
         sms_consent: true,
         sms_consent_status: "subscribed",
@@ -264,7 +268,7 @@ describe("signed-in SMS marketing action", () => {
     }
   })
 
-  it("merges the latest authenticated metadata immediately before writing", async () => {
+  it("never replays staff or unrelated profile metadata in the legacy fallback", async () => {
     mockedRetrieveAuthenticatedCustomer
       .mockResolvedValueOnce({
         id: "cus_profile",
@@ -276,7 +280,7 @@ describe("signed-in SMS marketing action", () => {
         id: "cus_profile",
         email: "customer@example.com",
         phone: "4045559999",
-        metadata: { preference: "new", concurrent_update: true },
+        metadata: { preference: "new", concurrent_update: true, created_by_staff_id: "staff_existing", gp_credit_limit: 500 },
       } as any)
 
     await submitSmsMarketingOptIn(null, optedInForm())
@@ -284,12 +288,36 @@ describe("signed-in SMS marketing action", () => {
     const [body] = mockedUpdate.mock.calls[0]
     expect(body.metadata).toEqual(
       expect.objectContaining({
-        preference: "new",
-        concurrent_update: true,
         sms_consent_source: "account_profile",
       })
     )
-    expect(body.metadata).not.toHaveProperty("stale_only")
+    for (const key of ["stale_only", "preference", "concurrent_update", "created_by_staff_id", "gp_credit_limit"]) expect(body.metadata).not.toHaveProperty(key)
+  })
+
+  it("uses the contact transaction with the displayed revision and request identity", async () => {
+    mockedFetch.mockImplementation(async (_path, options) => options?.method === "POST"
+      ? { ok: true, revision: 1 } as any
+      : { status: "not_subscribed", phone: null, consented_at: null, opted_out_at: null } as any)
+    expect((await submitSmsMarketingOptIn(null, optedInForm()))?.success).toBe(true)
+    expect(mockedFetch).toHaveBeenCalledWith("/store/customers/me/contact", expect.objectContaining({
+      method: "POST", body: { phone: "4045550100", expected_revision: 0, request_id: "synthetic-contact-request-01", sms_marketing_opt_in: true },
+    }))
+    expect(mockedUpdate).not.toHaveBeenCalled()
+  })
+
+  it.each([401, 403, 409, 500, 503])("never downgrades a contact failure %s", async status => {
+    mockedFetch.mockImplementation(async (_path, options) => {
+      if (options?.method === "POST") throw { status }
+      return { status: "not_subscribed", phone: null, consented_at: null, opted_out_at: null } as any
+    })
+    expect((await submitSmsMarketingOptIn(null, optedInForm()))?.success).toBe(false)
+    expect(mockedUpdate).not.toHaveBeenCalled()
+  })
+
+  it("never downgrades a previously attested primary contact on 404", async () => {
+    mockedRetrieveAuthenticatedCustomer.mockResolvedValue({ id: "cus_profile", metadata: { primary_contact_v1: { revision: 1 } } } as any)
+    expect((await submitSmsMarketingOptIn(null, optedInForm()))?.success).toBe(false)
+    expect(mockedUpdate).not.toHaveBeenCalled()
   })
 
   it("reads authenticated status without caching and rejects malformed payloads", async () => {
