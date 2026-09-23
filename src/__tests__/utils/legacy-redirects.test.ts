@@ -5,13 +5,31 @@ const { buildLegacyRedirects, literalQuery } = require('../../lib/util/legacy-re
 import manifest from "../../lib/data/legacy-redirect-manifest.json"
 import skuMap from "../../lib/data/legacy-listid-sku-map.json"
 
-test('each product redirect has a unique, eligible ListID identity; SKU names never choose the target', () => {
-  for (const row of manifest.rows.filter(r => r.list_id && r.disposition === 'redirect')) {
+test('each direct product redirect has a unique, eligible ListID identity; SKU names never choose the target', () => {
+  for (const row of manifest.rows.filter(r => r.list_id && r.disposition === 'redirect' && !('policy_lane' in r))) {
     const matches = skuMap.filter(p => p.qbd_list_id === row.list_id || p.variant_list_ids.includes(row.list_id || ""))
     assert.equal(matches.length, 1)
     assert.equal(matches[0].eligible, true)
     assert.equal(row.destination, '/us/products/' + matches[0].handle)
   }
+})
+test('approved policy fallbacks cover the former holds without inventing product successors', () => {
+  const policyRows = manifest.rows.filter(r => 'policy_lane' in r)
+  assert.equal(policyRows.length, 265)
+  assert.deepEqual(
+    policyRows.reduce((counts: Record<string, number>, row) => {
+      counts[row.policy_lane!] = (counts[row.policy_lane!] || 0) + 1
+      return counts
+    }, {}),
+    {broader_collection: 156, current_category: 68, current_page: 41}
+  )
+  for (const row of policyRows) {
+    assert.equal(row.disposition, 'redirect')
+    assert.ok(row.destination?.startsWith('/us/'))
+    assert.ok(!row.destination?.startsWith('/us/products/'))
+  }
+  assert.deepEqual(manifest.summary, {redirect: 638, covered: 1})
+  assert.equal(manifest.rows.filter(r => r.disposition === 'hold').length, 0)
 })
 test('every manifest redirect compiles and matches its actual encoded legacy path and mixed case', () => {
   const rows = manifest.rows.filter(r => r.disposition === 'redirect')
