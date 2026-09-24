@@ -39,6 +39,7 @@ import {
   replacementUnitPrice,
 } from "./replacement-pricing"
 import { resolveStaffLinePricingBasis } from "./pricing-basis"
+import { PackingEstimate } from "./packing-estimate"
 
 const statusLabels: Record<string, string> = {
   pending_pick: "Needs picking",
@@ -2740,10 +2741,18 @@ export default function StaffCatchWeightFinalizationConsole({
                           <span className="mt-1 block truncate text-xs font-maison-neue text-Charcoal/50">
                             {[
                               fulfillmentTypeLabel(item.fulfillment_type),
-                              shortDateLabel(item.fulfillment_date),
+                              item.fulfillment_date ? `Dispatch / pickup ${shortDateLabel(item.fulfillment_date)}` : "Dispatch date needs review",
                             ]
                               .filter(Boolean)
                               .join(" | ")}
+                          </span>
+                        )}
+                        {(item.pick_date || item.arrival_date) && (
+                          <span className="mt-1 block text-xs font-maison-neue text-Charcoal/60">
+                            {[
+                              item.pick_date && `Prepare ${shortDateLabel(item.pick_date)}`,
+                              item.arrival_date && `Arrival / pickup ${shortDateLabel(item.arrival_date)}`,
+                            ].filter(Boolean).join(" | ")}
                           </span>
                         )}
                         <span className="mt-1 block">
@@ -3120,6 +3129,7 @@ export default function StaffCatchWeightFinalizationConsole({
               </div>
 
               {canViewAuditTrail && <OrderAuditTrail order={detail.order} />}
+              {detail.package_capture_required && <PackingEstimate metadata={detail.order?.metadata} />}
 
               {canEditLines && inPickingPhase && (
                 <AddFinalizationItem

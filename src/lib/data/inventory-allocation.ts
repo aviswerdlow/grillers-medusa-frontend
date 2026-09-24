@@ -1,5 +1,6 @@
 import "server-only"
 
+import { adminFetch } from "./staff/admin"
 import type { HttpTypes } from "@medusajs/types"
 
 type AnyRecord = Record<string, any>
@@ -67,24 +68,6 @@ const MEDUSA_BACKEND_URL = (
 
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || ""
 
-function adminToken(): string {
-  return process.env.MEDUSA_ADMIN_API_TOKEN || process.env.MEDUSA_API_TOKEN || ""
-}
-
-function adminHeaders(): HeadersInit {
-  const token = adminToken()
-  if (!token) {
-    throw new Error(
-      "MEDUSA_ADMIN_API_TOKEN missing. Inventory allocation staff checks require backend admin access."
-    )
-  }
-
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Basic ${Buffer.from(`${token}:`).toString("base64")}`,
-  }
-}
-
 function storeHeaders(): HeadersInit {
   return {
     "Content-Type": "application/json",
@@ -127,14 +110,10 @@ export async function checkStoreInventoryAvailability(
 export async function checkStaffInventoryAvailability(
   input: InventoryAvailabilityInput
 ) {
-  return availabilityFetch(
-    "/admin/grillers/inventory/availability",
-    {
-      ...input,
-      source: input.source || "staff_phone_order",
-    },
-    adminHeaders()
-  )
+  return adminFetch<InventoryAvailabilityResult>("/admin/grillers/inventory/availability", {
+    method: "POST",
+    body: JSON.stringify({ ...input, source: input.source || "staff_phone_order" }),
+  })
 }
 
 export function requestedFulfillmentDateFromCart(

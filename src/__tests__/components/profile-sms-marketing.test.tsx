@@ -51,6 +51,7 @@ function marketingStatus(
 
 describe("signed-in SMS marketing opt-in", () => {
   beforeEach(() => {
+    Object.defineProperty(globalThis.crypto, "randomUUID", { configurable: true, value: () => "synthetic-contact-request-01" })
     jest.clearAllMocks()
     mockActionState = null
   })

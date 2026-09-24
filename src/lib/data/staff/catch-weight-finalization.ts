@@ -16,7 +16,7 @@ import {
   staffDisplayName,
 } from "@lib/util/staff-access"
 import { revalidatePath } from "next/cache"
-import { adminFetch, appendStaffAuditLog } from "./admin"
+import { adminFetch } from "./admin"
 
 type AnyRecord = Record<string, any>
 type StaffAuditCustomer = Parameters<typeof staffDisplayName>[0] & AnyRecord
@@ -33,6 +33,9 @@ export type StaffCatchWeightFinalizationSummary = {
   fulfillment_type?: string | null
   fulfillment_date?: string | null
   fulfillment_date_key?: string | null
+  arrival_date?: string | null
+  pick_date?: string | null
+  dispatch_date?: string | null
   estimated_order_total?: number | string | null
   final_order_total?: number | string | null
   delta_total?: number | string | null
@@ -136,25 +139,6 @@ function detailForStaff(
       ...detail.order,
       metadata,
     },
-  }
-}
-
-async function updateOrderMetadata(orderId: string, metadata: AnyRecord) {
-  try {
-    await adminFetch<{ order: AnyRecord }>(`/admin/orders/${orderId}`, {
-      method: "POST",
-      body: JSON.stringify({ metadata }),
-      query: { fields: ORDER_FULFILLMENT_FIELDS },
-    })
-  } catch {
-    await adminFetch<{ order: AnyRecord }>(
-      `/admin/orders/${orderId}/metadata`,
-      {
-        method: "POST",
-        body: JSON.stringify({ metadata }),
-        query: { fields: ORDER_FULFILLMENT_FIELDS },
-      }
-    )
   }
 }
 
@@ -449,9 +433,8 @@ export async function fulfillReleasedCatchWeightOrder(orderId: string) {
     throw new Error("No fulfillable order lines are available.")
   }
 
-  const now = new Date().toISOString()
   const idempotencyKey = `staff-fulfill:${orderId}:${Date.now()}`
-  const fulfillmentResponse = await adminFetch<{
+  await adminFetch<{
     fulfillment?: AnyRecord
     order?: AnyRecord
   }>(`/admin/orders/${orderId}/fulfillments`, {
@@ -469,28 +452,8 @@ export async function fulfillReleasedCatchWeightOrder(orderId: string) {
       },
     }),
   })
-  const fulfillmentId =
-    fulfillmentResponse.fulfillment?.id ||
-    activeFulfillments(fulfillmentResponse.order)[0]?.id ||
-    null
-
-  await updateOrderMetadata(orderId, {
-    ...appendStaffAuditLog(order.metadata, {
-      action: "catch_weight_fulfillment_created",
-      status: "completed",
-      fulfillment_id: fulfillmentId,
-      finalization_id: detail.finalization.id,
-      staff_actor_customer_id: staff.id,
-      staff_actor_email: staff.email || null,
-      staff_actor_name: staffDisplayName(staff),
-      items,
-    }),
-    catch_weight_status: "released_to_fulfillment",
-    finalization_status: "released_to_fulfillment",
-    fulfillment_gate_status: "released",
-    staff_last_fulfillment_id: fulfillmentId,
-    staff_last_fulfilled_at: now,
-  })
+  // The native fulfillment is the receipt. Backend guards and finalization
+  // own release state; the browser must not rewrite payment/release metadata.
 
   revalidateStaffOrders()
   return getCatchWeightFinalizationDetail(orderId)

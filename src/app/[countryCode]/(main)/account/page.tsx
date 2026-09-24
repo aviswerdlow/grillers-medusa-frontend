@@ -1,3 +1,5 @@
+import { isContactVerificationDeferred } from "@lib/data/contact-verification-deferral"
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import Overview from "@modules/account/components/overview"
 import LoginTemplate from "@modules/account/templates/login-template"
@@ -28,9 +30,12 @@ export default async function AccountPage(props: {
 
   // Migrated (pre-launch) customers confirm their contact details on first
   // login: primary mobile + SMS opt-in, email, default shipping address.
-  // Only completing the flow clears this redirect (no skip); staff
+  // Customers can defer within this login session; staff
   // impersonation never triggers it (consent must come from the customer).
-  if (needsContactVerification(customer)) {
+  const confirmationNeeded = needsContactVerification(customer)
+  const deferred =
+    confirmationNeeded && (await isContactVerificationDeferred(customer.id))
+  if (confirmationNeeded && !deferred) {
     const impersonation = await getStaffImpersonationSession().catch(() => null)
     if (!impersonation) {
       redirect(`/${countryCode}/account/verify-contact`)
@@ -52,11 +57,25 @@ export default async function AccountPage(props: {
   ])
 
   return (
-    <Overview
-      customer={customer}
-      orders={orders || null}
-      legacyOrders={legacyOrderHistory.orders || []}
-      legacyOrderCount={legacyOrderHistory.count || 0}
-    />
+    <>
+      {deferred && (
+        <p className="mb-6 text-sm leading-6">
+          Your contact details still need confirmation.{" "}
+          <Link
+            className="underline"
+            href={`/${countryCode}/account/verify-contact`}
+          >
+            Confirm your details
+          </Link>{" "}
+          when you are ready.
+        </p>
+      )}
+      <Overview
+        customer={customer}
+        orders={orders || null}
+        legacyOrders={legacyOrderHistory.orders || []}
+        legacyOrderCount={legacyOrderHistory.count || 0}
+      />
+    </>
   )
 }

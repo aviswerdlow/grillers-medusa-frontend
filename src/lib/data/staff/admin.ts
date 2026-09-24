@@ -1,8 +1,13 @@
 import "server-only"
 
 import type { StaffImpersonationSession } from "./impersonation-types"
+import { getAuthHeaders } from "../cookies"
 
 type AnyRecord = Record<string, any>
+
+export class StaffApiError extends Error {
+  constructor(message: string, public status: number) { super(message); this.name = "StaffApiError" }
+}
 
 const MEDUSA_BACKEND_URL = (
   process.env.MEDUSA_BACKEND_URL || "http://localhost:9000"
@@ -47,21 +52,31 @@ export async function adminFetch<T>(
   path: string,
   init: RequestInit & { query?: Record<string, unknown> } = {}
 ): Promise<T> {
+  // A server key identifies the transport. The original signed customer token
+  // is required so the backend can check that person's current capabilities.
+  const auth = await getAuthHeaders()
+  if (!("authorization" in auth) || !auth.authorization) throw new Error("Sign in again to use staff tools.")
+  if (!/^\/admin\//.test(path) || /[\\#?]/.test(path) || path.split("/").some(part => part === "." || part === ".." || /%2e|%2f|%5c/i.test(part))) {
+    throw new Error("Invalid staff API path.")
+  }
+  const headers = new Headers(init.headers)
+  headers.set("Content-Type", "application/json")
+  headers.set("Authorization", (adminHeaders() as Record<string, string>).Authorization)
+  headers.set("x-gp-staff-authorization", auth.authorization)
+  const { query, ...request } = init
   const res = await fetch(
-    `${MEDUSA_BACKEND_URL}${path}${queryString(init.query || {})}`,
+    `${MEDUSA_BACKEND_URL}${path}${queryString(query || {})}`,
     {
-      ...init,
-      headers: {
-        ...adminHeaders(),
-        ...(init.headers || {}),
-      },
+      ...request,
+      headers,
       cache: "no-store",
+      redirect: "error",
     }
   )
 
   const json = (await res.json().catch(() => ({}))) as AnyRecord
   if (!res.ok) {
-    throw new Error(json.message || json.error || res.statusText)
+    throw new StaffApiError(json.message || json.error || res.statusText, res.status)
   }
   return json as T
 }

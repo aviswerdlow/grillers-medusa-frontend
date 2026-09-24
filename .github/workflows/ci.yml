@@ -35,6 +35,8 @@ jobs:
           node-version: 20
           cache: yarn
       - run: yarn install --frozen-lockfile
+      - name: Lint source directories
+        run: yarn lint
       - name: Jest
         run: yarn test --runInBand
       - name: TypeScript

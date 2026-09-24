@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { cache } from "react"
 
 import { generateAlternates } from "@lib/util/seo"
 import { getBaseURL } from "@lib/util/env"
@@ -19,6 +20,7 @@ import {
 import {
   resolveEmptyStoreCatalogDecision,
   isProductionBuildPhase,
+  isSoftEmptyStoreCatalog,
 } from "@lib/store-catalog-resolution"
 
 type Params = {
@@ -32,15 +34,36 @@ export function generateStaticParams() {
   return [{ countryCode: "us" }]
 }
 
+const loadStoreCatalog = cache(async () => {
+  let catalogLoadFailed = false
+  const rawProducts = await getStoreProducts(strapiClient, {
+    onLoadFailure: (failure) => {
+      if (failure.recovered === false) catalogLoadFailed = true
+      void emitStoreCatalogLoadFailureAlert(failure).catch(() => {
+        // Fail-open: catalog alerting must never block store rendering.
+      })
+    },
+  })
+  const visibleProducts = rawProducts.filter((p) => p.FeaturedImage?.url)
+  return { rawProducts, visibleProducts, catalogLoadFailed }
+})
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { countryCode } = await params
   const alternates = await generateAlternates("/store", countryCode)
+  const { catalogLoadFailed, visibleProducts } = await loadStoreCatalog()
 
   return {
     title: "Shop All Products | Grillers Pride",
     description:
       "Browse our full kosher catalog: beef, poultry, lamb, veal, prepared and provisions. Filter by cooking state, sourcing, and certification.",
     alternates,
+    ...(isSoftEmptyStoreCatalog({
+      loadFailed: catalogLoadFailed,
+      visibleProductCount: visibleProducts.length,
+    })
+      ? { robots: { index: false, follow: true } }
+      : {}),
   }
 }
 
@@ -51,20 +74,10 @@ export default async function StorePage(props: Params) {
   // (onLoadFailure fires unrecovered) vs. genuinely returned nothing. These must
   // be handled differently — a transient Strapi outage must not take down the
   // browse page or block the deploy (which prerenders this page).
-  let catalogLoadFailed = false
-  const rawProducts = await getStoreProducts(strapiClient, {
-    onLoadFailure: (failure) => {
-      if (failure.recovered === false) {
-        catalogLoadFailed = true
-      }
-      void emitStoreCatalogLoadFailureAlert(failure).catch(() => {
-        // Fail-open: catalog alerting must never block store rendering.
-      })
-    },
-  })
+  const { rawProducts, visibleProducts, catalogLoadFailed } =
+    await loadStoreCatalog()
   // Cards collapse without an image, so require FeaturedImage at minimum
   // (matches the prior Strapi-fetched implementation's filter).
-  const visibleProducts = rawProducts.filter((p) => p.FeaturedImage?.url)
   if (visibleProducts.length === 0) {
     await emitStoreCatalogEmptyAlert({
       rawCount: rawProducts.length,
@@ -82,16 +95,8 @@ export default async function StorePage(props: Params) {
         `Store catalog resolved with no visible products (${rawProducts.length} raw products)`
       )
     }
-    if (decision === "preserve_stale") {
-      // Transient Strapi failure at runtime: throw so Next's ISR keeps serving the
-      // last-good cached page instead of an empty store or a hard timeout.
-      throw new Error(
-        "Store catalog Strapi load failed; preserving the last-good ISR render"
-      )
-    }
-    // decision === "render_soft": transient Strapi failure during `next build`.
-    // Do NOT fail the deploy — fall through and render the store shell with no
-    // products; ISR repopulates /store within `revalidate` once Strapi recovers.
+    // No cached catalogue exists in this cold process. Keep navigation usable
+    // with an explicit retry state; successful refreshes repopulate the cards.
   }
   const enrichedProducts = await enrichStrapiProductsWithMedusaPrices(
     visibleProducts,
@@ -157,6 +162,22 @@ export default async function StorePage(props: Params) {
   return (
     <>
       <ExperimentExposure assignment={plpExperiment} />
+      {isSoftEmptyStoreCatalog({
+        loadFailed: catalogLoadFailed,
+        visibleProductCount: visibleProducts.length,
+      }) && (
+        <p role="status" className="content-container py-8">
+          The catalogue is temporarily unavailable.{" "}
+          <a href={`/${countryCode}/store`} className="underline">
+            Try again
+          </a>
+          {" or "}
+          <a href={`/${countryCode}`} className="underline">
+            browse our home page
+          </a>
+          .
+        </p>
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(storeJsonLd) }}

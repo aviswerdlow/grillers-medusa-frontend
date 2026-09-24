@@ -5,7 +5,6 @@ import { getRegion } from "@lib/data/regions"
 import ProductTemplate from "@modules/products/templates"
 import { cachedStrapiRequest } from "@lib/strapi"
 import {
-  GetCommonPdpQuery,
   GetProductQuery,
   generateProductJsonLd,
   getProductIngredientDisclosures,
@@ -169,17 +168,6 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
 export default async function ProductPage(props: Props) {
   const params = await props.params
-  const strapiCommonPdpDataPromise = withPdpStrapiFallback(
-    cachedStrapiRequest("pdp-common", GetCommonPdpQuery),
-    null,
-    {
-      stage: "common_pdp",
-      timeoutMs: 1200,
-      handle: params.handle,
-      countryCode: params.countryCode,
-    }
-  ).then((data: any) => data?.pdp || null)
-
   const [region, productResult, customer] = await Promise.all([
     getRegion(params.countryCode),
     listProducts({
@@ -333,7 +321,6 @@ export default async function ProductPage(props: Props) {
         product={pricedProduct}
         region={region}
         countryCode={params.countryCode}
-        strapiCommonPdpData={strapiCommonPdpDataPromise}
         strapiProductData={strapiProduct}
         purchaseHistoryItem={purchaseHistoryItem}
         pdpExperimentVariant={

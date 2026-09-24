@@ -1,3 +1,4 @@
+import { retrieveReceiptEmail } from "@lib/data/receipt-email"
 export const dynamic = "force-dynamic"
 
 import ProfileName from "@modules/account/components/profile-name"
@@ -39,6 +40,7 @@ export default async function Profile() {
     !staffImpersonation
   const smsMarketingStatus =
     canManageSmsMarketing ? await retrieveSmsMarketingStatus() : null
+  const receiptEmail = canManageSmsMarketing ? await retrieveReceiptEmail() : null
   const regions = await listRegions()
 
   if (!customer || !regions) {
@@ -61,10 +63,10 @@ export default async function Profile() {
           <ProfileName customer={customer} />
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <ProfileEmail customer={customer} />
+          <ProfileEmail customer={customer} receipt={receiptEmail} canManage={canManageSmsMarketing} />
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <ProfilePhone customer={customer} />
+          <ProfilePhone customer={customer} marketingStatus={smsMarketingStatus} />
         </div>
         {canManageSmsMarketing && (
           <div className="bg-white rounded-xl border border-gray-200 p-6">

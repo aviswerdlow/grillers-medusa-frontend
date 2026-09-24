@@ -1,6 +1,6 @@
 import { clx } from "@medusajs/ui"
 import FormattedPrice from "@modules/common/components/formatted-price"
-import { formatProductPriceDisplay } from "@lib/util/price-display"
+import { formatCardPriceDisplay } from "@lib/util/card-price-display"
 import { VariantPrice } from "types/global"
 import type { Metadata } from "types/strapi"
 
@@ -11,7 +11,7 @@ import type { Metadata } from "types/strapi"
  * by an optional Strapi `Metadata` blob + the variant SKU.
  *
  * Callers without metadata fall through to the SKU map + weight
- * heuristic in `formatProductPriceDisplay`.
+ * heuristic in `formatCardPriceDisplay`.
  */
 export default async function PreviewPrice({
   price,
@@ -26,7 +26,7 @@ export default async function PreviewPrice({
     return null
   }
 
-  const display = formatProductPriceDisplay(
+  const display = formatCardPriceDisplay(
     price.calculated_price_number ?? 0,
     metadata,
     sku

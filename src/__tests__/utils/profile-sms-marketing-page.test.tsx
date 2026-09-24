@@ -5,6 +5,7 @@ import { retrieveCustomer } from "@lib/data/customer"
 import { getStaffImpersonationSession } from "@lib/data/staff/impersonation"
 import { readStaffImpersonationCookie } from "@lib/data/staff/session-cookie"
 import { retrieveSmsMarketingStatus } from "@lib/data/sms-marketing"
+import { retrieveReceiptEmail } from "@lib/data/receipt-email"
 import { listRegions } from "@lib/data/regions"
 
 jest.mock("next/navigation", () => ({ notFound: jest.fn() }))
@@ -21,31 +22,35 @@ jest.mock("@lib/data/staff/session-cookie", () => ({
 jest.mock("@lib/data/sms-marketing", () => ({
   retrieveSmsMarketingStatus: jest.fn(),
 }))
+jest.mock("@lib/data/receipt-email", () => ({
+  retrieveReceiptEmail: jest.fn(),
+}))
 jest.mock("@lib/data/regions", () => ({ listRegions: jest.fn() }))
 
-jest.mock("@modules/account/components/profile-name", () => () => (
-  <div data-testid="profile-name" />
-))
-jest.mock("@modules/account/components/profile-email", () => () => (
-  <div data-testid="profile-email" />
-))
-jest.mock("@modules/account/components/profile-phone", () => () => (
-  <div data-testid="profile-phone" />
-))
-jest.mock("@modules/account/components/profile-password", () => () => (
-  <div data-testid="profile-password" />
-))
-jest.mock("@modules/account/components/profile-billing-address", () => () => (
-  <div data-testid="profile-billing-address" />
-))
+jest.mock("@modules/account/components/profile-name", () => function ProfileNameMock() {
+  return <div data-testid="profile-name" />
+})
+jest.mock("@modules/account/components/profile-email", () => function ProfileEmailMock() {
+  return <div data-testid="profile-email" />
+})
+jest.mock("@modules/account/components/profile-phone", () => function ProfilePhoneMock() {
+  return <div data-testid="profile-phone" />
+})
+jest.mock("@modules/account/components/profile-password", () => function ProfilePasswordMock() {
+  return <div data-testid="profile-password" />
+})
+jest.mock("@modules/account/components/profile-billing-address", () => function ProfileBillingAddressMock() {
+  return <div data-testid="profile-billing-address" />
+})
 jest.mock(
   "@modules/account/components/profile-sms-marketing",
-  () =>
-    ({ marketingStatus }: { marketingStatus: { status: string } | null }) => (
+  () => function ProfileSmsMarketingMock({ marketingStatus }: { marketingStatus: { status: string } | null }) {
+    return (
       <div data-testid="profile-sms-marketing">
         {marketingStatus?.status || "unavailable"}
       </div>
     )
+  }
 )
 
 const mockedRetrieveCustomer = retrieveCustomer as jest.MockedFunction<
@@ -66,6 +71,9 @@ const mockedRetrieveSmsMarketingStatus =
 const mockedListRegions = listRegions as jest.MockedFunction<
   typeof listRegions
 >
+const mockedRetrieveReceiptEmail = retrieveReceiptEmail as jest.MockedFunction<
+  typeof retrieveReceiptEmail
+>
 
 describe("profile SMS marketing impersonation gate", () => {
   beforeEach(() => {
@@ -78,6 +86,7 @@ describe("profile SMS marketing impersonation gate", () => {
     mockedListRegions.mockResolvedValue([{ id: "reg_us" }] as any)
     mockedReadStaffImpersonationCookie.mockResolvedValue(null)
     mockedGetStaffImpersonationSession.mockResolvedValue(null)
+    mockedRetrieveReceiptEmail.mockResolvedValue(null)
     mockedRetrieveSmsMarketingStatus.mockResolvedValue({
       status: "not_subscribed",
       phone: null,
@@ -93,6 +102,7 @@ describe("profile SMS marketing impersonation gate", () => {
       "not_subscribed"
     )
     expect(mockedRetrieveSmsMarketingStatus).toHaveBeenCalledTimes(1)
+    expect(mockedRetrieveReceiptEmail).toHaveBeenCalledTimes(1)
   })
 
   it("hides the form when a raw signed session exists but verification resolves null", async () => {
@@ -108,6 +118,7 @@ describe("profile SMS marketing impersonation gate", () => {
 
     expect(screen.queryByTestId("profile-sms-marketing")).not.toBeInTheDocument()
     expect(mockedRetrieveSmsMarketingStatus).not.toHaveBeenCalled()
+    expect(mockedRetrieveReceiptEmail).not.toHaveBeenCalled()
   })
 
   it("hides the form when the signed-cookie check itself fails", async () => {
@@ -119,5 +130,6 @@ describe("profile SMS marketing impersonation gate", () => {
 
     expect(screen.queryByTestId("profile-sms-marketing")).not.toBeInTheDocument()
     expect(mockedRetrieveSmsMarketingStatus).not.toHaveBeenCalled()
+    expect(mockedRetrieveReceiptEmail).not.toHaveBeenCalled()
   })
 })

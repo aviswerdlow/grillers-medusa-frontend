@@ -33,7 +33,7 @@ export default function HeroCta({
   return (
     <Link
       href={ctaHref}
-      className="mt-8 inline-block bg-Gold hover:bg-Gold/90 text-Charcoal font-maison-neue font-bold text-p-md px-8 py-4 rounded-[5px] uppercase tracking-wide transition-colors focus:outline-none focus:ring-2 focus:ring-Gold focus:ring-offset-2 focus:ring-offset-black"
+      className="inline-flex min-h-[44px] items-center text-white font-maison-neue font-bold text-sm px-5 py-2 rounded-[5px] border border-white/60 transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
     >
       {ctaText}
     </Link>

@@ -710,7 +710,7 @@ export default function AddressForm({
             </p>
           ) : (
             <p className="text-xs text-gray-500 mt-1">
-              We'll text you delivery updates
+              We&apos;ll text you delivery updates
             </p>
           )}
         </div>

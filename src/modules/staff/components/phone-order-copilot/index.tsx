@@ -26,21 +26,18 @@ import {
 } from "lucide-react"
 import Button from "@modules/common/components/button"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import {
-  CardElement,
-  Elements,
-  useElements,
-  useStripe,
-} from "@stripe/react-stripe-js"
+import { Elements } from "@stripe/react-stripe-js"
 import { loadStripe } from "@stripe/stripe-js"
 import { getStripePublishableKey } from "@lib/util/stripe-key"
 import {
   applyStaffCustomerAccountAction,
-  completeStaffPhoneOrder,
   createStaffCustomer,
   getStaffCustomerContext,
   getStaffLegacyOrderContext,
   prepareStaffPhoneOrder,
+  prepareStaffPhoneOrderPayment,
+  getStaffPhoneOrderCalendar,
+  saveStaffPhoneOrderCalendar,
   searchStaffCustomers,
   searchStaffProducts,
   saveStaffCustomerAddress,
@@ -77,9 +74,14 @@ import type { StaffImpersonationSession } from "@lib/data/staff/impersonation-ty
 import { dispatchStorefrontSessionUpdated } from "@lib/util/storefront-session-events"
 import StaffOrderExceptionConsole from "@modules/staff/components/order-exception-console"
 import StaffTeamAccessConsole from "@modules/staff/components/team-access-console"
+import { canReviewIncomingStock } from "@lib/util/incoming-stock"
 import StaffCatchWeightFinalizationConsole from "@modules/staff/components/catch-weight-finalization-console"
 import StaffQuickBooksSyncStatusConsole from "@modules/staff/components/quickbooks-sync-status-console"
 import StaffMerchandisingWorkspace from "@modules/staff/components/merchandising-workspace"
+import StaffChargeCard from "@modules/staff/components/phone-order-card"
+import FulfillmentCalendarPicker from "@modules/checkout/components/fulfillment-calendar"
+import LegacyStaffOrderDate from "./legacy-date"
+import { formatCalendarDate } from "@lib/fulfillment-calendar"
 import type { ProductMerchandisingTagSummary } from "@lib/data/staff/product-merchandising"
 
 type Props = {
@@ -109,6 +111,11 @@ type StaffWorkspaceAction = {
   icon: LucideIcon
   href?: string
   onClick?: () => void
+}
+
+const staffCalendarActions = {
+  load: getStaffPhoneOrderCalendar,
+  save: saveStaffPhoneOrderCalendar,
 }
 
 const stripeKey = getStripePublishableKey()
@@ -260,100 +267,6 @@ function staffLineNeedsOverride(line: StaffOrderLineInput) {
   return decision === "partial" || decision === "blocked"
 }
 
-function StaffChargeCard({
-  result,
-  billingAddress,
-  onComplete,
-}: {
-  result: StaffPrepareOrderResult
-  billingAddress: StaffAddressInput
-  onComplete: (result: StaffCompleteOrderResult) => void
-}) {
-  const stripe = useStripe()
-  const elements = useElements()
-  const [cardComplete, setCardComplete] = useState(false)
-  const [cardError, setCardError] = useState<string | null>(null)
-  const [isCharging, startTransition] = useTransition()
-
-  function chargeCard() {
-    if (!stripe || !elements || !result.paymentClientSecret || !result.cartId) {
-      setCardError("Payment form is not ready.")
-      return
-    }
-
-    const card = elements.getElement(CardElement)
-    if (!card) {
-      setCardError("Card field is not ready.")
-      return
-    }
-
-    startTransition(async () => {
-      const payment = await stripe.confirmCardPayment(
-        result.paymentClientSecret!,
-        {
-          payment_method: {
-            card,
-            billing_details: {
-              name: [billingAddress.firstName, billingAddress.lastName]
-                .filter(Boolean)
-                .join(" "),
-              email: result.cart?.email || undefined,
-              phone: billingAddress.phone || undefined,
-              address: {
-                line1: billingAddress.address1 || undefined,
-                line2: billingAddress.address2 || undefined,
-                city: billingAddress.city || undefined,
-                state: billingAddress.province || undefined,
-                postal_code: billingAddress.postalCode || undefined,
-                country: billingAddress.countryCode || undefined,
-              },
-            },
-          },
-        }
-      )
-
-      if (payment.error) {
-        setCardError(
-          payment.error.message || "Stripe could not authorize the card."
-        )
-        return
-      }
-
-      onComplete(await completeStaffPhoneOrder(result.cartId!))
-    })
-  }
-
-  return (
-    <div className="mt-4 rounded-md border border-Gold/35 bg-Gold/10 p-4">
-      <p className="mb-2 text-sm font-maison-neue font-semibold text-Charcoal">
-        Card collection
-      </p>
-      <div className="rounded-md border border-gray-200 bg-white px-3 py-3">
-        <CardElement
-          onChange={(event) => {
-            setCardComplete(event.complete)
-            setCardError(event.error?.message || null)
-          }}
-        />
-      </div>
-      {cardError && (
-        <p className="mt-2 text-sm font-maison-neue text-red-700">
-          {cardError}
-        </p>
-      )}
-      <Button
-        className="mt-3 min-h-[44px] w-full rounded-md bg-Charcoal px-4 text-sm font-rexton font-bold uppercase text-white"
-        disabled={!cardComplete || isCharging}
-        isLoading={isCharging}
-        onClick={chargeCard}
-        type="button"
-      >
-        Charge Card and Place Order
-      </Button>
-    </div>
-  )
-}
-
 export default function PhoneOrderCopilot({
   countryCode,
   staffCustomer,
@@ -400,8 +313,6 @@ export default function PhoneOrderCopilot({
   const [fulfillmentType, setFulfillmentType] = useState<
     "plant_pickup" | "atlanta_delivery" | "ups_shipping" | "southeast_pickup"
   >("plant_pickup")
-  const [scheduledDate, setScheduledDate] = useState("")
-  const [scheduledTimeWindow, setScheduledTimeWindow] = useState("")
   const [paymentMode, setPaymentMode] =
     useState<StaffPaymentMode>("collect_card_now")
   const [paymentConsent, setPaymentConsent] = useState(false)
@@ -412,6 +323,10 @@ export default function PhoneOrderCopilot({
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
   const [prepareResult, setPrepareResult] =
     useState<StaffPrepareOrderResult | null>(null)
+  const scheduledDate = String(
+    prepareResult?.cart?.metadata?.scheduledDate || ""
+  )
+  const [preparedForKey, setPreparedForKey] = useState("")
   const [completeResult, setCompleteResult] =
     useState<StaffCompleteOrderResult | null>(null)
   const [impersonation, setImpersonation] =
@@ -471,8 +386,35 @@ export default function PhoneOrderCopilot({
     !hasSelectedCustomer ||
     !hasOrderLines ||
     !customerVerified ||
-    hasUnresolvedStaffBlocks ||
     (paymentMode === "collect_card_now" && !paymentConsent)
+  const draftKey = JSON.stringify({
+    draftCustomer,
+    shippingAddress,
+    sameAsShipping,
+    lines,
+    fulfillmentType,
+    customerVerified,
+    paymentMode,
+    paymentConsent,
+    sendConfirmation,
+    orderNotes,
+    substitutionPreference,
+    deliveryInstructions,
+  })
+  const currentDraftKey = useRef(draftKey)
+  currentDraftKey.current = draftKey
+  const preparedDraftCurrent = preparedForKey === draftKey
+  useEffect(() => {
+    if (preparedForKey && !preparedDraftCurrent) {
+      setPrepareResult(null)
+      setCheckoutUrl(null)
+      setCompleteResult(null)
+      setPreparedForKey("")
+      setStatus(
+        "Draft details changed. Create the draft again, then confirm its date."
+      )
+    }
+  }, [preparedForKey, preparedDraftCurrent])
   const customerAccountActionDisabled =
     !draftCustomer.id ||
     !customerAccountStaffNote.trim() ||
@@ -612,8 +554,7 @@ export default function PhoneOrderCopilot({
     setProductResults([])
     setLines([])
     setFulfillmentType("plant_pickup")
-    setScheduledDate("")
-    setScheduledTimeWindow("")
+    setPreparedForKey("")
     setPaymentMode("collect_card_now")
     setPaymentConsent(false)
     setSendConfirmation(true)
@@ -785,7 +726,7 @@ export default function PhoneOrderCopilot({
         className={`${className} rounded-md border border-gray-200 bg-SilverPlate/35 px-3 py-3 text-sm font-maison-neue text-Charcoal/60`}
         role="status"
       >
-        No customers found for "{lastCustomerSearchQuery}". Try an email, phone
+        No customers found for &quot;{lastCustomerSearchQuery}&quot;. Try an email, phone
         number, or order number.
       </p>
     )
@@ -1114,8 +1055,6 @@ export default function PhoneOrderCopilot({
           sameAsShipping,
           lines,
           fulfillmentType,
-          scheduledDate,
-          scheduledTimeWindow,
           customerVerified,
           paymentMode,
           paymentConsent,
@@ -1125,23 +1064,44 @@ export default function PhoneOrderCopilot({
           deliveryInstructions,
         })
 
+        if (currentDraftKey.current !== draftKey) return
         if (!result.ok) {
           throw new Error(result.error || "Could not prepare phone order.")
         }
 
+        setPreparedForKey(draftKey)
         setPrepareResult(result)
-        setCheckoutUrl(result.checkoutUrl || null)
         setStatus(
-          paymentMode === "collect_card_now"
-            ? "Payment session prepared. Enter the customer's card with consent."
-            : result.confirmationSent
-            ? "Checkout link prepared and emailed."
-            : "Checkout link prepared."
+          "Draft created. Confirm an available date before preparing payment or the checkout link."
         )
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
       }
     })
+  }
+
+  async function prepareDatedPayment() {
+    if (!prepareResult?.cartId || !preparedDraftCurrent) return
+    const requestKey = draftKey
+    setError(null)
+    const result = await prepareStaffPhoneOrderPayment(prepareResult.cartId)
+    if (currentDraftKey.current !== requestKey) return
+    if (!result.ok) {
+      setError(
+        result.error ||
+          "Could not prepare payment. Confirm the date and inventory again."
+      )
+      return
+    }
+    setPrepareResult(result)
+    setCheckoutUrl(result.checkoutUrl || null)
+    setStatus(
+      result.paymentClientSecret
+        ? "Date confirmed. Enter the customer's card with consent."
+        : result.confirmationSent
+        ? "Date confirmed. Checkout link prepared and emailed."
+        : "Date confirmed. Checkout link prepared."
+    )
   }
 
   const workspaceActions: StaffWorkspaceAction[] = [
@@ -1698,6 +1658,10 @@ export default function PhoneOrderCopilot({
               <BookOpenText className="h-4 w-4" aria-hidden />
               Guide
             </LocalizedClientLink>
+            {canReviewIncomingStock(staffCustomer) && <LocalizedClientLink
+              href="/account/staff/incoming-stock"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-md border border-Charcoal px-3.5 text-sm font-maison-neue font-semibold text-Charcoal focus-visible:outline focus-visible:outline-2"
+            >Incoming stock</LocalizedClientLink>}
             {canUseOffice && (
               <LocalizedClientLink
                 href="/account/staff/communications"
@@ -2639,27 +2603,10 @@ export default function PhoneOrderCopilot({
                             <option value="ups_shipping">UPS shipping</option>
                           </select>
                         </label>
-                        <label className="flex flex-col gap-1">
-                          <span className={labelClass()}>Scheduled date</span>
-                          <input
-                            className={fieldClass()}
-                            type="date"
-                            value={scheduledDate}
-                            onChange={(event) =>
-                              setScheduledDate(event.target.value)
-                            }
-                          />
-                        </label>
-                        <label className="flex flex-col gap-1">
-                          <span className={labelClass()}>Time window</span>
-                          <input
-                            className={fieldClass()}
-                            value={scheduledTimeWindow}
-                            onChange={(event) =>
-                              setScheduledTimeWindow(event.target.value)
-                            }
-                          />
-                        </label>
+                        <p className="text-sm text-Charcoal/70">
+                          Create the draft to choose an available date and
+                          window. Payment preparation follows date confirmation.
+                        </p>
                         <label className="flex flex-col gap-1">
                           <span className={labelClass()}>Substitutions</span>
                           <input
@@ -2767,14 +2714,12 @@ export default function PhoneOrderCopilot({
 
                       <Button
                         className="mt-5 min-h-[48px] w-full rounded-md bg-Gold px-4 text-sm font-rexton font-bold uppercase text-Charcoal disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-Charcoal/40"
-                        disabled={prepareDisabled}
+                        disabled={prepareDisabled || isPending}
                         isLoading={isPending}
                         onClick={prepareOrder}
                         type="button"
                       >
-                        {paymentMode === "collect_card_now"
-                          ? "Prepare Payment"
-                          : "Prepare Checkout Link"}
+                        Create Draft and Choose Date
                       </Button>
                     </>
                   ) : (
@@ -2785,7 +2730,63 @@ export default function PhoneOrderCopilot({
                     </p>
                   )}
 
-                  {checkoutUrl && (
+                  {preparedDraftCurrent &&
+                    prepareResult?.ok &&
+                    prepareResult.cart &&
+                    prepareResult.phase === "draft" && (
+                      <div className="mt-5 rounded-md border border-gray-200 p-4">
+                        <FulfillmentCalendarPicker
+                          key={prepareResult.cartId}
+                          cart={prepareResult.cart}
+                          fulfillmentType={fulfillmentType}
+                          actions={staffCalendarActions}
+                          legacyFallback={<LegacyStaffOrderDate
+                            cartId={prepareResult.cartId!}
+                            inventoryOverrideReview={Boolean(prepareResult.cart.items?.some(item =>
+                              item.metadata?.inventory_override_reason || item.metadata?.inventory_override_note))}
+                            onSaved={prepareDatedPayment}
+                          />}
+                          inventoryOverrideReview={prepareResult.cart.items?.some(
+                            (item) =>
+                              Boolean(
+                                item.metadata?.inventory_override_reason ||
+                                  item.metadata?.inventory_override_note
+                              )
+                          )}
+                          onSaved={prepareDatedPayment}
+                        />
+                      </div>
+                    )}
+                  {preparedDraftCurrent &&
+                    prepareResult?.phase === "ready" &&
+                    !completeResult?.ok && (
+                      <div className="mt-4 text-sm text-Charcoal">
+                        <p>
+                          Confirmed date: {formatCalendarDate(scheduledDate)}{" "}
+                          {String(
+                            prepareResult.cart?.metadata?.scheduledTimeWindow ||
+                              ""
+                          )}
+                        </p>
+                        <button
+                          type="button"
+                          className="min-h-[44px] underline"
+                          onClick={() => {
+                            setPrepareResult({
+                              ok: true,
+                              phase: "draft",
+                              cartId: prepareResult.cartId,
+                              cart: prepareResult.cart,
+                            })
+                            setCheckoutUrl(null)
+                          }}
+                        >
+                          Change or refresh date
+                        </button>
+                      </div>
+                    )}
+
+                  {preparedDraftCurrent && checkoutUrl && (
                     <a
                       className="mt-4 block break-words rounded-md border border-Gold/40 bg-Gold/10 px-3 py-3 text-sm font-maison-neue text-Charcoal underline"
                       href={checkoutUrl}
@@ -2796,7 +2797,9 @@ export default function PhoneOrderCopilot({
                     </a>
                   )}
 
-                  {prepareResult?.ok &&
+                  {preparedDraftCurrent &&
+                    !completeResult?.ok &&
+                    prepareResult?.ok &&
                     prepareResult.paymentClientSecret &&
                     paymentMode === "collect_card_now" &&
                     (stripePromise ? (
@@ -2809,6 +2812,15 @@ export default function PhoneOrderCopilot({
                         <StaffChargeCard
                           result={prepareResult}
                           billingAddress={shippingAddress}
+                          onReviewRequired={(message) => {
+                            setError(message)
+                            setPrepareResult({
+                              ok: true,
+                              phase: "draft",
+                              cartId: prepareResult.cartId,
+                              cart: prepareResult.cart,
+                            })
+                          }}
                           onComplete={(result) => {
                             setCompleteResult(result)
                             setStatus(

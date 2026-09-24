@@ -48,7 +48,7 @@ describe("staff access helpers", () => {
     const manager = { metadata: { gp_staff_role: "manager" } } as any
     const picker = { metadata: { gp_staff_role: "picker" } } as any
     const packer = { metadata: { gp_staff_role: "packer" } } as any
-    const avi = { email: "aviswerdlow@gmail.com" } as any
+    const avi = { email: "aviswerdlow@gmail.com", staff_access: { role: "super_admin", session_current: true, final_charge_enabled: true } } as any
 
     // A merchandising reviewer is staff and can review, but has no other access.
     expect(isStaffCustomer(reviewer)).toBe(true)
@@ -99,7 +99,7 @@ describe("staff access helpers", () => {
     const reviewerWithFlag = {
       metadata: { gp_staff_role: "merchandising_reviewer", ...flag },
     } as any
-    const avi = { email: "aviswerdlow@gmail.com" } as any
+    const avi = { email: "aviswerdlow@gmail.com", staff_access: { role: "super_admin", session_current: true, final_charge_enabled: true } } as any
 
     // Operational roles with the flag can charge; super admins always can.
     expect(canChargeFinalOrders(packerCanCharge)).toBe(true)
@@ -135,26 +135,31 @@ describe("staff access helpers", () => {
     ).toBe(false)
   })
 
-  it("bootstraps Avi and Peter as super admins", () => {
-    const avi = {
-      email: "aviswerdlow@gmail.com",
-      metadata: { role: "customer" },
-    } as any
-    const peterBusinessEmail = {
-      email: "Peter@grillerspride.com",
-      metadata: { role: "customer" },
-    } as any
-    const peterGmail = {
-      email: "PeterSwerdlow@gmail.com",
-      metadata: { role: "customer" },
-    } as any
+  it.each(["aviswerdlow@gmail.com", "Peter@grillerspride.com", "PeterSwerdlow@gmail.com"])("keeps the bootstrap fallback only until current server authority is served: %s", email => {
+    expect(staffAccessRole({ email, metadata: {} } as any)).toBe("super_admin")
+    expect(staffAccessRole({ email, metadata: {}, staff_access: { role: "customer", session_current: true } } as any)).toBe("customer")
+    expect(staffAccessRole({ email, metadata: { staff_access_revoked: true } } as any)).toBe("customer")
+    expect(staffAccessRole({ email, metadata: { role: "office", staff_bootstrap_override: true } } as any)).toBe("office")
+  })
 
-    expect(isStaffCustomer(avi)).toBe(true)
-    expect(isSuperAdminCustomer(avi)).toBe(true)
-    expect(staffAccessRole(peterBusinessEmail)).toBe("super_admin")
-    expect(isStaffCustomer(peterGmail)).toBe(true)
-    expect(isSuperAdminCustomer(peterGmail)).toBe(true)
-    expect(staffAccessRole(peterGmail)).toBe("super_admin")
+  it("honors the server's revoked session state over old owner metadata", () => {
+    const customer = { email: "peter@grillerspride.com", metadata: { gp_staff_role: "super_admin", final_charge_enabled: true },
+      staff_access: { role: "customer", bootstrap: true, session_current: false, final_charge_enabled: false } } as any
+    expect(isStaffCustomer(customer)).toBe(false)
+    expect(isSuperAdminCustomer(customer)).toBe(false)
+    expect(canChargeFinalOrders(customer)).toBe(false)
+  })
+
+  it("uses the current server role after bootstrap demotion or regrant", () => {
+    const customer = { metadata: { gp_staff_role: "super_admin" }, staff_access: { role: "office", bootstrap: true, session_current: true, final_charge_enabled: false } } as any
+    expect(staffAccessRole(customer)).toBe("office")
+    expect(isSuperAdminCustomer(customer)).toBe(false)
+    expect(canChargeFinalOrders(customer)).toBe(false)
+  })
+
+  it("does not let stale broad flags override an explicit customer or unknown role", () => {
+    expect(staffMetadataRole({ gp_staff_role: "customer", is_staff: true })).toBe("customer")
+    expect(staffMetadataRole({ gp_staff_role: "unknown", is_staff: true })).toBe("customer")
   })
 
   it("formats a staff display name safely", () => {

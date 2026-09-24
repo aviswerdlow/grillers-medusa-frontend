@@ -32,7 +32,16 @@ import {
   type StaffCustomerAccountNote,
   type StaffCustomerAccountReasonCode,
 } from "./customer-account-ledger"
+import { adminFetch, queryString } from "./admin"
 import { signStaffCartHandoff } from "./order-token"
+import { createStaffCart, staffCartHeaders } from "./cart-authority"
+import type {
+  CalendarActionResult,
+  FulfillmentCalendarDraft,
+  FulfillmentCalendarPage,
+} from "@lib/fulfillment-calendar"
+import { fulfillmentDateKey } from "@lib/fulfillment-calendar"
+import { CALENDAR_PATH, calendarHttpStatus, legacyCalendarCart, validateCalendarOrLegacy } from "@lib/fulfillment-calendar-rollout"
 
 type AnyRecord = Record<string, any>
 
@@ -195,6 +204,7 @@ export type StaffPrepareOrderInput = {
 
 export type StaffPrepareOrderResult = {
   ok: boolean
+  phase?: "draft" | "ready"
   cartId?: string
   checkoutUrl?: string
   cart?: HttpTypes.StoreCart
@@ -220,69 +230,11 @@ const MEDUSA_BACKEND_URL = (
 
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || ""
 
-function adminToken(): string {
-  const token =
-    process.env.MEDUSA_ADMIN_API_TOKEN || process.env.MEDUSA_API_TOKEN || ""
-
-  if (!token) {
-    throw new Error(
-      "MEDUSA_ADMIN_API_TOKEN missing. Staff order entry cannot access customer or inventory data."
-    )
-  }
-
-  return token
-}
-
 function storeHeaders(): HeadersInit {
   return {
     "Content-Type": "application/json",
     "x-publishable-api-key": PUBLISHABLE_KEY,
   }
-}
-
-function adminHeaders(): HeadersInit {
-  const token = adminToken()
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Basic ${Buffer.from(`${token}:`).toString("base64")}`,
-  }
-}
-
-function queryString(params: Record<string, unknown>): string {
-  const search = new URLSearchParams()
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === "") return
-    if (Array.isArray(value)) {
-      value.forEach((item) => search.append(`${key}[]`, String(item)))
-      return
-    }
-    search.set(key, String(value))
-  })
-  const qs = search.toString()
-  return qs ? `?${qs}` : ""
-}
-
-async function adminFetch<T>(
-  path: string,
-  init: RequestInit & { query?: Record<string, unknown> } = {}
-): Promise<T> {
-  const res = await fetch(
-    `${MEDUSA_BACKEND_URL}${path}${queryString(init.query || {})}`,
-    {
-      ...init,
-      headers: {
-        ...adminHeaders(),
-        ...(init.headers || {}),
-      },
-      cache: "no-store",
-    }
-  )
-
-  const json = (await res.json().catch(() => ({}))) as AnyRecord
-  if (!res.ok) {
-    throw new Error(json.message || json.error || res.statusText)
-  }
-  return json as T
 }
 
 async function storeFetch<T>(
@@ -296,14 +248,16 @@ async function storeFetch<T>(
       headers: {
         ...storeHeaders(),
         ...(init.headers || {}),
+        ...(path.startsWith("/store/carts/") ? await staffCartHeaders() : {}),
       },
       cache: "no-store",
+      redirect: "error",
     }
   )
 
   const json = (await res.json().catch(() => ({}))) as AnyRecord
   if (!res.ok) {
-    throw new Error(json.message || json.error || res.statusText)
+    throw Object.assign(new Error(json.message || json.error || res.statusText), { status: res.status })
   }
   return json as T
 }
@@ -2086,6 +2040,14 @@ export async function prepareStaffPhoneOrder(
 ): Promise<StaffPrepareOrderResult> {
   try {
     const staff = await requireStaff()
+    if (
+      input.scheduledDate ||
+      input.scheduledTimeWindow ||
+      input.pickupLocationId
+    )
+      throw new Error(
+        "Create the draft first, then confirm a date and window from the fulfillment calendar."
+      )
     const email = validateEmail(input.customer.email)
     const countryCode = (input.countryCode || "us").toLowerCase()
     const region = await getRegion(countryCode)
@@ -2149,21 +2111,6 @@ export async function prepareStaffPhoneOrder(
         } is not currently sellable. Choose a different item.`
       )
     }
-    const missingOverride = blockedLines.find((line) => {
-      const inputLine = input.lines.find(
-        (candidate) => candidate.variantId === line.variant_id
-      )
-      return (
-        !inputLine?.overrideReason?.trim() || !inputLine?.overrideNote?.trim()
-      )
-    })
-    if (missingOverride) {
-      throw new Error(
-        `${inventoryLineMessage(
-          missingOverride
-        )} Staff override requires a reason and note before payment can be prepared.`
-      )
-    }
 
     validateAddress(input.shippingAddress, "Shipping address")
     const billingAddress =
@@ -2184,6 +2131,8 @@ export async function prepareStaffPhoneOrder(
       staff_selected_customer_email: email,
       staff_customer_verified: true,
       staff_customer_verified_at: createdAt,
+      staff_checkout_country_code: countryCode,
+      staff_send_review_link_requested: input.sendConfirmation === true,
       staff_payment_mode: input.paymentMode,
       staff_payment_consent: input.paymentMode === "collect_card_now",
       staff_payment_policy:
@@ -2225,17 +2174,16 @@ export async function prepareStaffPhoneOrder(
       giftNotes: metadataText(input.giftNotes),
     }
 
-    const { cart } = await sdk.store.cart.create(
+    const { cart } = await createStaffCart(
       {
         region_id: region.id,
         email,
-        customer_id: input.customer.id || undefined,
         shipping_address: toStoreAddress(input.shippingAddress),
         billing_address: toStoreAddress(billingAddress),
         metadata,
       } as any,
-      {},
-      {}
+      "staff_phone_order",
+      input.customer.id
     )
 
     for (const line of input.lines) {
@@ -2267,7 +2215,7 @@ export async function prepareStaffPhoneOrder(
           },
         },
         {},
-        {}
+        await staffCartHeaders()
       )
     }
 
@@ -2279,72 +2227,458 @@ export async function prepareStaffPhoneOrder(
       cart.id,
       { option_id: shippingOption.id },
       {},
-      {}
+      await staffCartHeaders()
     )
 
-    let preparedCart = await retrieveStaffCart(cart.id)
-    let paymentClientSecret: string | undefined
-    let paymentProviderId: string | undefined
+    return {
+      ok: true,
+      phase: "draft",
+      cartId: cart.id,
+      cart: await retrieveStaffCart(cart.id),
+    }
+  } catch (err: any) {
+    return {
+      ok: false,
+      error: err?.message || "Could not prepare staff order.",
+    }
+  }
+}
 
-    if (input.paymentMode === "collect_card_now") {
-      const providers = await listPaymentProviders(region.id)
-      const provider = providers.find(isStripeCardProvider)
+async function ownedPhoneCart(cartId: string, allowCompleted = false) {
+  const staff = await requireStaff()
+  if (!/^cart_[\w-]+$/.test(cartId)) throw new Error("Invalid staff cart.")
+  const cart = await retrieveStaffCart(cartId)
+  const metadata = (cart.metadata || {}) as AnyRecord
+  if (metadata.source !== "staff_phone_order")
+    throw new Error("This cart is not a staff phone order.")
+  if (metadata.staff_actor_customer_id !== staff.id)
+    throw new Error(
+      "Only the staff member who prepared this cart can continue it."
+    )
+  if ((cart as AnyRecord).completed_at && !allowCompleted)
+    throw new Error(
+      "This order has already been placed. Open order support to review it."
+    )
+  return { staff, cart, metadata }
+}
 
-      if (!provider?.id) {
+async function checkPhoneCartInventory(
+  cart: HttpTypes.StoreCart,
+  action: "prepare_order" | "complete_order"
+) {
+  const metadata = (cart.metadata || {}) as AnyRecord
+  const finalAvailabilityLines = (cart.items || [])
+    .map((item: AnyRecord) => {
+      const variantId = item.variant_id || item.variant?.id
+      if (!variantId) return null
+      return {
+        variant_id: variantId,
+        quantity: Number(item.quantity || 1),
+        sku: item.variant?.sku || item.metadata?.staff_line_sku,
+        title:
+          item.metadata?.staff_line_title || item.product_title || item.title,
+      }
+    })
+    .filter(Boolean) as any
+  const finalFulfillmentType = metadataText(metadata.fulfillmentType)
+  const finalScheduledDate = metadataText(metadata.scheduledDate)
+  let finalAvailability
+  try {
+    finalAvailability = await checkStaffInventoryAvailability({
+      cart_id: cart.id,
+      fulfillment_type: finalFulfillmentType,
+      requested_fulfillment_date: finalScheduledDate,
+      customer_id: metadataText(metadata.staff_selected_customer_id),
+      source: "staff_phone_order",
+      lines: finalAvailabilityLines,
+    })
+  } catch (err) {
+    void emitStaffOrderAvailabilityFailureAlert({
+      action,
+      lineCount: finalAvailabilityLines.length,
+      fulfillmentType: finalFulfillmentType,
+      scheduledDate: finalScheduledDate,
+      cartId: cart.id,
+      error: err,
+    })
+    throw err
+  }
+  const finalByVariant = new Map(
+    finalAvailability.lines.map((line) => [line.variant_id, line])
+  )
+  for (const item of cart.items || []) {
+    const itemRecord = item as AnyRecord
+    const variantId = itemRecord.variant_id || itemRecord.variant?.id
+    const availability = finalByVariant.get(variantId)
+    if (!availability)
+      throw new Error(
+        "Inventory could not be confirmed for every order line. Refresh the draft before payment."
+      )
+    if (availability.decision === "inactive") {
+      throw new Error(
+        `${
+          availability.title || availability.sku || availability.variant_id
+        } is not currently sellable. Choose a different item.`
+      )
+    }
+    if (
+      availability.decision === "partial" ||
+      availability.decision === "blocked"
+    ) {
+      const lineMetadata = (itemRecord.metadata || {}) as AnyRecord
+      if (
+        !metadataText(lineMetadata.inventory_override_reason) ||
+        !metadataText(lineMetadata.inventory_override_note)
+      ) {
         throw new Error(
-          "No Stripe credit-card payment provider is configured for this region."
+          `${inventoryLineMessage(
+            availability
+          )} Staff override requires a reason and note before payment can be completed.`
         )
       }
+    }
+  }
+}
 
-      paymentProviderId = provider.id
-      await sdk.store.payment.initiatePaymentSession(
-        preparedCart,
+async function phoneCalendarRequest(body: Record<string, unknown>) {
+  return storeFetch<AnyRecord>(
+    "/store/grillers/checkout/fulfillment-calendar",
+    {
+      method: "POST",
+      headers: await staffCartHeaders(),
+      body: JSON.stringify(body),
+    }
+  )
+}
+
+async function validatePhoneCartCalendar(cartId: string) {
+  return validateCalendarOrLegacy({ ...phoneCalendarReaders(cartId), preserveValidationError: true })
+}
+
+function phoneCalendarReaders(cartId: string) {
+  return {
+    cartId,
+    readCart: async () => (await ownedPhoneCart(cartId)).cart,
+    readCapability: async () => storeFetch(CALENDAR_PATH, {
+      method: "GET", headers: await staffCartHeaders(),
+    }),
+    validate: () => phoneCalendarRequest({ action: "validate", cart_id: cartId }),
+  }
+}
+
+function phoneCalendarOption(cart: HttpTypes.StoreCart, optionId?: string) {
+  const methods = cart.shipping_methods || []
+  if (
+    methods.length !== 1 ||
+    !methods[0].shipping_option_id ||
+    (optionId && optionId !== methods[0].shipping_option_id)
+  )
+    throw new Error("Fulfillment changed. Prepare the staff draft again.")
+  return methods[0].shipping_option_id
+}
+
+export async function getStaffPhoneOrderCalendar(input: {
+  cartId: string
+  fulfillmentType: StaffPrepareOrderInput["fulfillmentType"]
+  shippingOptionId?: string
+  routeId?: string
+}): Promise<CalendarActionResult<FulfillmentCalendarPage>> {
+  try {
+    const { cart, metadata } = await ownedPhoneCart(input.cartId)
+    if (metadata.fulfillmentType !== input.fulfillmentType)
+      throw new Error("Fulfillment changed. Prepare the staff draft again.")
+    const optionId = phoneCalendarOption(cart, input.shippingOptionId)
+    const data = await phoneCalendarRequest({
+      action: "list",
+      cart_id: cart.id,
+      shipping_option_id: optionId,
+      ...(input.routeId ? { route_id: input.routeId } : {}),
+    }).catch(async (error) => {
+      if (await legacyCalendarCart({
+        ...phoneCalendarReaders(cart.id), observation: calendarHttpStatus(error),
+      })) return null
+      throw error
+    })
+    if (!data) return { ok: false, legacy: true, error: "Use the current scheduling fields below." }
+    return {
+      ok: true,
+      data: { ...data, shippingOptionId: optionId } as FulfillmentCalendarPage,
+    }
+  } catch (err: any) {
+    return {
+      ok: false,
+      error: err?.message || "Could not load staff order dates.",
+    }
+  }
+}
+
+async function settlePhoneCartDate(
+  cart: HttpTypes.StoreCart,
+  optionId: string,
+  headers: Awaited<ReturnType<typeof staffCartHeaders>>
+) {
+  // #318 inventory override receipts bind the requested date. The backend
+  // reissues each receipt under the current staff identity for this choice.
+  for (const item of cart.items || []) {
+    const m = (item.metadata || {}) as AnyRecord
+    if (m.inventory_override_reason && m.inventory_override_note) {
+      await sdk.store.cart.updateLineItem(
+        cart.id,
+        item.id,
         {
-          provider_id: provider.id,
-          data: {
-            setup_future_usage: "off_session",
-            staff_phone_order: true,
+          quantity: item.quantity,
+          metadata: {
+            inventory_override_reason: m.inventory_override_reason,
+            inventory_override_note: m.inventory_override_note,
           },
         },
         {},
-        {}
+        headers
+      )
+    }
+  }
+  // Reprice and preserve the package snapshot for the selected dispatch date.
+  await sdk.store.cart.addShippingMethod(
+    cart.id,
+    { option_id: optionId },
+    {},
+    headers
+  )
+  await sdk.store.cart.update(
+    cart.id,
+    { metadata: { fulfillmentSelectionStatus: "settled" } },
+    {},
+    headers
+  )
+}
+
+export async function saveLegacyStaffPhoneOrderDate(input: {
+  cartId: string
+  date: string
+  timeWindow?: string
+  staffOverrideConfirmed?: boolean
+}): Promise<CalendarActionResult<{ state: "selected" }>> {
+  try {
+    // Ownership and office authority are re-read by this check, not inherited
+    // from the earlier draft or from the fallback shown in the browser.
+    const result = await validatePhoneCartCalendar(input.cartId)
+    if (result.state !== "legacy" || !fulfillmentDateKey(input.date))
+      throw new Error("Refresh dates and choose an available date before continuing.")
+    const { cart } = result
+    const optionId = phoneCalendarOption(cart)
+    if (cart.items?.some(item => item.metadata?.inventory_override_reason || item.metadata?.inventory_override_note) &&
+        input.staffOverrideConfirmed !== true)
+      throw new Error("Review and confirm the inventory exceptions for this date before continuing.")
+    const headers = await staffCartHeaders()
+    await sdk.store.cart.update(cart.id, { metadata: {
+      scheduledDate: input.date,
+      requestedDeliveryDate: input.date,
+      scheduledTimeWindow: input.timeWindow?.trim() || "",
+      fulfillmentSelectionStatus: "pending",
+    } }, {}, headers)
+    await settlePhoneCartDate(cart, optionId, headers)
+    return { ok: true, data: { state: "selected" } }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not save the order date." }
+  }
+}
+
+export async function saveStaffPhoneOrderCalendar(input: {
+  cartId: string
+  choice: FulfillmentCalendarDraft
+  pickupLocation?: { name?: string; city?: string; state?: string }
+}): Promise<
+  CalendarActionResult<
+    | { state: "selected" }
+    | { state: "changed"; page: FulfillmentCalendarPage; message: string }
+  >
+> {
+  try {
+    const { cart } = await ownedPhoneCart(input.cartId)
+    const { choice } = input
+    const optionId = phoneCalendarOption(cart, choice.shippingOptionId)
+    const data = await phoneCalendarRequest({
+      action: "select",
+      cart_id: cart.id,
+      shipping_option_id: optionId,
+      arrival_date: choice.arrivalDate,
+      context_revision: choice.contextRevision,
+      ...(choice.routeId ? { route_id: choice.routeId } : {}),
+      ...(choice.windowId ? { window_id: choice.windowId } : {}),
+      ...(choice.replacementQuote
+        ? { replacement_quote: choice.replacementQuote }
+        : {}),
+    })
+    if (data.state === "changed")
+      return {
+        ok: true,
+        data: {
+          state: "changed",
+          message:
+            "The carrier returned a different arrival estimate. Please choose and confirm the updated date.",
+          page: {
+            calendar: data.calendar,
+            contextRevision: data.contextRevision,
+            shippingOptionId: optionId,
+            replacementQuote: data.replacementQuote,
+          },
+        },
+      }
+    if (
+      data.state !== "selected" ||
+      !data.metadata?.fulfillment_calendar_selection_v1
+    )
+      throw new Error(
+        "The date was not confirmed. Refresh dates and try again."
+      )
+    if (
+      (cart.items || []).some(
+        (item) =>
+          item.metadata?.inventory_override_reason ||
+          item.metadata?.inventory_override_note
+      ) &&
+      choice.staffOverrideConfirmed !== true
+    )
+      throw new Error(
+        "Review and confirm the inventory exceptions for this date before continuing."
+      )
+    const headers = await staffCartHeaders()
+    await sdk.store.cart.update(
+      cart.id,
+      {
+        metadata: {
+          ...data.metadata,
+          fulfillment_calendar_accepted_v1: null,
+          fulfillmentSelectionStatus: "pending",
+        },
+      },
+      {},
+      headers
+    )
+    await settlePhoneCartDate(cart, optionId, headers)
+    return { ok: true, data: { state: "selected" } }
+  } catch (err: any) {
+    return {
+      ok: false,
+      error: err?.message || "Could not confirm the staff order date.",
+    }
+  }
+}
+
+/** The UI calls this immediately before Stripe confirmation. Native completion
+ * independently repeats the calendar and inventory guards. */
+export async function verifyStaffPhoneOrderForPayment(
+  cartId: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { cart, metadata } = await ownedPhoneCart(cartId)
+    if (
+      metadata.staff_payment_mode !== "collect_card_now" ||
+      metadata.staff_payment_consent !== true
+    )
+      throw new Error("Card collection requires explicit customer consent.")
+    await checkPhoneCartInventory(cart, "prepare_order")
+    await validatePhoneCartCalendar(cart.id)
+    return { ok: true }
+  } catch (err: any) {
+    return {
+      ok: false,
+      error:
+        err?.message || "Review the order date and inventory before payment.",
+    }
+  }
+}
+
+export async function prepareStaffPhoneOrderPayment(
+  cartId: string
+): Promise<StaffPrepareOrderResult> {
+  try {
+    const { staff, cart, metadata } = await ownedPhoneCart(cartId)
+    if (metadata.staff_customer_verified !== true)
+      throw new Error("Verify the customer before preparing payment.")
+    const paymentMode = metadata.staff_payment_mode
+    if (!["collect_card_now", "send_checkout_link"].includes(paymentMode))
+      throw new Error(
+        "Prepare the staff draft again to choose payment handling."
+      )
+    if (
+      paymentMode === "collect_card_now" &&
+      metadata.staff_payment_consent !== true
+    )
+      throw new Error("Card collection requires explicit customer consent.")
+    await checkPhoneCartInventory(cart, "prepare_order")
+    await validatePhoneCartCalendar(cart.id)
+    let preparedCart = cart
+    let paymentClientSecret: string | undefined
+    let paymentProviderId: string | undefined
+    if (paymentMode === "collect_card_now") {
+      const providers = await listPaymentProviders(cart.region_id!)
+      const provider = providers.find(isStripeCardProvider)
+      if (!provider?.id)
+        throw new Error(
+          "No Stripe credit-card payment provider is configured for this region."
+        )
+      paymentProviderId = provider.id
+      await sdk.store.payment.initiatePaymentSession(
+        cart,
+        {
+          provider_id: provider.id,
+          data: { setup_future_usage: "off_session", staff_phone_order: true },
+        },
+        {},
+        await staffCartHeaders()
       )
       preparedCart = await retrieveStaffCart(cart.id)
       const session = preparedCart.payment_collection?.payment_sessions?.find(
         (s: any) => s.status === "pending" && s.provider_id === provider.id
       )
       paymentClientSecret = session?.data?.client_secret as string | undefined
-      if (!paymentClientSecret) {
+      if (!paymentClientSecret)
         throw new Error("Stripe did not return a payment client secret.")
-      }
     }
-
     let checkoutUrl: string | undefined
-    let confirmationSent = false
+    let confirmationSent = metadata.staff_confirmation_status === "sent"
     let confirmationMessage: string | undefined
-
-    if (input.paymentMode === "send_checkout_link") {
-      const token = signStaffCartHandoff({
-        cartId: cart.id,
+    if (paymentMode === "send_checkout_link") {
+      const countryCode =
+        metadataText(metadata.staff_checkout_country_code) || ""
+      if (!/^[a-z]{2}$/.test(countryCode))
+        throw new Error(
+          "Prepare the staff draft again before creating its checkout link."
+        )
+      const email = validateEmail(cart.email || "")
+      checkoutUrl = buildCheckoutUrl(
         countryCode,
-        staffCustomerId: staff.id,
-        targetCustomerId: input.customer.id,
-        targetCustomerEmail: email,
-        expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7,
-      })
-      checkoutUrl = buildCheckoutUrl(countryCode, token)
-
-      if (input.sendConfirmation) {
+        signStaffCartHandoff({
+          cartId: cart.id,
+          countryCode,
+          staffCustomerId: staff.id,
+          targetCustomerId:
+            metadataText(metadata.staff_selected_customer_id) || undefined,
+          targetCustomerEmail: email,
+          expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7,
+        })
+      )
+      if (
+        metadata.staff_send_review_link_requested === true &&
+        !confirmationSent
+      ) {
         const result = await sendReviewLinkEmail({
           to: email,
           checkoutUrl,
-          staffName,
-          lines: input.lines,
+          staffName: staffDisplayName(staff),
+          lines: (cart.items || []).map((line: any) => ({
+            variantId: line.variant_id,
+            quantity: line.quantity,
+            title: line.product_title || line.title,
+            sku: line.variant?.sku,
+          })),
           metadata: {
             cart_id: cart.id,
             source: "staff_phone_order",
             staff_actor_customer_id: staff.id,
-            target_customer_id: input.customer.id || "",
+            target_customer_id:
+              metadataText(metadata.staff_selected_customer_id) || "",
           },
         })
         confirmationSent = result.ok
@@ -2363,19 +2697,19 @@ export async function prepareStaffPhoneOrder(
                 ? ""
                 : result.message || "unknown",
             },
-          } as any,
+          },
           {},
-          {}
+          await staffCartHeaders()
         )
         preparedCart = await retrieveStaffCart(cart.id)
       }
     }
-
     return {
       ok: true,
+      phase: "ready",
       cartId: cart.id,
-      checkoutUrl,
       cart: preparedCart,
+      checkoutUrl,
       paymentProviderId,
       paymentClientSecret,
       confirmationSent,
@@ -2384,7 +2718,7 @@ export async function prepareStaffPhoneOrder(
   } catch (err: any) {
     return {
       ok: false,
-      error: err?.message || "Could not prepare staff order.",
+      error: err?.message || "Could not prepare staff order payment.",
     }
   }
 }
@@ -2393,105 +2727,28 @@ export async function completeStaffPhoneOrder(
   cartId: string
 ): Promise<StaffCompleteOrderResult> {
   try {
-    const staff = await requireStaff()
-    const cart = await retrieveStaffCart(cartId)
-    const metadata = (cart.metadata || {}) as AnyRecord
+    const { staff, cart } = await ownedPhoneCart(cartId, true)
 
-    if (metadata.source !== "staff_phone_order") {
-      throw new Error("This cart is not a staff phone order.")
-    }
-    if (metadata.staff_actor_customer_id !== staff.id) {
-      throw new Error(
-        "Only the staff member who prepared this cart can complete it."
+    if (!(cart as AnyRecord).completed_at) {
+      await checkPhoneCartInventory(cart, "complete_order")
+      await validatePhoneCartCalendar(cart.id)
+
+      await sdk.store.cart.update(
+        cartId,
+        {
+          metadata: {
+            staff_payment_completed_by_customer_id: staff.id,
+            staff_payment_completed_at: new Date().toISOString(),
+            staff_confirmation_status: "pending_email",
+          },
+        } as any,
+        {},
+        await staffCartHeaders()
       )
     }
 
-    const finalAvailabilityLines = (cart.items || [])
-      .map((item: AnyRecord) => {
-        const variantId = item.variant_id || item.variant?.id
-        if (!variantId) return null
-        return {
-          variant_id: variantId,
-          quantity: Number(item.quantity || 1),
-          sku: item.variant?.sku || item.metadata?.staff_line_sku,
-          title:
-            item.metadata?.staff_line_title ||
-            item.product_title ||
-            item.title,
-        }
-      })
-      .filter(Boolean) as any
-    const finalFulfillmentType = metadataText(metadata.fulfillmentType)
-    const finalScheduledDate = metadataText(metadata.scheduledDate)
-    let finalAvailability
-    try {
-      finalAvailability = await checkStaffInventoryAvailability({
-        cart_id: cart.id,
-        fulfillment_type: finalFulfillmentType,
-        requested_fulfillment_date: finalScheduledDate,
-        customer_id: metadataText(metadata.staff_selected_customer_id),
-        source: "staff_phone_order",
-        lines: finalAvailabilityLines,
-      })
-    } catch (err) {
-      void emitStaffOrderAvailabilityFailureAlert({
-        action: "complete_order",
-        lineCount: finalAvailabilityLines.length,
-        fulfillmentType: finalFulfillmentType,
-        scheduledDate: finalScheduledDate,
-        cartId: cart.id,
-        error: err,
-      })
-      throw err
-    }
-    const finalByVariant = new Map(
-      finalAvailability.lines.map((line) => [line.variant_id, line])
-    )
-    for (const item of cart.items || []) {
-      const itemRecord = item as AnyRecord
-      const variantId = itemRecord.variant_id || itemRecord.variant?.id
-      const availability = finalByVariant.get(variantId)
-      if (!availability) continue
-      if (availability.decision === "inactive") {
-        throw new Error(
-          `${
-            availability.title || availability.sku || availability.variant_id
-          } is not currently sellable. Choose a different item.`
-        )
-      }
-      if (
-        availability.decision === "partial" ||
-        availability.decision === "blocked"
-      ) {
-        const lineMetadata = (itemRecord.metadata || {}) as AnyRecord
-        if (
-          !metadataText(lineMetadata.inventory_override_reason) ||
-          !metadataText(lineMetadata.inventory_override_note)
-        ) {
-          throw new Error(
-            `${inventoryLineMessage(
-              availability
-            )} Staff override requires a reason and note before payment can be completed.`
-          )
-        }
-      }
-    }
-
-    await sdk.store.cart.update(
-      cartId,
-      {
-        metadata: {
-          staff_payment_completed_by_customer_id: staff.id,
-          staff_payment_completed_at: new Date().toISOString(),
-          staff_confirmation_status: "pending_email",
-        },
-      } as any,
-      {},
-      {}
-    )
-
     const completeResult = await sdk.store.cart
-      .complete(cartId, {}, {})
+      .complete(cartId, {}, await staffCartHeaders())
       .catch((err) => {
         throw medusaError(err)
       })

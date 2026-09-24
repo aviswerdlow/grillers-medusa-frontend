@@ -3,6 +3,7 @@
 import { sdk } from "@lib/config"
 import { getActiveStaffImpersonation } from "@lib/data/customer"
 import { staffAuditFields } from "@lib/data/staff/admin"
+import { createStaffCart, staffCartHeaders } from "@lib/data/staff/cart-authority"
 import { ATLANTA_DELIVERY_ZIP_DAYS } from "@lib/util/atlanta-delivery-zips"
 import { isSameAddressKey } from "@lib/util/compare-addresses"
 import { normalizeDeliveryZip } from "@lib/util/delivery-zip"
@@ -38,6 +39,15 @@ import {
 } from "@lib/checkout-address-quality"
 import { buildOrderSmsConsentMetadata } from "@lib/util/order-sms-consent"
 import { isExpectedNextRedirect } from "@lib/util/next-redirect"
+import type { CalendarActionResult, FulfillmentCalendarPage, FulfillmentCalendarDraft } from "@lib/fulfillment-calendar"
+import { fulfillmentDateKey } from "@lib/fulfillment-calendar"
+import {
+  CALENDAR_PATH,
+  CALENDAR_REQUIRED_MESSAGE,
+  calendarHttpStatus,
+  legacyCalendarCart,
+  validateCalendarOrLegacy,
+} from "@lib/fulfillment-calendar-rollout"
 import {
   clearedCheckoutFulfillmentMetadata,
   planCheckoutAddressFulfillmentTransition,
@@ -86,7 +96,7 @@ async function cartHeadersForStaffContext(active: ActiveStaffContext) {
   if (!active) return headers
 
   return {
-    ...headers,
+    ...(await staffCartHeaders()),
     "x-gp-staff-target-customer-id": active.session.targetCustomerId,
     "x-gp-staff-actor-customer-id": active.session.staffCustomerId,
   }
@@ -357,18 +367,17 @@ export async function getOrSetCart(countryCode: string) {
   const headers = await cartHeadersForStaffContext(active)
 
   if (!cart) {
-    const cartResp = await sdk.store.cart.create(
-      withStaffCartMetadata(
-        {
-          region_id: region.id,
-          ...(active ? { email: active.session.targetEmail } : {}),
-        },
-        active,
-        "cart_created"
-      ),
-      {},
-      headers
+    const input = withStaffCartMetadata(
+      {
+        region_id: region.id,
+        ...(active ? { email: active.session.targetEmail } : {}),
+      },
+      active,
+      "cart_created"
     )
+    const cartResp = active
+      ? await createStaffCart(input, "staff_impersonation", active.session.targetCustomerId)
+      : await sdk.store.cart.create(input, {}, headers)
     cart = cartResp.cart
 
     await setCurrentCartId(cart.id, active)
@@ -654,6 +663,8 @@ export async function deleteLineItem(lineId: string) {
     .catch(medusaError)
 }
 
+/** Legacy scheduling remains available only while the backend has not enabled
+ * calendar enforcement and the cart has no existing calendar promise. */
 export async function setRequestedDeliveryDate({
   cartId,
   date,
@@ -663,124 +674,227 @@ export async function setRequestedDeliveryDate({
 }) {
   const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
-
-  // Server-side eligibility check — defends against #36 / #72 in case the UI
-  // ever lets a customer click an impossible date. An empty string is allowed
-  // (used to clear the selection when method/zip change makes the prior date invalid).
   if (date) {
-    try {
-      const { isArrivalDateValid } = await import(
-        "@lib/util/eligible-arrival-dates"
-      )
-      const { getAtlantaDeliveryZipConfig } = await import(
-        "@lib/data/strapi/fulfillment"
-      )
-      const { getFulfillmentBlackouts } = await import(
-        "@lib/data/strapi/checkout"
-      )
-      const [atlantaZipConfig, fulfillmentBlackouts] = await Promise.all([
-        getAtlantaDeliveryZipConfig(),
-        getFulfillmentBlackouts(),
-      ])
-      const cart = await retrieveCart(cartId)
-      const fulfillmentType = cart?.metadata?.fulfillmentType as
-        | string
-        | undefined
-      const destZip = (cart?.shipping_address?.postal_code || "").trim()
-      const selectedShippingName =
-        cart?.shipping_methods?.at(-1)?.name?.toLowerCase() || ""
-      const {
-        computeQuickBooksDueDateForArrival,
-        normalizeUpsServiceCode,
-      } = await import("@lib/util/eligible-arrival-dates")
-      const normalizedShippingService = normalizeUpsServiceCode(
-        selectedShippingName
-      )
-      let method: any = "ups_ground"
-      if (fulfillmentType === "atlanta_delivery") method = "atlanta_delivery"
-      else if (fulfillmentType === "southeast_pickup")
-        method = "southeast_pickup"
-      else if (fulfillmentType === "plant_pickup") method = "plant_pickup"
-      else if (normalizedShippingService === "OVERNIGHT")
-        method = "ups_overnight"
-      else if (normalizedShippingService === "2ND_DAY_AIR") {
-        method = "ups_2day"
-      } else if (normalizedShippingService === "3_DAY_SELECT") {
-        method = "ups_3day"
-      }
-
-      // For southeast_pickup we don't have the date list here cheaply; skip server
-      // validation in that case (the UI source-of-truth is Strapi-backed already).
-      if (method !== "southeast_pickup") {
-        const ok = isArrivalDateValid(date, {
-          method,
-          destinationZip: destZip,
-          atlantaZipConfig,
-          blackouts: fulfillmentBlackouts,
-        })
-        if (!ok) {
-          throw new Error(
-            "That arrival date isn't available for the selected shipping method. Please pick a different date."
-          )
-        }
-      }
-
-      const qbdDueDate = computeQuickBooksDueDateForArrival(date, {
-        method,
-        destinationZip: destZip,
-        blackouts: fulfillmentBlackouts,
-      })
-
-      return sdk.store.cart
-        .update(
-          cartId,
-          withStaffCartMetadata(
-            {
-              metadata: {
-                requestedDeliveryDate: date,
-                qbdDueDate: qbdDueDate || "",
-              },
-            },
-            active,
-            "requested_delivery_date_update",
-            { requestedDeliveryDate: date, qbdDueDate }
-          ),
-          {},
-          headers
-        )
-        .then(async () => {
-          const cartCacheTag = await getCacheTag("carts")
-          revalidateTag(cartCacheTag)
-        })
-        .catch(medusaError)
-    } catch (err: any) {
-      // If validation itself errors (e.g., import failure), surface only real
-      // validation errors. Pass-through unexpected errors as 500.
-      if (err?.message?.includes("isn't available")) {
-        throw err
-      }
-      // Non-validation errors fall through to the cart update — we don't want
-      // a transient validation hiccup to block legitimate orders.
-    }
+    const result = await validateCalendarOrLegacy(calendarReaders(cartId, headers))
+    if (result.state !== "legacy" || !fulfillmentDateKey(date))
+      throw new Error(CALENDAR_REQUIRED_MESSAGE)
+    const { cart } = result
+    const { isArrivalDateValid, computeQuickBooksDueDateForArrival, normalizeUpsServiceCode } =
+      await import("@lib/util/eligible-arrival-dates")
+    const { getAtlantaDeliveryZipConfig } = await import("@lib/data/strapi/fulfillment")
+    const { getFulfillmentBlackouts } = await import("@lib/data/strapi/checkout")
+    const [atlantaZipConfig, blackouts] = await Promise.all([
+      getAtlantaDeliveryZipConfig(), getFulfillmentBlackouts(),
+    ])
+    const destinationZip = cart.shipping_address?.postal_code?.trim() || ""
+    const type = cart.metadata?.fulfillmentType
+    const service = normalizeUpsServiceCode(cart.shipping_methods?.at(-1)?.name || "")
+    const method = type === "plant_pickup" || type === "atlanta_delivery" || type === "southeast_pickup"
+      ? type : service === "OVERNIGHT" ? "ups_overnight"
+      : service === "2ND_DAY_AIR" ? "ups_2day" : service === "3_DAY_SELECT" ? "ups_3day" : "ups_ground"
+    if (method !== "southeast_pickup" && !isArrivalDateValid(date, {
+      method, destinationZip, atlantaZipConfig, blackouts,
+    })) throw new Error("That arrival date isn't available for the selected shipping method. Please pick a different date.")
+    await sdk.store.cart.update(cartId, withStaffCartMetadata({ metadata: {
+      requestedDeliveryDate: date,
+      qbdDueDate: computeQuickBooksDueDateForArrival(date, { method, destinationZip, blackouts }) || "",
+    } }, active, "requested_delivery_date_update"), {}, headers)
+    revalidateTag(await getCacheTag("carts"))
+    return
   }
+  await sdk.store.cart.update(
+    cartId,
+    withStaffCartMetadata(
+      {
+        metadata: {
+          requestedDeliveryDate: "",
+          scheduledDate: "",
+          qbdDueDate: "",
+          fulfillmentPickDate: "",
+          fulfillmentDispatchDate: "",
+          fulfillmentWindowLabel: "",
+          fulfillmentCalendarTimezone: "",
+          fulfillment_calendar_selection_v1: "",
+          fulfillment_calendar_accepted_v1: null,
+          fulfillmentCalendarQuoteId: "",
+          scheduledTimeWindow: "",
+        },
+      },
+      active,
+      "requested_delivery_date_clear"
+    ),
+    {},
+    headers
+  )
+  revalidateTag(await getCacheTag("carts"))
+}
 
-  return sdk.store.cart
-    .update(
-      cartId,
+function calendarErrorMessage(error: unknown) {
+  const e = error as {
+    status?: number
+    statusCode?: number
+    response?: { status?: number }
+    message?: string
+  }
+  const status = Number(e?.status ?? e?.statusCode ?? e?.response?.status)
+  return status === 409
+    ? "Your order or the available dates changed. Refresh dates and choose again."
+    : "We couldn’t confirm available dates. Please refresh dates or choose another fulfillment option."
+}
+
+function calendarReaders(cartId: string, headers: Record<string, string>) {
+  return {
+    cartId,
+    readCart: () => retrieveCart(cartId, { fresh: true, throwOnFetchError: true }),
+    readCapability: () => sdk.client.fetch(CALENDAR_PATH, {
+      method: "GET", cache: "no-store", headers,
+    }),
+    validate: () => sdk.client.fetch<{ state?: unknown; summary?: unknown }>(CALENDAR_PATH, {
+      method: "POST", cache: "no-store", headers,
+      body: { action: "validate", cart_id: cartId },
+    }),
+  }
+}
+
+export async function getCheckoutCalendar(input: {
+  cartId: string
+  fulfillmentType: FulfillmentType
+  shippingOptionId?: string
+  routeId?: string
+}): Promise<CalendarActionResult<FulfillmentCalendarPage>> {
+  try {
+    const active = await getCartStaffContext()
+    const optionId =
+      input.shippingOptionId ??
+      (await findShippingOptionByType(input.cartId, input.fulfillmentType))?.id
+    if (!optionId)
+      return {
+        ok: false,
+        error:
+          "This fulfillment option is unavailable. Please choose another option.",
+      }
+    const headers = await cartHeadersForStaffContext(active)
+    const data = await sdk.client.fetch<
+      Omit<FulfillmentCalendarPage, "shippingOptionId">
+    >("/store/grillers/checkout/fulfillment-calendar", {
+      method: "POST",
+      cache: "no-store",
+      headers,
+      body: {
+        action: "list",
+        cart_id: input.cartId,
+        shipping_option_id: optionId,
+        ...(input.routeId ? { route_id: input.routeId } : {}),
+      },
+    }).catch(async (error) => {
+      if (await legacyCalendarCart({
+        ...calendarReaders(input.cartId, headers),
+        observation: calendarHttpStatus(error),
+      })) return null
+      throw error
+    })
+    if (!data) return { ok: false, legacy: true, error: "Use the available scheduling options below." }
+    return { ok: true, data: { ...data, shippingOptionId: optionId } }
+  } catch (error) {
+    return { ok: false, error: calendarErrorMessage(error) }
+  }
+}
+
+export async function saveCheckoutCalendar(input: {
+  cartId: string
+  choice: FulfillmentCalendarDraft
+  pickupLocation?: { name?: string; city?: string; state?: string }
+}): Promise<
+  CalendarActionResult<
+    | { state: "selected" }
+    | { state: "changed"; page: FulfillmentCalendarPage; message: string }
+  >
+> {
+  try {
+    const active = await getCartStaffContext()
+    const headers = await cartHeadersForStaffContext(active)
+    const { choice } = input
+    const data = await sdk.client.fetch<{
+      state: "selected" | "changed"
+      metadata: Record<string, unknown>
+      calendar: FulfillmentCalendarPage["calendar"]
+      contextRevision: string
+      replacementQuote?: string
+      message?: string
+    }>("/store/grillers/checkout/fulfillment-calendar", {
+      method: "POST",
+      cache: "no-store",
+      headers,
+      body: {
+        action: "select",
+        cart_id: input.cartId,
+        shipping_option_id: choice.shippingOptionId,
+        arrival_date: choice.arrivalDate,
+        context_revision: choice.contextRevision,
+        ...(choice.windowId ? { window_id: choice.windowId } : {}),
+        ...(choice.routeId ? { route_id: choice.routeId } : {}),
+        ...(choice.replacementQuote
+          ? { replacement_quote: choice.replacementQuote }
+          : {}),
+      },
+    })
+    if (data.state === "changed")
+      return {
+        ok: true,
+        data: {
+          state: "changed",
+          message:
+            "The carrier returned a different arrival estimate. Please choose and confirm the updated date.",
+          page: {
+            calendar: data.calendar,
+            contextRevision: data.contextRevision,
+            shippingOptionId: choice.shippingOptionId,
+            replacementQuote: data.replacementQuote,
+          },
+        },
+      }
+    if (
+      data.state !== "selected" ||
+      !data.metadata?.fulfillment_calendar_selection_v1
+    )
+      throw new Error("Missing confirmed date")
+    await sdk.store.cart.update(
+      input.cartId,
       withStaffCartMetadata(
-        { metadata: { requestedDeliveryDate: date, qbdDueDate: "" } },
+        {
+          metadata: {
+            ...data.metadata,
+            fulfillment_calendar_accepted_v1: null,
+            pickupLocationName: input.pickupLocation?.name || "",
+            pickupLocationCity: input.pickupLocation?.city || "",
+            pickupLocationState: input.pickupLocation?.state || "",
+            fulfillmentSelectionStatus: "pending",
+          },
+        },
         active,
-        "requested_delivery_date_update",
-        { requestedDeliveryDate: date }
+        "fulfillment_calendar_select"
       ),
       {},
       headers
     )
-    .then(async () => {
-      const cartCacheTag = await getCacheTag("carts")
-      revalidateTag(cartCacheTag)
+    // Refresh the persisted package/rate snapshot for this exact dated choice,
+    // even when the customer keeps the same shipping service.
+    await setShippingMethod({
+      cartId: input.cartId,
+      shippingMethodId: choice.shippingOptionId,
     })
-    .catch(medusaError)
+    revalidateTag(await getCacheTag("carts"))
+    revalidateTag(await getCacheTag("fulfillment"))
+    return { ok: true, data: { state: "selected" } }
+  } catch (error) {
+    revalidateTag(await getCacheTag("carts"))
+    return { ok: false, error: calendarErrorMessage(error) }
+  }
+}
+
+export async function verifyCartCalendarForCheckout(cartId: string) {
+  const active = await getCartStaffContext()
+  await validateCalendarOrLegacy(calendarReaders(cartId, await cartHeadersForStaffContext(active)))
 }
 
 /**
@@ -819,35 +933,32 @@ export async function setFulfillmentDetails({
 }) {
   const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
+  let legacyDate = false
   let qbdDueDate = ""
-
-  if (scheduledDate && fulfillmentType !== "ups_shipping") {
-    try {
-      const { computeQuickBooksDueDateForArrival } = await import(
-        "@lib/util/eligible-arrival-dates"
-      )
-      qbdDueDate =
-        computeQuickBooksDueDateForArrival(scheduledDate, {
-          method: fulfillmentType as any,
-          destinationZip: fulfillmentZip,
-        }) || ""
-    } catch {
-      qbdDueDate = ""
+  if (scheduledDate || scheduledTimeWindow) {
+    const result = await validateCalendarOrLegacy(calendarReaders(cartId, headers))
+    if (result.state !== "legacy" || !fulfillmentDateKey(scheduledDate))
+      throw new Error(CALENDAR_REQUIRED_MESSAGE)
+    legacyDate = true
+    if (fulfillmentType !== "ups_shipping") {
+      const { computeQuickBooksDueDateForArrival } = await import("@lib/util/eligible-arrival-dates")
+      qbdDueDate = computeQuickBooksDueDateForArrival(scheduledDate, {
+        method: fulfillmentType, destinationZip: fulfillmentZip,
+      }) || ""
     }
   }
-
-  const metadata: Record<string, string | undefined> = {
+  const metadata = {
+    ...(legacyDate ? {
+      scheduledDate: fulfillmentType === "ups_shipping" ? "" : scheduledDate,
+      scheduledTimeWindow: scheduledTimeWindow || "",
+      qbdDueDate,
+    } : clearedCheckoutFulfillmentMetadata()),
     fulfillmentType,
     fulfillmentZip,
-    scheduledDate: fulfillmentType === "ups_shipping" ? "" : scheduledDate,
-    qbdDueDate,
-    scheduledTimeWindow: scheduledTimeWindow || "",
     pickupLocationId: pickupLocationId || "",
     pickupLocationName: pickupLocationName || "",
     pickupLocationCity: pickupLocationCity || "",
     pickupLocationState: pickupLocationState || "",
-    // The method is attached in a second server action. Invariant monitoring
-    // must not inspect the cart in the deliberate gap between these writes.
     fulfillmentSelectionStatus: "pending",
   }
 
@@ -1035,9 +1146,11 @@ export async function getCartInventoryReview(cartId?: string) {
 export async function setShippingMethod({
   cartId,
   shippingMethodId,
+  shippingPriceToken,
 }: {
   cartId: string
   shippingMethodId: string
+  shippingPriceToken?: string
 }) {
   const active = await getCartStaffContext()
   const headers = await cartHeadersForStaffContext(active)
@@ -1053,8 +1166,16 @@ export async function setShippingMethod({
     )
   }
 
+  // The visible quote wins. Automatic/staff method selection also gets a
+  // server-issued quote; never construct an amount or pricing policy here.
+  let priceToken = shippingPriceToken
+  if (!priceToken) {
+    const { calculatePriceForShippingOption } = await import("./fulfillment")
+    const priced = await calculatePriceForShippingOption(shippingMethodId, cartId)
+    priceToken = (priced as any)?.calculated_price?.shipping_price_quote_v1
+  }
   return sdk.store.cart
-    .addShippingMethod(cartId, { option_id: shippingMethodId }, {}, headers)
+    .addShippingMethod(cartId, { option_id: shippingMethodId, ...(priceToken ? { data: { shipping_price_quote_v1: priceToken } } : {}) }, {}, headers)
     .then(async (result) => {
       // Mark the two-step selection complete only after Medusa accepted the
       // shipping method. A failed attachment must remain visibly pending.

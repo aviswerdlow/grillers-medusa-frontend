@@ -65,6 +65,7 @@ export async function emitFallbackHomepageOpsAlert({
     alertKind: "fallback_homepage_rendered",
     title: `Fallback homepage rendered for ${countryCode}`,
     path: "src/app/[countryCode]/(main)/page.tsx",
+    dedupeWindowMs: 5 * 60 * 1000,
     meta: {
       country_code: countryCode,
       has_strapi_data: hasStrapiData,
@@ -95,6 +96,7 @@ export async function emitHomepageProductRailFailureAlert({
     path: railPath(rail),
     source: "storefront-server",
     fingerprint: `homepage_product_rail:${rail}`,
+    dedupeWindowMs: 5 * 60 * 1000,
     meta: {
       homepage_rail: rail,
       country_code: countryCode,

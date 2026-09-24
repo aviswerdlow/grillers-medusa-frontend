@@ -3,7 +3,6 @@
 import { RadioGroup, Radio } from "@headlessui/react"
 import {
   clearFulfillmentDetails,
-  setFulfillmentDetails,
   setShippingMethod,
 } from "@lib/data/cart"
 import { calculatePriceForShippingOption, findShippingOptionByType } from "@lib/data/fulfillment"
@@ -198,6 +197,7 @@ const Shipping: React.FC<ShippingProps> = ({
   // Auto-open if: address is done AND no valid shipping method yet, OR explicitly via URL
   const isOpen = searchParams.get("step") === "delivery" || (addressComplete && !shippingMethodSelected)
 
+  const [priceTokens, setPriceTokens] = useState<Record<string, string>>({})
   const [priceLoadError, setPriceLoadError] = useState(false)
 
   useEffect(() => {
@@ -212,8 +212,15 @@ const Shipping: React.FC<ShippingProps> = ({
 
         Promise.allSettled(promises).then((res) => {
           const pricesMap: Record<string, number> = {}
-          const fulfilled = res.filter((r) => r.status === "fulfilled")
-          fulfilled.forEach((p) => (pricesMap[p.value?.id || ""] = p.value?.amount!))
+          const tokens: Record<string, string> = {}
+          const fulfilled = res.filter((r) => r.status === "fulfilled" && r.value && Number.isFinite(r.value.amount))
+          fulfilled.forEach((p) => {
+            if (p.status !== "fulfilled" || !p.value) return
+            pricesMap[p.value.id] = p.value.amount!
+            const token = (p.value as any).calculated_price?.shipping_price_quote_v1
+            if (typeof token === "string") tokens[p.value.id] = token
+          })
+          setPriceTokens(tokens)
 
           setCalculatedPricesMap(pricesMap)
           setIsLoadingPrices(false)
@@ -258,7 +265,7 @@ const Shipping: React.FC<ShippingProps> = ({
       return id
     })
 
-    await setShippingMethod({ cartId: cart.id, shippingMethodId: id })
+    await setShippingMethod({ cartId: cart.id, shippingMethodId: id, shippingPriceToken: priceTokens[id] })
       .then(() => {
         const selectedMethod = availableShippingMethods?.find(m => m.id === id)
         const shippingItems = getCheckoutAnalyticsItems(cart)
@@ -360,37 +367,9 @@ const Shipping: React.FC<ShippingProps> = ({
     setError(null)
     setIsLoading(true)
     try {
-      if (nextType === "atlanta_delivery") {
-        // Atlanta delivery requires an explicit delivery date and time window.
-        // Retire the unusable UPS choice and return to the normal selector so
-        // the customer completes that scheduling flow; never synthesize a
-        // pending Atlanta selection from this dead-end shortcut.
-        await clearFulfillmentDetails(cart.id)
-        router.replace(pathname, { scroll: false })
-        router.refresh()
-        return
-      }
-
-      const today = new Date().toLocaleDateString("en-US", {
-        month: "numeric",
-        day: "numeric",
-        year: "numeric",
-      })
-      await setFulfillmentDetails({
-        cartId: cart.id,
-        fulfillmentType: nextType,
-        fulfillmentZip: "00000",
-        scheduledDate: today,
-      })
-
-      const option = await findShippingOptionByType(cart.id, "plant_pickup")
-      if (!option) {
-        throw new Error(
-          "Plant pickup is unavailable right now. Please choose another fulfillment method."
-        )
-      }
-      await setShippingMethod({ cartId: cart.id, shippingMethodId: option.id })
-
+      // Both local modes need an explicit, currently available date/window.
+      // Return to the selector; never synthesize today's pickup date here.
+      await clearFulfillmentDetails(cart.id)
       router.replace(pathname, { scroll: false })
       router.refresh()
     } catch (err: any) {
