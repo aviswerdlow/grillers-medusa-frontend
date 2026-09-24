@@ -2,8 +2,12 @@ import { gql } from "graphql-request"
 import { cachedStrapiRequest } from "@lib/strapi"
 import { enrichStrapiProductsWithMedusaPrices } from "@lib/data/products"
 import { emitCuratedCollectionsStrapiFailureAlert } from "@lib/curated-collections-ops-alerts"
-import { compactCollectionProduct } from "@lib/util/collection-product"
+import {
+  compactCollectionProduct,
+  withoutUnverifiedProductState,
+} from "@lib/util/collection-product"
 import { isInternalStrapiProduct } from "@lib/util/internal-products"
+import { isStrapiTimeout } from "@lib/util/strapi-timeout"
 import type { StrapiSEO, StrapiSocialMeta } from "./seo"
 import type { StrapiCollectionProduct } from "./collections"
 
@@ -213,12 +217,12 @@ const CuratedProductFields = gql`
       }
     }
     MedusaProduct {
-        AvailabilityLifecycle
+      AvailabilityLifecycle
       ProductId
       Handle
       ShortDescription
       Variants {
-          AvailabilityLifecycle
+        AvailabilityLifecycle
         VariantId
         Sku
         QualifiesForFreeDeliveryOffers
@@ -397,12 +401,12 @@ const LegacyCuratedProductFields = gql`
       }
     }
     MedusaProduct {
-        AvailabilityLifecycle
+      AvailabilityLifecycle
       ProductId
       Handle
       ShortDescription
       Variants {
-          AvailabilityLifecycle
+        AvailabilityLifecycle
         VariantId
         Sku
         Price {
@@ -509,12 +513,12 @@ const PdpCuratedProductFields = gql`
       FreeDeliveryExclusionReason
     }
     MedusaProduct {
-        AvailabilityLifecycle
+      AvailabilityLifecycle
       ProductId
       Handle
       ShortDescription
       Variants {
-          AvailabilityLifecycle
+        AvailabilityLifecycle
         VariantId
         Sku
         QualifiesForFreeDeliveryOffers
@@ -586,12 +590,12 @@ const LegacyPdpCuratedProductFields = gql`
       AvgPackWeight
     }
     MedusaProduct {
-        AvailabilityLifecycle
+      AvailabilityLifecycle
       ProductId
       Handle
       ShortDescription
       Variants {
-          AvailabilityLifecycle
+        AvailabilityLifecycle
         VariantId
         Sku
         Price {
@@ -763,8 +767,7 @@ function compactCuratedCollectionItem(item: CuratedCollectionItem) {
       ? compactCollectionProduct(item.Product)
       : null
   const originalProduct =
-    item.OriginalProduct &&
-    !isInternalStrapiProduct(item.OriginalProduct)
+    item.OriginalProduct && !isInternalStrapiProduct(item.OriginalProduct)
       ? compactCollectionProduct(item.OriginalProduct)
       : null
 
@@ -785,15 +788,47 @@ function compactCuratedCollections(collections: CuratedCollection[]) {
 
 async function enrichCollections(
   collections: CuratedCollection[],
-  countryCode: string
+  countryCode: string,
+  requireLivePrices = false
 ) {
   const products = uniqueProducts(collections)
   if (!products.length) return compactCuratedCollections(collections)
   const enriched = await enrichStrapiProductsWithMedusaPrices(
     products,
-    countryCode
+    countryCode,
+    { requireLivePrices }
   )
   return replaceProducts(collections, enriched)
+}
+
+export async function refreshCuratedCollectionPrices(
+  collection: CuratedCollection,
+  countryCode: string,
+  requireLivePrices = false
+): Promise<CuratedCollection> {
+  if (!requireLivePrices) {
+    return (await enrichCollections([collection], countryCode))[0]
+  }
+
+  // A saved CMS collection is useful for its copy and item identities, but
+  // old price and stock snapshots must not become current shopping promises.
+  const safeCollection = {
+    ...collection,
+    Items: collection.Items?.map((item) => ({
+      ...item,
+      Product: item.Product
+        ? withoutUnverifiedProductState(item.Product)
+        : item.Product,
+      OriginalProduct: item.OriginalProduct
+        ? withoutUnverifiedProductState(item.OriginalProduct)
+        : item.OriginalProduct,
+    })),
+  }
+  try {
+    return (await enrichCollections([safeCollection], countryCode, true))[0]
+  } catch {
+    return safeCollection
+  }
 }
 
 export async function getCuratedCollectionCards({
@@ -845,7 +880,8 @@ async function loadCuratedCollectionBySlug(
   slug: string,
   countryCode: string,
   alertSurface = "collection_page",
-  profile: "full" | "pdp" = "full"
+  profile: "full" | "pdp" = "full",
+  throwOnFailure = false
 ): Promise<CuratedCollection | null> {
   const visibleCollection = (
     collection: CuratedCollection | null | undefined
@@ -872,6 +908,19 @@ async function loadCuratedCollectionBySlug(
   } catch (error) {
     primaryError = error
     console.error("Error fetching curated collection:", error)
+    if (isStrapiTimeout(error)) {
+      void emitCuratedCollectionsStrapiFailureAlert({
+        operation: "detail",
+        stage: "primary",
+        surface: alertSurface,
+        countryCode,
+        slug,
+        recovered: false,
+        error,
+      }).catch(() => {})
+      if (throwOnFailure) throw error
+      return null
+    }
   }
 
   try {
@@ -907,6 +956,7 @@ async function loadCuratedCollectionBySlug(
     }).catch(() => {
       // Fail open: alerting should never block merchandising content.
     })
+    if (throwOnFailure) throw error
     return null
   }
 }
@@ -914,12 +964,15 @@ async function loadCuratedCollectionBySlug(
 export async function getCuratedCollectionBySlug(
   slug: string,
   countryCode: string,
-  alertSurface = "collection_page"
+  alertSurface = "collection_page",
+  throwOnFailure = false
 ): Promise<CuratedCollection | null> {
   const collection = await loadCuratedCollectionBySlug(
     slug,
     countryCode,
-    alertSurface
+    alertSurface,
+    "full",
+    throwOnFailure
   )
   if (!collection) return null
   const [enriched] = await enrichCollections([collection], countryCode)

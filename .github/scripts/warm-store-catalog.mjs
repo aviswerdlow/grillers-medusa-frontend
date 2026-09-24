@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises"
+
 const {
   DEPLOY_SHA,
   DEPLOYMENT_URL,
@@ -55,19 +57,98 @@ if (main.commit?.sha !== DEPLOY_SHA) {
   process.exit(0)
 }
 
-const response = await fetch(new URL("/api/revalidate", deployment), {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${REVALIDATE_SECRET}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({ event: "deployment.ready" }),
-  signal: AbortSignal.timeout(45_000),
-})
-const result = await response.json()
-if (!response.ok || !result.warmed || result.visibleProductCount < 1) {
-  throw new Error(`Store catalog warm-up failed (${response.status})`)
+async function warm(surface, handle) {
+  const response = await fetch(new URL("/api/revalidate", deployment), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${REVALIDATE_SECRET}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ event: "deployment.ready", surface, handle }),
+    signal: AbortSignal.timeout(70_000),
+  })
+  const result = await response.json().catch(() => null)
+  if (!response.ok || !result?.warmed) {
+    throw new Error(
+      `${surface}${handle ? `/${handle}` : ""} warm-up failed (${
+        response.status
+      })`
+    )
+  }
+  return result
+}
+
+async function warmRoute(path) {
+  const response = await fetch(new URL(path, deployment), {
+    redirect: "error",
+    signal: AbortSignal.timeout(70_000),
+  })
+  const html = await response.text()
+  if (!response.ok || html.includes("Collection temporarily unavailable")) {
+    throw new Error(`Route ${path} warm-up failed (${response.status})`)
+  }
+}
+
+const store = await warm("store")
+if (store.visibleProductCount < 1) {
+  throw new Error("Store catalog warm-up returned no visible products")
 }
 console.log(
-  `Warmed ${result.visibleProductCount} visible store products on ${DEPLOY_SHA}`
+  `Warmed ${store.visibleProductCount} visible store products on ${DEPLOY_SHA}`
 )
+
+const manifest = JSON.parse(
+  await readFile(
+    new URL(
+      "../../src/lib/data/legacy-redirect-manifest.json",
+      import.meta.url
+    ),
+    "utf8"
+  )
+)
+const handles = Array.from(
+  new Set(
+    manifest.rows
+      .map(
+        (row) =>
+          row.destination?.match(/^\/us\/collections\/([a-z0-9-]+)$/)?.[1]
+      )
+      .filter(Boolean)
+  )
+).sort()
+if (handles.length === 0) {
+  throw new Error("No collection handles found in the redirect manifest")
+}
+
+const failures = []
+try {
+  await warm("home")
+  await warmRoute("/us")
+  console.log("Warmed homepage CMS queries and route")
+} catch (error) {
+  failures.push(error.message)
+}
+
+// Keep Strapi traffic bounded while filling every distinct manifest handle.
+let cursor = 0
+const worker = async () => {
+  while (cursor < handles.length) {
+    const handle = handles[cursor++]
+    try {
+      await warm("collection", handle)
+      await warmRoute(`/us/collections/${handle}`)
+    } catch (error) {
+      failures.push(error.message)
+    }
+  }
+}
+await Promise.all(Array.from({ length: 4 }, () => worker()))
+console.log(
+  `Warmed ${
+    handles.length -
+    failures.filter((failure) => failure.startsWith("collection/")).length
+  }/${handles.length} manifest collections`
+)
+if (failures.length) {
+  throw new Error(`Production warm-up incomplete: ${failures.join(", ")}`)
+}
