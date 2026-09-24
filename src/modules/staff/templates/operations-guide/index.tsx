@@ -406,6 +406,7 @@ const sections: GuideSection[] = [
       "The Customer Account workspace shows the protected QuickBooks terms read for the selected Medusa customer. Its open-invoice total excludes unposted order commitments; the server credit check includes both before an invoice order is accepted or finalized.",
       "Treat a credit hold as active until a named approver records a reason and the override audit. Do not release a held order from a generic staff action.",
       "After posting, verify the specific invoice and any collection through its approved method in QuickBooks. A pending or uncertain receipt does not reduce verified exposure.",
+      "Order Support shows a read-only Invoice collection panel for flagged invoice orders. Refresh collection status after the QuickBooks Web Connector read; the button does not start a Web Connector session. A missing source or null remaining A/R stays on review hold.",
     ],
     watch: [
       "The current website invoice-order snapshot is not an authoritative QuickBooks open-A/R read. Never approve from that number alone.",

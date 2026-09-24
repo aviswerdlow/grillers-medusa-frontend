@@ -3214,7 +3214,10 @@ export default function PhoneOrderCopilot({
           </div>
         </>
       ) : (
-        <StaffOrderExceptionConsole staffRole={staffRole} />
+        <StaffOrderExceptionConsole
+          staffRole={staffRole}
+          institutionalTermsEnabled={institutionalTermsEnabled}
+        />
       )}
     </div>
   )
