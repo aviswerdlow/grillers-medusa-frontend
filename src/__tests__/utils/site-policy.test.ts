@@ -29,6 +29,32 @@ test("production canonical configuration takes precedence over a stale temporary
   expect(canonicalOrigin(env)).toBe("https://www.grillerspride.com")
   expect(isIndexableDeployment(env)).toBe(true)
 })
+test("the configured Vercel production alias remains indexable until cutover", () => {
+  const current = {
+    VERCEL_ENV: "production",
+    NEXT_PUBLIC_BASE_URL: "https://grillers-medusa-frontend.vercel.app",
+  }
+  expect(publicOrigin(current)).toBe(
+    "https://grillers-medusa-frontend.vercel.app"
+  )
+  expect(canonicalOrigin(current)).toBe(
+    "https://grillers-medusa-frontend.vercel.app"
+  )
+  expect(isIndexableDeployment(current)).toBe(true)
+  expect(() => assertProductionIndexingConfiguration(current)).not.toThrow()
+  expect(
+    crawlerHeaders(current).some(
+      (rule: { source: string }) => rule.source === "/:path*"
+    )
+  ).toBe(false)
+
+  const cutover = {
+    ...current,
+    NEXT_PUBLIC_CANONICAL_BASE_URL: "https://www.grillerspride.com",
+  }
+  expect(publicOrigin(cutover)).toBe("https://www.grillerspride.com")
+  expect(isIndexableDeployment(cutover)).toBe(true)
+})
 test("preview URLs remain on the preview and cannot become indexable through production env values", () => {
   const env = {
     ...production,
@@ -50,9 +76,9 @@ test("preview URLs remain on the preview and cannot become indexable through pro
       ...production,
       NEXT_PUBLIC_CANONICAL_BASE_URL: "https://alias.vercel.app",
     })
-  ).toBe(false)
+  ).toBe(true)
 })
-test("production build requires an explicit indexable canonical host or Avi's noindex confirmation", () => {
+test("production build requires a configured HTTPS origin or Avi's noindex confirmation", () => {
   expect(() => assertProductionIndexingConfiguration(production)).not.toThrow()
   expect(() =>
     assertProductionIndexingConfiguration({ VERCEL_ENV: "preview" })
@@ -65,7 +91,7 @@ test("production build requires an explicit indexable canonical host or Avi's no
       VERCEL_ENV: "production",
       NEXT_PUBLIC_PRODUCTION_BASE_URL: "https://www.grillerspride.com",
     })
-  ).toBe(false)
+  ).toBe(true)
   expect(
     isIndexableDeployment({
       VERCEL_ENV: "production",
@@ -84,7 +110,13 @@ test("production build requires an explicit indexable canonical host or Avi's no
       NEXT_PUBLIC_CANONICAL_BASE_URL:
         "https://grillers-medusa-frontend.vercel.app",
     })
-  ).toThrow(/GP_PRODUCTION_NOINDEX_CONFIRMED/)
+  ).not.toThrow()
+  expect(() =>
+    assertProductionIndexingConfiguration({
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_BASE_URL: "http://localhost:8000",
+    })
+  ).toThrow(/HTTPS canonical origin/)
 })
 
 test("robots private paths do not hide public order information", () => {

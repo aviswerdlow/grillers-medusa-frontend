@@ -16,14 +16,14 @@ function origin(value) {
 }
 function configuredCanonical(env = process.env) {
   return (
-    env.NEXT_PUBLIC_CANONICAL_BASE_URL || env.NEXT_PUBLIC_PRODUCTION_BASE_URL
+    env.NEXT_PUBLIC_CANONICAL_BASE_URL ||
+    env.NEXT_PUBLIC_PRODUCTION_BASE_URL ||
+    env.NEXT_PUBLIC_BASE_URL
   )
 }
 function canonicalOrigin(env = process.env) {
   return origin(
-    configuredCanonical(env) ||
-      env.NEXT_PUBLIC_BASE_URL ||
-      "https://grillers-medusa-frontend.vercel.app"
+    configuredCanonical(env) || "https://grillers-medusa-frontend.vercel.app"
   )
 }
 function publicOrigin(env = process.env) {
@@ -33,22 +33,18 @@ function publicOrigin(env = process.env) {
   return origin(env.NEXT_PUBLIC_BASE_URL || preview || "http://localhost:8000")
 }
 function isIndexableDeployment(env = process.env) {
-  const configured = env.NEXT_PUBLIC_CANONICAL_BASE_URL
+  const configured = configuredCanonical(env)
   if (env.VERCEL_ENV !== "production" || !/^https:\/\//i.test(configured || ""))
     return false
   const url = new URL(origin(configured))
-  return (
-    url.protocol === "https:" &&
-    !url.hostname.endsWith(".vercel.app") &&
-    url.hostname !== "localhost"
-  )
+  return url.protocol === "https:" && url.hostname !== "localhost"
 }
 function assertProductionIndexingConfiguration(env = process.env) {
   if (env.VERCEL_ENV !== "production") return
   if (isIndexableDeployment(env)) return
   if (env.GP_PRODUCTION_NOINDEX_CONFIRMED === "true") return
   throw new Error(
-    "Production build requires NEXT_PUBLIC_CANONICAL_BASE_URL on an approved HTTPS non-vercel.app host, or GP_PRODUCTION_NOINDEX_CONFIRMED=true after Avi approves noindex"
+    "Production build requires an explicit HTTPS canonical origin from NEXT_PUBLIC_CANONICAL_BASE_URL, NEXT_PUBLIC_PRODUCTION_BASE_URL, or NEXT_PUBLIC_BASE_URL, or GP_PRODUCTION_NOINDEX_CONFIRMED=true after Avi approves noindex"
   )
 }
 const privateRoots = ["account", "cart", "checkout", "order", "api"]
