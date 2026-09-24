@@ -53,6 +53,11 @@ export type ExperimentRequestContext = {
 }
 
 export type ExperimentAssignment = {
+  version?: string | null
+  evaluationVersion?: string
+  releaseId?: string
+  versionKeyId?: string
+  versionSignature?: string
   experimentKey: string
   variantKey: string
   assignmentId: string
@@ -68,6 +73,11 @@ export type ExperimentAssignment = {
 }
 
 export type StoredExperimentAssignment = {
+  version?: string | null
+  evaluationVersion?: string
+  releaseId?: string
+  versionKeyId?: string
+  versionSignature?: string
   variantKey: string
   assignmentId: string
   assignedAt: string

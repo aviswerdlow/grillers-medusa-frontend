@@ -35,7 +35,7 @@ async function loadStatsig() {
   return statsigPromise
 }
 
-export async function getStatsigVariant(
+export async function getStatsigEvaluation(
   definition: ExperimentDefinition,
   stableId: string,
   context: ExperimentRequestContext
@@ -65,12 +65,12 @@ export async function getStatsigVariant(
     )
 
     const configuredVariant = experiment.get("variant", definition.defaultVariant)
-    if (typeof configuredVariant === "string") {
-      return configuredVariant
-    }
-
     const groupName = experiment.getGroupName()
-    return typeof groupName === "string" ? groupName : null
+    const variant = typeof configuredVariant === "string" ? configuredVariant : groupName
+    return typeof variant === "string" ? {
+      variant,
+      evidence: { rule_id: experiment.getRuleId(), group_name: groupName, value: experiment.value },
+    } : null
   } catch {
     return null
   }
