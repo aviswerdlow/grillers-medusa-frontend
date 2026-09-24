@@ -14,6 +14,7 @@ import CheckoutStepsGate from "@modules/checkout/components/checkout-steps-gate"
 import { FulfillmentEditProvider } from "@modules/checkout/context/fulfillment-edit-context"
 import type { FulfillmentType } from "@lib/data/cart"
 import { hasCompleteFulfillmentAddress } from "@lib/util/fulfillment-address"
+import { getCustomerInstitutionalTerms } from "@lib/data/institutional-terms"
 import {
   isCheckoutFulfillmentReadyForPayment,
   isFulfillmentSelectionSettled,
@@ -58,6 +59,9 @@ export default async function CheckoutForm({
       listCartPaymentMethods(cart.region?.id ?? ""),
       customer ? getSavedPaymentMethods() : Promise.resolve([]),
     ])
+  const institutionalTerms = customer
+    ? await getCustomerInstitutionalTerms()
+    : null
 
   if (!shippingMethods || !paymentMethods) {
     return null
@@ -148,9 +152,9 @@ export default async function CheckoutForm({
                   availablePaymentMethods={paymentMethods}
                   savedPaymentMethods={savedPaymentMethods}
                   invoiceApproved={
-                    (customer?.metadata as Record<string, unknown> | undefined)
-                      ?.gp_offline_payment_approved === true
+                    institutionalTerms?.status === "approved"
                   }
+                  invoiceTermsName={institutionalTerms?.terms?.name}
                 />
               )}
           </CheckoutStepsGate>
