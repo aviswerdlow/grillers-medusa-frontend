@@ -27,29 +27,30 @@ jest.mock("@lib/data/receipt-email", () => ({
 }))
 jest.mock("@lib/data/regions", () => ({ listRegions: jest.fn() }))
 
-jest.mock("@modules/account/components/profile-name", () => () => (
-  <div data-testid="profile-name" />
-))
-jest.mock("@modules/account/components/profile-email", () => () => (
-  <div data-testid="profile-email" />
-))
-jest.mock("@modules/account/components/profile-phone", () => () => (
-  <div data-testid="profile-phone" />
-))
-jest.mock("@modules/account/components/profile-password", () => () => (
-  <div data-testid="profile-password" />
-))
-jest.mock("@modules/account/components/profile-billing-address", () => () => (
-  <div data-testid="profile-billing-address" />
-))
+jest.mock("@modules/account/components/profile-name", () => function ProfileNameMock() {
+  return <div data-testid="profile-name" />
+})
+jest.mock("@modules/account/components/profile-email", () => function ProfileEmailMock() {
+  return <div data-testid="profile-email" />
+})
+jest.mock("@modules/account/components/profile-phone", () => function ProfilePhoneMock() {
+  return <div data-testid="profile-phone" />
+})
+jest.mock("@modules/account/components/profile-password", () => function ProfilePasswordMock() {
+  return <div data-testid="profile-password" />
+})
+jest.mock("@modules/account/components/profile-billing-address", () => function ProfileBillingAddressMock() {
+  return <div data-testid="profile-billing-address" />
+})
 jest.mock(
   "@modules/account/components/profile-sms-marketing",
-  () =>
-    ({ marketingStatus }: { marketingStatus: { status: string } | null }) => (
+  () => function ProfileSmsMarketingMock({ marketingStatus }: { marketingStatus: { status: string } | null }) {
+    return (
       <div data-testid="profile-sms-marketing">
         {marketingStatus?.status || "unavailable"}
       </div>
     )
+  }
 )
 
 const mockedRetrieveCustomer = retrieveCustomer as jest.MockedFunction<

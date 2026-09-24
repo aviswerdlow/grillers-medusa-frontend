@@ -726,7 +726,7 @@ export default function PhoneOrderCopilot({
         className={`${className} rounded-md border border-gray-200 bg-SilverPlate/35 px-3 py-3 text-sm font-maison-neue text-Charcoal/60`}
         role="status"
       >
-        No customers found for "{lastCustomerSearchQuery}". Try an email, phone
+        No customers found for &quot;{lastCustomerSearchQuery}&quot;. Try an email, phone
         number, or order number.
       </p>
     )
