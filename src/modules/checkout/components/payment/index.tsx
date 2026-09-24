@@ -30,12 +30,14 @@ const Payment = ({
   availablePaymentMethods,
   savedPaymentMethods = [],
   invoiceApproved = false,
+  invoiceTermsName,
 }: {
   cart: any
   availablePaymentMethods: any[]
   savedPaymentMethods?: SavedPaymentMethod[]
   // #283: when true, the customer is an approved B2B account and may pay by invoice.
   invoiceApproved?: boolean
+  invoiceTermsName?: string
 }) => {
   const cartTitleMap = useCartTitleMap(cart?.items)
   const showsDeliveryStep = cart?.metadata?.fulfillmentType === "ups_shipping"
@@ -318,7 +320,7 @@ const Payment = ({
                       : "border-gray-200 text-gray-700 hover:border-Gold/60"
                   )}
                 >
-                  Pay by invoice (Net terms)
+                  Pay by invoice ({invoiceTermsName || "approved terms"})
                 </button>
               </div>
             </div>

@@ -403,8 +403,9 @@ const sections: GuideSection[] = [
       "Keep the institutional terms flag off until the release lead records the go and the protected test-company rehearsal passes. Use the card checkout path meanwhile.",
       "Verify the exact QuickBooks customer ListID and test-company identity. A matching name or Medusa approval field is not enough.",
       "Confirm Pay By Check Approval, explicit credit limit and terms, current open invoices, source revision, and last successful read. Missing or stale evidence holds the order.",
+      "The Customer Account workspace shows the protected QuickBooks terms read for the selected Medusa customer. Its open-invoice total excludes unposted order commitments; the server credit check includes both before an invoice order is accepted or finalized.",
       "Treat a credit hold as active until a named approver records a reason and the override audit. Do not release a held order from a generic staff action.",
-      "After posting, verify the specific invoice and any Zelle, check, or wire collection in QuickBooks. A pending or uncertain receipt does not reduce verified exposure.",
+      "After posting, verify the specific invoice and any collection through its approved method in QuickBooks. A pending or uncertain receipt does not reduce verified exposure.",
     ],
     watch: [
       "The current website invoice-order snapshot is not an authoritative QuickBooks open-A/R read. Never approve from that number alone.",
