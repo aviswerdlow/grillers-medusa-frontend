@@ -1,7 +1,5 @@
 "use client"
 
-import Link from "next/link"
-
 import { RadioGroup } from "@headlessui/react"
 import { isStripe as isStripeFunc, paymentInfoMap } from "@lib/constants"
 import {
@@ -16,6 +14,7 @@ import { clx } from "@medusajs/ui"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import InventoryResolutionNotice from "@modules/checkout/components/inventory-resolution-notice"
 import PaymentButton from "@modules/checkout/components/payment-button"
+import CheckoutOrderReview from "@modules/checkout/components/order-review"
 import OrderSmsConsent from "@modules/checkout/components/order-sms-consent"
 import { StripeCardContainer } from "@modules/checkout/components/payment-container"
 import {
@@ -25,42 +24,6 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { isCheckoutFulfillmentReadyForPayment } from "@lib/checkout-payment-readiness"
-
-// Net-weight final charge disclosure
-const NetWeightDisclaimer = () => (
-  <div className="bg-Gold/10 border border-Gold/20 rounded-lg p-4 mb-5">
-    <div className="flex gap-3">
-      <div className="shrink-0">
-        <svg
-          className="w-5 h-5 text-Gold"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fillRule="evenodd"
-            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </div>
-      <div>
-        <p className="text-sm font-medium text-gray-900 mb-1">
-          About Your Order Total
-        </p>
-        <p className="text-sm text-gray-600 leading-relaxed">
-          Your card is saved today. We charge the final total when your order is
-          packed and ready to leave.{" "}
-          <Link
-            href="/page/catch-weight-pricing"
-            className="text-Gold hover:text-Gold/80 underline"
-          >
-            Learn more
-          </Link>
-        </p>
-      </div>
-    </div>
-  </div>
-)
 
 const Payment = ({
   cart,
@@ -360,110 +323,113 @@ const Payment = ({
             </div>
           )}
 
-          {!payByInvoice && !paidByGiftcard && cardPaymentMethods.length > 0 && (
-            <>
-              {stripeProviderId && savedPaymentMethods.length > 0 && (
-                <div className="mb-5">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                    Saved cards
-                  </p>
-                  <div className="space-y-2">
-                    {savedPaymentMethods.map((method) => {
-                      const card = method.data?.card
-                      const brand = card?.brand || "Card"
-                      const selected =
-                        selectedSavedPaymentMethodId === method.id
-                      return (
-                        <button
-                          key={method.id}
-                          type="button"
-                          onClick={() => handleSavedCardSelect(method)}
-                          className={clx(
-                            "w-full min-h-[56px] px-4 py-3 rounded-lg border text-left flex items-center justify-between transition-colors",
-                            {
-                              "border-Gold bg-Gold/5": selected,
-                              "border-gray-200 hover:border-Gold/60": !selected,
-                            }
-                          )}
-                        >
-                          <span className="flex items-center gap-3">
-                            <span
-                              className={clx(
-                                "w-4 h-4 rounded-full border-2 flex items-center justify-center",
-                                selected ? "border-Gold" : "border-gray-300"
-                              )}
-                            >
-                              {selected && (
-                                <span className="w-2 h-2 rounded-full bg-Gold" />
-                              )}
-                            </span>
-                            <span>
-                              <span className="block text-sm font-medium text-gray-900 capitalize">
-                                {brand} ending in {card?.last4 || "****"}
+          {!payByInvoice &&
+            !paidByGiftcard &&
+            cardPaymentMethods.length > 0 && (
+              <>
+                {stripeProviderId && savedPaymentMethods.length > 0 && (
+                  <div className="mb-5">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                      Saved cards
+                    </p>
+                    <div className="space-y-2">
+                      {savedPaymentMethods.map((method) => {
+                        const card = method.data?.card
+                        const brand = card?.brand || "Card"
+                        const selected =
+                          selectedSavedPaymentMethodId === method.id
+                        return (
+                          <button
+                            key={method.id}
+                            type="button"
+                            onClick={() => handleSavedCardSelect(method)}
+                            className={clx(
+                              "w-full min-h-[56px] px-4 py-3 rounded-lg border text-left flex items-center justify-between transition-colors",
+                              {
+                                "border-Gold bg-Gold/5": selected,
+                                "border-gray-200 hover:border-Gold/60":
+                                  !selected,
+                              }
+                            )}
+                          >
+                            <span className="flex items-center gap-3">
+                              <span
+                                className={clx(
+                                  "w-4 h-4 rounded-full border-2 flex items-center justify-center",
+                                  selected ? "border-Gold" : "border-gray-300"
+                                )}
+                              >
+                                {selected && (
+                                  <span className="w-2 h-2 rounded-full bg-Gold" />
+                                )}
                               </span>
-                              {method.is_default && (
-                                <span className="block text-xs text-Gold font-medium">
-                                  Default card
+                              <span>
+                                <span className="block text-sm font-medium text-gray-900 capitalize">
+                                  {brand} ending in {card?.last4 || "****"}
                                 </span>
-                              )}
+                                {method.is_default && (
+                                  <span className="block text-xs text-Gold font-medium">
+                                    Default card
+                                  </span>
+                                )}
+                              </span>
                             </span>
-                          </span>
-                          <CreditCard className="text-gray-400" />
-                        </button>
-                      )
-                    })}
-                    <button
-                      type="button"
-                      onClick={handleUseNewStripeCard}
-                      className={clx(
-                        "w-full min-h-[50px] px-4 py-3 rounded-lg border text-left text-sm font-medium transition-colors",
-                        {
-                          "border-Gold bg-Gold/5 text-Charcoal":
-                            selectedPaymentMethod === stripeProviderId &&
-                            !selectedSavedPaymentMethodId,
-                          "border-gray-200 text-gray-700 hover:border-Gold/60":
-                            selectedSavedPaymentMethodId ||
-                            selectedPaymentMethod !== stripeProviderId,
-                        }
-                      )}
-                    >
-                      Use a new card
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <RadioGroup
-                value={selectedPaymentMethod}
-                onChange={(value: string) => void setPaymentMethod(value)}
-              >
-                {cardPaymentMethods.map((paymentMethod) => {
-                  if (
-                    savedPaymentMethods.length > 0 &&
-                    (selectedPaymentMethod !== paymentMethod.id ||
-                      selectedSavedPaymentMethodId)
-                  ) {
-                    return null
-                  }
-
-                  return (
-                    <div key={paymentMethod.id}>
-                      <StripeCardContainer
-                        paymentProviderId={paymentMethod.id}
-                        selectedPaymentOptionId={selectedPaymentMethod}
-                        paymentInfoMap={paymentInfoMap}
-                        setCardBrand={setCardBrand}
-                        setError={setError}
-                        setCardComplete={setCardComplete}
-                        setupIntentClientSecret={setupIntentClientSecret}
-                        isPreparingSetupIntent={isLoading}
-                      />
+                            <CreditCard className="text-gray-400" />
+                          </button>
+                        )
+                      })}
+                      <button
+                        type="button"
+                        onClick={handleUseNewStripeCard}
+                        className={clx(
+                          "w-full min-h-[50px] px-4 py-3 rounded-lg border text-left text-sm font-medium transition-colors",
+                          {
+                            "border-Gold bg-Gold/5 text-Charcoal":
+                              selectedPaymentMethod === stripeProviderId &&
+                              !selectedSavedPaymentMethodId,
+                            "border-gray-200 text-gray-700 hover:border-Gold/60":
+                              selectedSavedPaymentMethodId ||
+                              selectedPaymentMethod !== stripeProviderId,
+                          }
+                        )}
+                      >
+                        Use a new card
+                      </button>
                     </div>
-                  )
-                })}
-              </RadioGroup>
-            </>
-          )}
+                  </div>
+                )}
+
+                <RadioGroup
+                  value={selectedPaymentMethod}
+                  onChange={(value: string) => void setPaymentMethod(value)}
+                >
+                  {cardPaymentMethods.map((paymentMethod) => {
+                    if (
+                      savedPaymentMethods.length > 0 &&
+                      (selectedPaymentMethod !== paymentMethod.id ||
+                        selectedSavedPaymentMethodId)
+                    ) {
+                      return null
+                    }
+
+                    return (
+                      <div key={paymentMethod.id}>
+                        <StripeCardContainer
+                          paymentProviderId={paymentMethod.id}
+                          selectedPaymentOptionId={selectedPaymentMethod}
+                          paymentInfoMap={paymentInfoMap}
+                          setCardBrand={setCardBrand}
+                          setError={setError}
+                          setCardComplete={setCardComplete}
+                          setupIntentClientSecret={setupIntentClientSecret}
+                          isPreparingSetupIntent={isLoading}
+                        />
+                      </div>
+                    )
+                  })}
+                </RadioGroup>
+              </>
+            )}
 
           {!payByInvoice &&
             !paidByGiftcard &&
@@ -503,50 +469,30 @@ const Payment = ({
           {(paymentReady || invoiceReady) && (
             <div className="mt-6 pt-6 border-t border-gray-200">
               <InventoryResolutionNotice cart={cart} />
-              {payByInvoice ? (
-                <div className="bg-Gold/10 border border-Gold/20 rounded-lg p-4 mb-5">
-                  <p className="text-sm font-medium text-gray-900 mb-1">
-                    Pay by invoice
-                  </p>
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    No card needed. You&apos;ll be invoiced on your account
-                    terms, and the final total is set when your order is packed.
-                  </p>
-                </div>
-              ) : (
-                <NetWeightDisclaimer />
-              )}
-
-              <OrderSmsConsent cart={cart} controlsDisabled={submitting}>
-                {({ orderPlacementBlocked }) => (
-                  <PaymentButton
-                    cart={cart}
-                    cardComplete={cardComplete}
-                    disabled={orderPlacementBlocked}
-                    savedPaymentMethodId={selectedSavedPaymentMethodId}
-                    setupIntentClientSecret={setupIntentClientSecret}
-                    payByInvoice={payByInvoice}
-                    onSubmittingChange={setSubmitting}
-                    data-testid="submit-order-button"
-                  />
+              <CheckoutOrderReview
+                cart={cart}
+                paymentMode={payByInvoice ? "invoice" : "card"}
+                disabled={submitting}
+              >
+                {({ acceptance, invalidate }) => (
+                  <OrderSmsConsent cart={cart} controlsDisabled={submitting}>
+                    {({ orderPlacementBlocked }) => (
+                      <PaymentButton
+                        cart={cart}
+                        cardComplete={cardComplete}
+                        disabled={orderPlacementBlocked || !acceptance}
+                        acceptance={acceptance}
+                        onReviewRequired={invalidate}
+                        savedPaymentMethodId={selectedSavedPaymentMethodId}
+                        setupIntentClientSecret={setupIntentClientSecret}
+                        payByInvoice={payByInvoice}
+                        onSubmittingChange={setSubmitting}
+                        data-testid="submit-order-button"
+                      />
+                    )}
+                  </OrderSmsConsent>
                 )}
-              </OrderSmsConsent>
-
-              <p className="text-xs text-gray-500 mt-4 leading-relaxed text-center">
-                By clicking Place Order, you agree to our{" "}
-                <Link href="/terms" className="text-Gold hover:underline">
-                  Terms of Use
-                </Link>
-                ,{" "}
-                <Link href="/terms-of-sale" className="text-Gold hover:underline">
-                  Terms of Sale
-                </Link>
-                , and{" "}
-                <Link href="/privacy" className="text-Gold hover:underline">
-                  Privacy Policy
-                </Link>
-                .
-              </p>
+              </CheckoutOrderReview>
             </div>
           )}
         </div>
