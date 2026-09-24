@@ -25,6 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import Button from "@modules/common/components/button"
+import InstitutionalTermsStatus from "@modules/staff/components/institutional-terms-status"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { Elements } from "@stripe/react-stripe-js"
 import { loadStripe } from "@stripe/stripe-js"
@@ -91,6 +92,7 @@ type Props = {
   initialMerchandisingError?: string | null
   initialMerchandisingTags?: ProductMerchandisingTagSummary[] | null
   initialWorkspace?: StaffWorkspace
+  institutionalTermsEnabled?: boolean
 }
 
 export type StaffWorkspace =
@@ -274,6 +276,7 @@ export default function PhoneOrderCopilot({
   initialMerchandisingError = null,
   initialMerchandisingTags = null,
   initialWorkspace = "phone_order",
+  institutionalTermsEnabled = false,
 }: Props) {
   const router = useRouter()
   const [customerQuery, setCustomerQuery] = useState("")
@@ -1326,6 +1329,10 @@ export default function PhoneOrderCopilot({
             {formatPrice(customerContext.accountCreditBalance, "usd")}
           </span>
         </div>
+
+        {institutionalTermsEnabled && (
+          <InstitutionalTermsStatus key={customerContext.id} customerId={customerContext.id} />
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           <button

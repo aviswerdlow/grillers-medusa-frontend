@@ -144,6 +144,7 @@ export default async function StaffPhoneOrdersPage({
       staffCustomer={customer}
       initialImpersonation={impersonation}
       initialWorkspace={initialWorkspace}
+      institutionalTermsEnabled={process.env.GP_INSTITUTIONAL_TERMS_ENABLED === "true"}
     />
   )
 }

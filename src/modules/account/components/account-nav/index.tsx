@@ -162,10 +162,12 @@ const AccountNav = ({
   customer,
   staffCustomer,
   staffImpersonation,
+  institutionalTermsEnabled,
 }: {
   customer: HttpTypes.StoreCustomer | null
   staffCustomer?: HttpTypes.StoreCustomer | null
   staffImpersonation?: StaffImpersonationSession | null
+  institutionalTermsEnabled: boolean
 }) => {
   const route = usePathname()
   const { countryCode } = useParams() as { countryCode: string }
@@ -192,9 +194,12 @@ const AccountNav = ({
       </svg>
     ),
   }
+  const visibleNavItems = navItems.filter(
+    (item) => institutionalTermsEnabled || item.href !== "/account/invoice-terms"
+  )
   const items = canUseStaffTools
-    ? [navItems[0], staffItem, ...navItems.slice(1)]
-    : navItems
+    ? [visibleNavItems[0], staffItem, ...visibleNavItems.slice(1)]
+    : visibleNavItems
 
   const handleLogout = async () => {
     if (staffImpersonation) {
