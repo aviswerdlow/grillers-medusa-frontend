@@ -73,7 +73,8 @@ test("robots evaluation distinguishes public and locale-prefixed private paths",
 })
 
 test("a passing cutover produces five redirect, ten canonical, and ten robots rows", async () => {
-  const redirects = sampleRedirects().map(({ row }: { row: { source_path: string; source_query: Record<string, string>; destination: string } }) => row)
+  type RedirectFixture = { source_path: string; source_query: Record<string, string>; destination: string }
+  const redirects: RedirectFixture[] = sampleRedirects().map(({ row }: { row: RedirectFixture }) => row)
   const request = async (input: URL) => {
     const url = new URL(input)
     const row = redirects.find(({ source_path, source_query }) =>
