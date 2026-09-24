@@ -62,13 +62,13 @@ export const FreeShippingHelper: React.FC<FreeShippingHelperProps> = ({
       <>
         Pickup is always free —{" "}
         <strong>
-          you've earned a ${PICKUP_BONUS_AMOUNT.toFixed(2)} pickup credit
+          you&apos;ve earned a ${PICKUP_BONUS_AMOUNT.toFixed(2)} pickup credit
         </strong>
         .
       </>
     ) : (
       <>
-        Pickup is always free. You're{" "}
+        Pickup is always free. You&apos;re{" "}
         <strong>
           {convertToLocale({
             amount: state.pickupBonusRemaining,
@@ -110,7 +110,7 @@ export const FreeShippingHelper: React.FC<FreeShippingHelperProps> = ({
       )
     message = (
       <>
-        You're{" "}
+        You&apos;re{" "}
         <strong>
           {convertToLocale({
             amount: state.remaining,
