@@ -140,7 +140,7 @@ export default function WholesaleLeadForm() {
           >
             (770) 454-8108
           </a>{" "}
-          if that's easier.
+          if that&apos;s easier.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -273,7 +273,7 @@ export default function WholesaleLeadForm() {
         </button>
 
         <p className="text-p-sm font-maison-neue text-Charcoal/60 mt-6">
-          We'll only use what you share to follow up about wholesale. Your
+          We&apos;ll only use what you share to follow up about wholesale. Your
           details never feed marketing email or third-party tools.
         </p>
       </div>
