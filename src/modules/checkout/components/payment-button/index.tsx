@@ -1,11 +1,16 @@
 "use client"
 
+import { FINAL_CHARGE_CONSENT_TEXT, FINAL_CHARGE_CONSENT_VERSION } from "@lib/order-review"
+
 import {
   submitOrderByInvoice,
   submitOrderWithSavedPaymentMethod,
   verifyCartInventoryForCheckout,
   verifyCartCalendarForCheckout,
 } from "@lib/data/cart"
+import { acceptCheckoutReview } from "@lib/data/order-review"
+import type { OrderAcceptance } from "@lib/order-review"
+import { getConsentCookie } from "@lib/utils/cookies"
 import { reportClientOpsAlert } from "@lib/client-error-reporter"
 import { jitsuTrack } from "@lib/jitsu"
 import { HttpTypes } from "@medusajs/types"
@@ -47,7 +52,18 @@ const GoldButton = ({
   </button>
 )
 
+type ReviewButtonProps = {
+  acceptance: OrderAcceptance
+  onReviewRequired: (message: string) => void
+}
+
+type NullableReviewButtonProps = Omit<ReviewButtonProps, "acceptance"> & {
+  acceptance?: OrderAcceptance | null
+}
+
 type PaymentButtonProps = {
+  acceptance?: OrderAcceptance | null
+  onReviewRequired?: (message: string) => void
   cart: HttpTypes.StoreCart
   cardComplete?: boolean
   disabled?: boolean
@@ -60,9 +76,23 @@ type PaymentButtonProps = {
   "data-testid": string
 }
 
-const FINAL_CHARGE_CONSENT_VERSION = "catch-weight-final-charge-2026-05-31"
-const FINAL_CHARGE_CONSENT_TEXT =
-  "I agree that Griller's Pride will save my card today and charge the final order total when my order is packed and ready to leave."
+async function verifyReview(
+  cartId: string,
+  mode: "card" | "invoice",
+  acceptance: OrderAcceptance,
+  invalidate: (message: string) => void
+) {
+  const current = getConsentCookie()?.analytics ?? null
+  const result = await acceptCheckoutReview({
+    cartId,
+    paymentMode: mode,
+    acceptance: { ...acceptance, analyticsConsent: current },
+  })
+  if (result.error) {
+    invalidate(result.error)
+    throw new Error(result.error)
+  }
+}
 
 type CheckoutPaymentMode = "saved_card" | "new_card" | "invoice"
 
@@ -124,6 +154,8 @@ function reportCheckoutPaymentFailure({
 
 const PaymentButton: React.FC<PaymentButtonProps> = ({
   cart,
+  acceptance,
+  onReviewRequired = () => {},
   cardComplete = false,
   disabled = false,
   savedPaymentMethodId,
@@ -143,7 +175,9 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
   if (payByInvoice) {
     return (
       <InvoicePaymentButton
-        notReady={notReady || disabled}
+        notReady={notReady || disabled || !acceptance}
+        acceptance={acceptance}
+        onReviewRequired={onReviewRequired}
         cart={cart}
         onSubmittingChange={onSubmittingChange}
         data-testid={dataTestId}
@@ -154,7 +188,9 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
   if (savedPaymentMethodId) {
     return (
       <SavedPaymentMethodButton
-        notReady={notReady || disabled}
+        notReady={notReady || disabled || !acceptance}
+        acceptance={acceptance}
+        onReviewRequired={onReviewRequired}
         cart={cart}
         savedPaymentMethodId={savedPaymentMethodId}
         onSubmittingChange={onSubmittingChange}
@@ -166,7 +202,9 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
   if (setupIntentClientSecret) {
     return (
       <NewCardSetupPaymentButton
-        notReady={notReady || disabled}
+        notReady={notReady || disabled || !acceptance}
+        acceptance={acceptance}
+        onReviewRequired={onReviewRequired}
         cart={cart}
         cardComplete={cardComplete}
         setupIntentClientSecret={setupIntentClientSecret}
@@ -183,15 +221,18 @@ async function verifyAndPlaceOrder({
   cart,
   paymentMethodId,
   setupIntentId = null,
+  acceptance,
+  onReviewRequired,
   setErrorMessage,
 }: {
   cart: HttpTypes.StoreCart
   paymentMethodId: string
   setupIntentId?: string | null
   setErrorMessage: (message: string | null) => void
-}) {
+} & ReviewButtonProps) {
   await verifyCartInventoryForCheckout(cart.id)
   await verifyCartCalendarForCheckout(cart.id)
+  await verifyReview(cart.id, "card", acceptance, onReviewRequired)
 
   let result: Awaited<ReturnType<typeof submitOrderWithSavedPaymentMethod>>
   try {
@@ -200,6 +241,7 @@ async function verifyAndPlaceOrder({
       setupIntentId,
       consentVersion: FINAL_CHARGE_CONSENT_VERSION,
       consentText: FINAL_CHARGE_CONSENT_TEXT,
+      acceptance,
     })
   } catch (err) {
     if (isExpectedNextRedirect(err)) return
@@ -227,12 +269,15 @@ async function verifyAndPlaceOrder({
       },
     })
     setErrorMessage(result.error)
+    onReviewRequired(result.error)
   }
 }
 
 const SavedPaymentMethodButton = ({
   cart,
   notReady,
+  acceptance,
+  onReviewRequired,
   savedPaymentMethodId,
   onSubmittingChange,
   "data-testid": dataTestId,
@@ -242,7 +287,7 @@ const SavedPaymentMethodButton = ({
   savedPaymentMethodId: string
   onSubmittingChange?: (submitting: boolean) => void
   "data-testid"?: string
-}) => {
+} & NullableReviewButtonProps) => {
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const submittingRef = useRef(false)
@@ -255,7 +300,7 @@ const SavedPaymentMethodButton = ({
   }
 
   const handlePayment = async () => {
-    if (submittingRef.current) return
+    if (!acceptance || submittingRef.current) return
     submittingRef.current = true
     reportSubmitting(true)
 
@@ -263,6 +308,8 @@ const SavedPaymentMethodButton = ({
       await verifyAndPlaceOrder({
         cart,
         paymentMethodId: savedPaymentMethodId,
+        acceptance,
+        onReviewRequired,
         setErrorMessage,
       })
     } catch (err: any) {
@@ -296,6 +343,8 @@ const SavedPaymentMethodButton = ({
 const NewCardSetupPaymentButton = ({
   cart,
   notReady,
+  acceptance,
+  onReviewRequired,
   cardComplete = false,
   setupIntentClientSecret,
   onSubmittingChange,
@@ -307,10 +356,13 @@ const NewCardSetupPaymentButton = ({
   setupIntentClientSecret: string
   onSubmittingChange?: (submitting: boolean) => void
   "data-testid"?: string
-}) => {
+} & NullableReviewButtonProps) => {
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const submittingRef = useRef(false)
+  const savedSetup = useRef<{ id: string; paymentMethodId: string } | null>(
+    null
+  )
 
   // #283 (Codex round-3 P2): report submit state SYNCHRONOUSLY so the parent toggle locks before
   // the user can switch mode mid-submit.
@@ -327,7 +379,7 @@ const NewCardSetupPaymentButton = ({
     !stripe || !elements || !card || !cardComplete || !setupIntentClientSecret
 
   const handlePayment = async () => {
-    if (submittingRef.current) return
+    if (!acceptance || submittingRef.current) return
     submittingRef.current = true
     reportSubmitting(true)
 
@@ -341,8 +393,21 @@ const NewCardSetupPaymentButton = ({
       try {
         await verifyCartInventoryForCheckout(cart.id)
         await verifyCartCalendarForCheckout(cart.id)
+        await verifyReview(cart.id, "card", acceptance, onReviewRequired)
       } catch (err: any) {
         setErrorMessage(err.message || "Some items need inventory review.")
+        return
+      }
+
+      if (savedSetup.current) {
+        await verifyAndPlaceOrder({
+          cart,
+          paymentMethodId: savedSetup.current.paymentMethodId,
+          setupIntentId: savedSetup.current.id,
+          acceptance,
+          onReviewRequired,
+          setErrorMessage,
+        })
         return
       }
 
@@ -418,6 +483,8 @@ const NewCardSetupPaymentButton = ({
         return
       }
 
+      savedSetup.current = { id: setupIntent.id, paymentMethodId }
+
       let orderResult: Awaited<
         ReturnType<typeof submitOrderWithSavedPaymentMethod>
       >
@@ -427,6 +494,7 @@ const NewCardSetupPaymentButton = ({
           setupIntentId: setupIntent.id,
           consentVersion: FINAL_CHARGE_CONSENT_VERSION,
           consentText: FINAL_CHARGE_CONSENT_TEXT,
+          acceptance,
         })
       } catch (err) {
         reportCheckoutPaymentFailure({
@@ -452,6 +520,7 @@ const NewCardSetupPaymentButton = ({
           },
         })
         setErrorMessage(orderResult.error)
+        onReviewRequired(orderResult.error)
       }
     } catch (err: any) {
       if (isExpectedNextRedirect(err)) return
@@ -487,6 +556,8 @@ const NewCardSetupPaymentButton = ({
 const InvoicePaymentButton = ({
   cart,
   notReady,
+  acceptance,
+  onReviewRequired,
   onSubmittingChange,
   "data-testid": dataTestId,
 }: {
@@ -494,7 +565,7 @@ const InvoicePaymentButton = ({
   notReady: boolean
   onSubmittingChange?: (submitting: boolean) => void
   "data-testid"?: string
-}) => {
+} & NullableReviewButtonProps) => {
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const submittingRef = useRef(false)
@@ -506,13 +577,14 @@ const InvoicePaymentButton = ({
   }
 
   const handlePayment = async () => {
-    if (submittingRef.current) return
+    if (!acceptance || submittingRef.current) return
     submittingRef.current = true
     reportSubmitting(true)
 
     try {
       await verifyCartInventoryForCheckout(cart.id)
       await verifyCartCalendarForCheckout(cart.id)
+      await verifyReview(cart.id, "invoice", acceptance, onReviewRequired)
     } catch (err: any) {
       setErrorMessage(
         err.message || "Could not place the order. Please try again."
@@ -523,7 +595,7 @@ const InvoicePaymentButton = ({
     }
 
     try {
-      const result = await submitOrderByInvoice({ cartId: cart.id })
+      const result = await submitOrderByInvoice({ cartId: cart.id, acceptance })
       if (result?.error) {
         reportCheckoutPaymentFailure({
           cart,
@@ -532,6 +604,7 @@ const InvoicePaymentButton = ({
           error: result.error,
         })
         setErrorMessage(result.error)
+        onReviewRequired(result.error)
       }
     } catch (err: any) {
       if (isExpectedNextRedirect(err)) return

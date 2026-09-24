@@ -9,7 +9,12 @@ function loadConfig() {
 describe("next sitemap source failure handling", () => {
   beforeEach(() => {
     jest.resetModules()
-    process.env = { ...originalEnv }
+    process.env = {
+      ...originalEnv,
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_CANONICAL_BASE_URL: "https://www.grillerspride.com",
+      NEXT_SITEMAP_FAIL_CLOSED: "false",
+    }
   })
 
   afterEach(() => {

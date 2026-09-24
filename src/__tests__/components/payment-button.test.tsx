@@ -1,3 +1,6 @@
+import { FINAL_CHARGE_CONSENT_TEXT, FINAL_CHARGE_CONSENT_VERSION } from "@lib/order-review"
+import { reviewAcceptance } from "../../test-fixtures/order-review"
+import { acceptCheckoutReview } from "@lib/data/order-review"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
@@ -10,6 +13,9 @@ import {
 } from "@lib/data/cart"
 import { reportClientOpsAlert } from "@lib/client-error-reporter"
 import { useElements, useStripe } from "@stripe/react-stripe-js"
+
+jest.mock("@lib/data/order-review", () => ({ acceptCheckoutReview: jest.fn() }))
+jest.mock("@lib/utils/cookies", () => ({ getConsentCookie: () => null }))
 
 jest.mock("@lib/data/cart", () => ({
   submitOrderByInvoice: jest.fn(),
@@ -62,6 +68,7 @@ const readyCart = {
 describe("PaymentButton", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    ;(acceptCheckoutReview as jest.Mock).mockResolvedValue({ error: null })
     ;(verifyCartCalendarForCheckout as jest.Mock).mockResolvedValue(undefined)
     mockVerifyInventory.mockResolvedValue(undefined as never)
     mockPlaceOrder.mockResolvedValue(undefined as never)
@@ -80,6 +87,7 @@ describe("PaymentButton", () => {
     )
     render(
       <PaymentButton
+        acceptance={reviewAcceptance}
         cart={readyCart}
         cardComplete
         setupIntentClientSecret="seti_test_secret"
@@ -101,6 +109,7 @@ describe("PaymentButton", () => {
 
     render(
       <PaymentButton
+        acceptance={reviewAcceptance}
         cart={readyCart}
         savedPaymentMethodId="pm_test_123"
         data-testid="submit-order-button"
@@ -115,7 +124,9 @@ describe("PaymentButton", () => {
         expect.objectContaining({
           paymentMethodId: "pm_test_123",
           setupIntentId: null,
-          consentVersion: "catch-weight-final-charge-2026-05-31",
+          consentVersion: FINAL_CHARGE_CONSENT_VERSION,
+          consentText: FINAL_CHARGE_CONSENT_TEXT,
+          acceptance: reviewAcceptance,
         })
       )
     })
@@ -127,6 +138,7 @@ describe("PaymentButton", () => {
 
     render(
       <PaymentButton
+        acceptance={reviewAcceptance}
         cart={readyCart}
         savedPaymentMethodId="pm_test_123"
         data-testid="submit-order-button"
@@ -160,6 +172,7 @@ describe("PaymentButton", () => {
 
     render(
       <PaymentButton
+        acceptance={reviewAcceptance}
         cart={readyCart}
         cardComplete
         setupIntentClientSecret="seti_secret"
@@ -176,6 +189,8 @@ describe("PaymentButton", () => {
         expect.objectContaining({
           paymentMethodId: "pm_new_card",
           setupIntentId: "seti_123",
+          consentVersion: FINAL_CHARGE_CONSENT_VERSION,
+          consentText: FINAL_CHARGE_CONSENT_TEXT,
         })
       )
       expect(
@@ -193,6 +208,7 @@ describe("PaymentButton", () => {
 
     render(
       <PaymentButton
+        acceptance={reviewAcceptance}
         cart={readyCart}
         disabled
         savedPaymentMethodId="pm_test_123"
@@ -213,6 +229,7 @@ describe("PaymentButton", () => {
 
     render(
       <PaymentButton
+        acceptance={reviewAcceptance}
         cart={{
           ...readyCart,
           metadata: {
@@ -241,6 +258,7 @@ describe("PaymentButton", () => {
 
     render(
       <PaymentButton
+        acceptance={reviewAcceptance}
         cart={readyCart}
         savedPaymentMethodId="pm_test_123"
         data-testid="submit-order-button"
@@ -279,6 +297,7 @@ describe("PaymentButton", () => {
 
     render(
       <PaymentButton
+        acceptance={reviewAcceptance}
         cart={readyCart}
         cardComplete
         setupIntentClientSecret="seti_secret"
@@ -326,6 +345,7 @@ describe("PaymentButton", () => {
 
     render(
       <PaymentButton
+        acceptance={reviewAcceptance}
         cart={readyCart}
         cardComplete
         setupIntentClientSecret="seti_secret"
@@ -369,6 +389,7 @@ describe("PaymentButton", () => {
 
     render(
       <PaymentButton
+        acceptance={reviewAcceptance}
         cart={readyCart}
         payByInvoice
         data-testid="submit-order-button"
@@ -395,4 +416,33 @@ describe("PaymentButton", () => {
       )
     })
   })
+})
+
+test("does not reach Stripe when the accepted review changes", async () => {
+  const confirmCardSetup = jest.fn()
+  ;(useStripe as jest.Mock).mockReturnValue({ confirmCardSetup })
+  ;(useElements as jest.Mock).mockReturnValue({ getElement: () => ({}) })
+  ;(verifyCartInventoryForCheckout as jest.Mock).mockResolvedValue(undefined)
+  ;(verifyCartCalendarForCheckout as jest.Mock).mockResolvedValue(undefined)
+  ;(acceptCheckoutReview as jest.Mock).mockResolvedValue({
+    error: "Address changed. Review again.",
+  })
+  const invalidate = jest.fn()
+  render(
+    <PaymentButton
+      cart={readyCart}
+      acceptance={reviewAcceptance}
+      onReviewRequired={invalidate}
+      cardComplete
+      setupIntentClientSecret="seti_fixture"
+      data-testid="place"
+    />
+  )
+  await userEvent.click(
+    screen.getByRole("button", { name: /Save Card & Place Order/i })
+  )
+  await waitFor(() =>
+    expect(invalidate).toHaveBeenCalledWith("Address changed. Review again.")
+  )
+  expect(confirmCardSetup).not.toHaveBeenCalled()
 })

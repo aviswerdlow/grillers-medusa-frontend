@@ -1,5 +1,6 @@
 import { listRegions } from "@lib/data/regions"
 import { HeaderNavQuery } from "@lib/data/strapi/header"
+import { GetFooterQuery, type FooterData } from "@lib/data/strapi/footer"
 import type { HeaderNavLink } from "@lib/data/strapi/header"
 import { cachedStrapiRequest } from "@lib/strapi"
 import { withLayoutDataFallback } from "@lib/layout-ops-alerts"
@@ -11,7 +12,7 @@ import Menu from "./menu"
 const NAV_LAYOUT_PATH = "src/modules/layout/templates/nav/index.tsx"
 
 export default async function Nav() {
-  const [navLinksData, regions] = await Promise.all([
+  const [navLinksData, regions, footerData] = await Promise.all([
     withLayoutDataFallback({
       promise: cachedStrapiRequest<any>("header-nav", HeaderNavQuery),
       fallback: null,
@@ -28,11 +29,20 @@ export default async function Nav() {
       path: NAV_LAYOUT_PATH,
       timeoutMs: 1000,
     }),
+    withLayoutDataFallback({
+      promise: cachedStrapiRequest<FooterData>("footer", GetFooterQuery),
+      fallback: null,
+      surface: "footer",
+      stage: "strapi_footer",
+      path: NAV_LAYOUT_PATH,
+      timeoutMs: 1500,
+    }),
   ])
   const navLinks: HeaderNavLink[] = augmentHeaderNav(
     navLinksData?.header?.HeaderNav || []
   )
-  const phoneNumber: string | null = navLinksData?.header?.PhoneNumber || null
+  const phoneNumber: string | null =
+    navLinksData?.header?.PhoneNumber || footerData?.footer?.ContactPhone || null
   const navCounts = {}
 
   return (

@@ -4,7 +4,7 @@ import { jitsuTrack, jitsuIdentify } from "@lib/jitsu"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { SubmitButton } from "@modules/checkout/components/submit-button"
 import Input from "@modules/common/components/input"
-import { useActionState, useEffect, useRef } from "react"
+import { useActionState, useEffect, useId, useRef } from "react"
 
 type Props = {
   setCurrentView: (view: LOGIN_VIEW) => void
@@ -12,6 +12,7 @@ type Props = {
 
 const Login = ({ setCurrentView }: Props) => {
   const [message, formAction] = useActionState(login, null)
+  const errorId = useId()
   const hasSubmitted = useRef(false)
   const formRef = useRef<HTMLFormElement>(null)
 
@@ -47,6 +48,7 @@ const Login = ({ setCurrentView }: Props) => {
             type="text"
             title="Enter your email address or username."
             autoComplete="username"
+            aria-describedby={message ? errorId : undefined}
             required
             data-testid="email-input"
           />
@@ -55,11 +57,12 @@ const Login = ({ setCurrentView }: Props) => {
             name="password"
             type="password"
             autoComplete="current-password"
+            aria-describedby={message ? errorId : undefined}
             required
             data-testid="password-input"
           />
         </div>
-        <ErrorMessage error={message} data-testid="login-error-message" />
+        <ErrorMessage id={errorId} error={message} data-testid="login-error-message" />
         <div className="flex justify-end mt-2">
           <button
             type="button"

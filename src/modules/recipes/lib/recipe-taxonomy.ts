@@ -14,8 +14,8 @@ export const RECIPE_BUCKETS = [
     label: "Weeknight Dinner",
     eyebrow: "Fast Wins",
     description:
-      "Quick-searing cuts, skillets, cutlets, burgers, franks, and low-friction dinners.",
-    shelfTitle: "Weeknight cuts that do not need a project plan",
+      "Cutlets, burgers, franks, and skillet dinners for busy evenings.",
+    shelfTitle: "Quick weeknight dinners",
     shelfDescription:
       "Cutlets, burgers, skillets, and quick sears for getting real dinner onto the table.",
   },
@@ -27,17 +27,17 @@ export const RECIPE_BUCKETS = [
       "Holiday centerpieces, Passover ideas, whole birds, and polished hosting recipes.",
     shelfTitle: "Yom Tov and Passover centerpieces",
     shelfDescription:
-      "Holiday-weight mains selected for hosting, ritual-calendar demand, and Passover cues.",
+      "Roasts, briskets, and whole birds for holiday meals. Check each ingredient for your holiday requirements.",
   },
   {
     id: "kfp-briskets-roasts",
-    label: "KFP Briskets & Roasts",
+    label: "Passover Briskets & Roasts",
     eyebrow: "Holiday Cut",
     description:
-      "Briskets and roast-family cuts with explicit Passover or KFP-friendly cues.",
-    shelfTitle: "KFP briskets and roasts",
+      "Brisket and roast recipes for Passover. Check the certification of every ingredient.",
+    shelfTitle: "Passover briskets and roasts",
     shelfDescription:
-      "Roast-family recipes where the audit found both a brisket or roast cut and a Passover/KFP cue.",
+      "Briskets and roasts for the Seder table, with braising and roasting instructions.",
   },
   {
     id: "whole-birds",
@@ -47,7 +47,7 @@ export const RECIPE_BUCKETS = [
       "Whole chickens, turkeys, split breasts, netted breasts, drumsticks, duck, and large poultry pieces.",
     shelfTitle: "Whole birds and large poultry pieces",
     shelfDescription:
-      "Birds, breasts, drumsticks, duck, and turkey formats where cut-specific cooking logic matters.",
+      "Roasting and braising recipes for chicken, turkey, and duck.",
   },
   {
     id: "steaks-chops",
@@ -55,19 +55,19 @@ export const RECIPE_BUCKETS = [
     eyebrow: "Cook by Cut",
     description:
       "Steaks, chops, rib cuts, rack cuts, cube steaks, minute steaks, and sear-forward pieces.",
-    shelfTitle: "Steaks, chops, and sear-forward cuts",
+    shelfTitle: "Steaks and chops",
     shelfDescription:
-      "Recipes where the main decision is heat control, slicing, sauces, and exact-cut confidence.",
+      "Searing, resting, and slicing instructions for steaks and chops.",
   },
   {
     id: "butchers-picks",
     label: "Butcher's Picks",
     eyebrow: "Discovery",
     description:
-      "Specialty, premium, South African, underused, or education-worthy cuts that help customers branch out.",
+      "South African specialties and less-familiar cuts to try at home.",
     shelfTitle: "Butcher's picks worth knowing",
     shelfDescription:
-      "Specialty and underused cuts selected for customer education, not because they contain one generic keyword.",
+      "Try a new cut with step-by-step preparation and cooking instructions.",
   },
 ] as const
 
@@ -932,24 +932,25 @@ function inferProteins(text: string) {
   const hasLamb = termMatches(text, "lamb")
   const hasVeal = termMatches(text, "veal")
   const hasDuck = termMatches(text, "duck")
-  const hasChicken = matchingTerms(text, [
-    "chicken",
-    "pargiot",
-    "capon",
-    "cornish hen",
-    "chicken cutlet",
-    "chicken cutlets",
-    "chicken breast",
-    "chicken breasts",
-    "chicken thigh",
-    "chicken thighs",
-    "chicken drumstick",
-    "chicken drumsticks",
-    "chicken wing",
-    "chicken wings",
-    "drumette",
-    "drumettes",
-  ]).length > 0
+  const hasChicken =
+    matchingTerms(text, [
+      "chicken",
+      "pargiot",
+      "capon",
+      "cornish hen",
+      "chicken cutlet",
+      "chicken cutlets",
+      "chicken breast",
+      "chicken breasts",
+      "chicken thigh",
+      "chicken thighs",
+      "chicken drumstick",
+      "chicken drumsticks",
+      "chicken wing",
+      "chicken wings",
+      "drumette",
+      "drumettes",
+    ]).length > 0
 
   if (
     !hasTurkey &&

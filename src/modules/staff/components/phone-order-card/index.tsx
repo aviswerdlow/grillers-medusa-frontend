@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react"
 import { CardElement, useElements, useStripe } from "@stripe/react-stripe-js"
+import CheckoutOrderReview from "@modules/checkout/components/order-review"
+import { acceptCheckoutReview } from "@lib/data/order-review"
+import type { OrderAcceptance } from "@lib/order-review"
 import Button from "@modules/common/components/button"
 import {
   completeStaffPhoneOrder,
@@ -28,6 +31,8 @@ export default function StaffChargeCard({
   const [cardError, setCardError] = useState<string | null>(null)
   const [isCharging, setIsCharging] = useState(false)
   const [paymentConfirmed, setPaymentConfirmed] = useState(false)
+  const [confirmationPending, setConfirmationPending] = useState(false)
+  const acceptedPayment = useRef<OrderAcceptance | null>(null)
   const busy = useRef(false)
   const active = useRef(true)
   useEffect(() => {
@@ -37,7 +42,10 @@ export default function StaffChargeCard({
     }
   }, [])
 
-  async function chargeCard() {
+  async function chargeCard(
+    acceptance: OrderAcceptance,
+    invalidate: (message: string) => void
+  ) {
     if (busy.current || paymentConfirmed) return
     if (!stripe || !elements || !result.paymentClientSecret || !result.cartId) {
       setCardError("Payment form is not ready.")
@@ -63,6 +71,17 @@ export default function StaffChargeCard({
         )
         return
       }
+      const accepted = await acceptCheckoutReview({
+        cartId: result.cartId!,
+        paymentMode: "card_at_placement",
+        acceptance,
+        staffPhone: true,
+      })
+      if (accepted.error) {
+        invalidate(accepted.error)
+        return
+      }
+      if (!active.current) return
       const payment = await stripe.confirmCardPayment(
         result.paymentClientSecret!,
         {
@@ -94,9 +113,26 @@ export default function StaffChargeCard({
         return
       }
 
+      if (
+        !payment.paymentIntent ||
+        !["succeeded", "requires_capture"].includes(
+          payment.paymentIntent.status
+        )
+      ) {
+        setCardError(
+          "The card payment has not been confirmed. Check its status before trying another payment."
+        )
+        return
+      }
       confirmed = true
+      acceptedPayment.current = acceptance
       setPaymentConfirmed(true)
-      const completion = await completeStaffPhoneOrder(result.cartId!)
+      setConfirmationPending(true)
+      const completion = await completeStaffPhoneOrder(
+        result.cartId!,
+        acceptance
+      )
+      setConfirmationPending(!completion.ok)
       onComplete(
         completion.ok
           ? completion
@@ -126,28 +162,75 @@ export default function StaffChargeCard({
       <p className="mb-2 text-sm font-maison-neue font-semibold text-Charcoal">
         Card collection
       </p>
-      <div className="rounded-md border border-gray-200 bg-white px-3 py-3">
-        <CardElement
-          onChange={(event) => {
-            setCardComplete(event.complete)
-            setCardError(event.error?.message || null)
-          }}
-        />
-      </div>
-      {cardError && (
-        <p role="alert" className="mt-2 text-sm font-maison-neue text-red-700">
-          {cardError}
-        </p>
-      )}
-      <Button
-        className="mt-3 min-h-[44px] w-full rounded-md bg-Charcoal px-4 text-sm font-rexton font-bold uppercase text-white"
-        disabled={!cardComplete || isCharging || paymentConfirmed}
-        isLoading={isCharging}
-        onClick={chargeCard}
-        type="button"
+      <CheckoutOrderReview
+        cart={result.cart}
+        paymentMode="card_at_placement"
+        staffPhone
+        disabled={isCharging || paymentConfirmed}
+        onEditStaff={() =>
+          onReviewRequired(
+            "Review the order details before preparing payment again."
+          )
+        }
       >
-        Charge Card and Place Order
-      </Button>
+        {({ acceptance, invalidate }) => (
+          <>
+            <div className="rounded-md border border-gray-200 bg-white px-3 py-3">
+              <CardElement
+                onChange={(event) => {
+                  setCardComplete(event.complete)
+                  setCardError(event.error?.message || null)
+                }}
+              />
+            </div>
+            {cardError && (
+              <p
+                role="alert"
+                className="mt-2 text-sm font-maison-neue text-red-700"
+              >
+                {cardError}
+              </p>
+            )}
+            <Button
+              className="mt-3 min-h-[44px] w-full rounded-md bg-Charcoal px-4 text-sm font-rexton font-bold uppercase text-white"
+              disabled={
+                !acceptance || !cardComplete || isCharging || paymentConfirmed
+              }
+              isLoading={isCharging}
+              onClick={() => {
+                if (acceptance) void chargeCard(acceptance, invalidate)
+              }}
+              type="button"
+            >
+              Charge Card and Place Order
+            </Button>
+          </>
+        )}
+      </CheckoutOrderReview>
+      {confirmationPending && (
+        <Button
+          type="button"
+          disabled={isCharging}
+          onClick={async () => {
+            if (busy.current || !acceptedPayment.current) return
+            busy.current = true
+            setIsCharging(true)
+            try {
+              const completion = await completeStaffPhoneOrder(
+                result.cartId!,
+                acceptedPayment.current
+              )
+              setConfirmationPending(!completion.ok)
+              onComplete(completion)
+            } finally {
+              busy.current = false
+              setIsCharging(false)
+            }
+          }}
+        >
+          Retry order confirmation — payment already confirmed
+        </Button>
+      )}
     </div>
   )
 }

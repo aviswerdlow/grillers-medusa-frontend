@@ -1,7 +1,13 @@
 const checkEnvVariables = require("./check-env-variables")
 const path = require("path")
+const {
+  crawlerHeaders,
+  assertProductionIndexingConfiguration,
+} = require("./src/lib/util/site-policy.cjs")
+const { buildLegacyRedirects } = require("./src/lib/util/legacy-redirects.cjs")
 
 checkEnvVariables()
+assertProductionIndexingConfiguration()
 
 /**
  * @type {import('next').NextConfig}
@@ -78,18 +84,62 @@ const nextConfig = {
   // structure. Skipped /us/passover — destination doesn't exist yet (no
   // passover holidays slug). Wholesale destination shipped in #94 so the
   // /us/wholesale legacy alias now redirects. (#79, #94)
+  async headers() {
+    return crawlerHeaders()
+  },
   async redirects() {
     return [
-      { source: "/us/about", destination: "/us/page/about-us", permanent: true },
-      { source: "/us/about-us", destination: "/us/page/about-us", permanent: true },
-      { source: "/us/contact", destination: "/us/customer-service", permanent: true },
-      { source: "/us/contact-us", destination: "/us/customer-service", permanent: true },
-      { source: "/us/privacy-policy", destination: "/us/page/privacy-policy", permanent: true },
-      { source: "/us/terms", destination: "/us/page/terms-of-use", permanent: true },
-      { source: "/us/terms-of-sale", destination: "/us/page/terms-of-sale", permanent: true },
-      { source: "/us/terms-of-use", destination: "/us/page/terms-of-use", permanent: true },
-      { source: "/us/wholesale", destination: "/us/page/wholesale", permanent: true },
-      { source: "/us/specialty", destination: "/us/page/specialty", permanent: true },
+      ...buildLegacyRedirects(),
+      {
+        source: "/us/about",
+        destination: "/us/page/about-us",
+        permanent: true,
+      },
+      {
+        source: "/us/about-us",
+        destination: "/us/page/about-us",
+        permanent: true,
+      },
+      {
+        source: "/us/contact",
+        destination: "/us/customer-service",
+        permanent: true,
+      },
+      {
+        source: "/us/contact-us",
+        destination: "/us/customer-service",
+        permanent: true,
+      },
+      {
+        source: "/us/privacy-policy",
+        destination: "/us/page/privacy-policy",
+        permanent: true,
+      },
+      {
+        source: "/us/terms",
+        destination: "/us/page/terms-of-use",
+        permanent: true,
+      },
+      {
+        source: "/us/terms-of-sale",
+        destination: "/us/page/terms-of-sale",
+        permanent: true,
+      },
+      {
+        source: "/us/terms-of-use",
+        destination: "/us/page/terms-of-use",
+        permanent: true,
+      },
+      {
+        source: "/us/wholesale",
+        destination: "/us/page/wholesale",
+        permanent: true,
+      },
+      {
+        source: "/us/specialty",
+        destination: "/us/page/specialty",
+        permanent: true,
+      },
     ]
   },
   async rewrites() {

@@ -6,6 +6,7 @@ import { toast } from "@medusajs/ui"
 import SocialShare from "@modules/common/components/social-share"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import FavoriteButton from "@modules/recipes/components/favorite-button"
+import RecipeIngredients from "@modules/recipes/components/ingredients"
 import VideoEmbed from "@modules/common/components/video-embed"
 import { RecipeDetailAnalytics } from "@modules/recipes/components/recipe-analytics"
 import { addToCart } from "@lib/data/cart"
@@ -343,7 +344,10 @@ const RecipeTemplate = ({
             </div>
             {PublishedDate && (
               <p className="mt-1 text-p-md font-maison-neue text-Charcoal/80">
-                Published {new Date(PublishedDate).toLocaleDateString()}
+                Published{" "}
+                {new Date(PublishedDate).toLocaleDateString("en-US", {
+                  timeZone: "UTC",
+                })}
               </p>
             )}
             {ShortDescription && (
@@ -409,24 +413,7 @@ const RecipeTemplate = ({
           </section>
 
           {/* Ingredients */}
-          <section aria-labelledby="ingredients-heading">
-            <h2
-              id="ingredients-heading"
-              className="text-h3 font-gyst text-Charcoal mb-6"
-            >
-              Ingredients
-            </h2>
-            <ul className="list-disc pl-5 space-y-2">
-              {Ingredients.map((item) => (
-                <li
-                  key={item.id}
-                  className="text-p-md font-maison-neue text-Charcoal"
-                >
-                  {item.ingredient}
-                </li>
-              ))}
-            </ul>
-          </section>
+          <RecipeIngredients ingredients={Ingredients} />
 
           {/* Steps */}
           <section aria-labelledby="steps-heading">

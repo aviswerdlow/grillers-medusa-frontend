@@ -22,6 +22,7 @@ export default function ExperimentExposure({ assignment }: Props) {
         experiment_key: assignment.experimentKey,
         variant_key: assignment.variantKey,
         assignment_id: assignment.assignmentId,
+        experiment_version: assignment.version || null,
         block_reason: assignment.blockReason,
         route_market: assignment.routeMarket || "unknown",
         customer_type: assignment.customerType || "unknown",
@@ -43,6 +44,8 @@ export default function ExperimentExposure({ assignment }: Props) {
       experiment_key: assignment.experimentKey,
       variant_key: assignment.variantKey,
       assignment_id: assignment.assignmentId,
+      experiment_version: assignment.version || null,
+      experiment_evaluation_version: assignment.evaluationVersion || null,
       route_market: assignment.routeMarket || "unknown",
       customer_type: assignment.customerType || "unknown",
       page_path:

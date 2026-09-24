@@ -42,6 +42,11 @@ export function parseStoredAssignments(
         variantKey: candidate.variantKey,
         assignmentId: candidate.assignmentId,
         assignedAt: candidate.assignedAt,
+        ...(typeof candidate.version === "string" ? { version: candidate.version } : {}),
+        ...(typeof candidate.evaluationVersion === "string" ? { evaluationVersion: candidate.evaluationVersion } : {}),
+        ...(typeof candidate.releaseId === "string" ? { releaseId: candidate.releaseId } : {}),
+        ...(typeof candidate.versionKeyId === "string" ? { versionKeyId: candidate.versionKeyId } : {}),
+        ...(typeof candidate.versionSignature === "string" ? { versionSignature: candidate.versionSignature } : {}),
         ...(typeof candidate.surface === "string"
           ? { surface: candidate.surface }
           : {}),

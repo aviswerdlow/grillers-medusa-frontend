@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef } from "react"
+import { useActionState, useEffect, useId, useRef } from "react"
 import Input from "@modules/common/components/input"
 import { LOGIN_VIEW } from "@modules/account/templates/login-template"
 import { jitsuTrack, jitsuIdentify } from "@lib/jitsu"
@@ -19,6 +19,7 @@ type Props = {
 
 const Register = ({ setCurrentView }: Props) => {
   const [message, formAction] = useActionState(signup, null)
+  const errorId = useId()
   const hasSubmitted = useRef(false)
 
   // Track successful registration: signup returns a customer object on success, a string on error
@@ -61,7 +62,8 @@ const Register = ({ setCurrentView }: Props) => {
         reorders, and member-only updates on holiday cuts and new products.
       </p>
       <form className="w-full flex flex-col" action={(formData) => { hasSubmitted.current = true; formAction(formData) }}>
-        <div className="flex flex-col w-full gap-y-2">
+        <fieldset className="flex flex-col w-full gap-y-2" aria-describedby={message ? errorId : undefined}>
+          <legend className="sr-only">Account details</legend>
           <Input
             label="First name"
             name="first_name"
@@ -129,8 +131,8 @@ const Register = ({ setCurrentView }: Props) => {
             autoComplete="new-password"
             data-testid="password-input"
           />
-        </div>
-        <ErrorMessage error={message} data-testid="register-error" />
+        </fieldset>
+        <ErrorMessage id={errorId} error={message} data-testid="register-error" />
         <span className="text-center text-ui-fg-base text-small-regular mt-6">
           By creating an account, you agree to Griller&apos;s Pride&apos;s{" "}
           <LocalizedClientLink
