@@ -22,6 +22,7 @@
     "test:e2e:headed": "playwright test --headed",
     "mobile:audit": "node scripts/mobile-audit.js --screenshots --fail-on-small-targets",
     "smoke:storefront-backend": "node scripts/smoke-storefront-backend.mjs",
+    "cutover:check": "node scripts/check-cutover.cjs",
     "experiments:report": "node scripts/experiments/report.mjs",
     "experiments:promote": "node scripts/experiments/promote-winner.mjs",
     "postmark:ensure-templates": "node scripts/postmark/ensure-templates.js --apply",
