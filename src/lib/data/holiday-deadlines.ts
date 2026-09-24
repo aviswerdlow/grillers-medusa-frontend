@@ -8,9 +8,8 @@
  * fields 1:1 — the consumer component shape doesn't change.
  *
  * To add a new holiday: append an entry. To shorten / lengthen the banner
- * lead time, edit `bannerLeadDays`. Dates are ISO `YYYY-MM-DD` (local
- * calendar — no timezone math needed because we render the SAME date string
- * the staff communicates over the phone).
+ * lead time, edit `bannerLeadDays`. Dates are ISO `YYYY-MM-DD` in the
+ * America/New_York calendar, matching the staff's communicated dates.
  */
 
 export type HolidayCutoff = {
@@ -116,21 +115,34 @@ export const HOLIDAYS: Holiday[] = [
   },
 ]
 
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+export function easternCalendarDate(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now)
+  const value = (type: string) => parts.find((part) => part.type === type)?.value
+  return `${value("year")}-${value("month")}-${value("day")}`
 }
 
-function addDays(d: Date, n: number): Date {
-  const r = new Date(d)
-  r.setDate(r.getDate() + n)
-  return r
+function addCalendarDays(iso: string, days: number): string {
+  const date = new Date(`${iso}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
 }
 
-function parseISO(s: string): Date {
-  // Treat YYYY-MM-DD as local-calendar, not UTC, to avoid timezone-induced
-  // off-by-one when the user is west of GMT.
-  const [y, m, d] = s.split("-").map(Number)
-  return new Date(y, (m || 1) - 1, d || 1)
+/** Relative cutoffs remain as supplied; only dated entries can expire. */
+export function getUpcomingCutoffs(
+  holiday: Holiday,
+  now: Date = new Date()
+): HolidayCutoff[] {
+  const today = easternCalendarDate(now)
+  return holiday.cutoffs.filter(
+    ({ cutoff }) => !ISO_DATE.test(cutoff) || cutoff >= today
+  )
 }
 
 /**
@@ -140,29 +152,26 @@ function parseISO(s: string): Date {
  * spec's "prefer the earlier holiday" rule.
  */
 export function getActiveHoliday(now: Date = new Date()): Holiday | null {
-  const today = startOfDay(now)
+  const today = easternCalendarDate(now)
   const candidates = HOLIDAYS.filter((h) => {
     if (!h.active) return false
-    const fn = parseISO(h.firstNight)
-    const start = addDays(fn, -(h.bannerLeadDays ?? DEFAULT_LEAD_DAYS))
-    const end = addDays(fn, -(h.bannerEndDaysBefore ?? DEFAULT_END_BEFORE))
-    return today >= start && today <= end
+    const start = addCalendarDays(h.firstNight, -(h.bannerLeadDays ?? DEFAULT_LEAD_DAYS))
+    const end = addCalendarDays(h.firstNight, -(h.bannerEndDaysBefore ?? DEFAULT_END_BEFORE))
+    return today >= start && today <= end && getUpcomingCutoffs(h, now).length > 0
   })
   if (!candidates.length) return null
-  candidates.sort(
-    (a, b) => parseISO(a.firstNight).getTime() - parseISO(b.firstNight).getTime()
-  )
+  candidates.sort((a, b) => a.firstNight.localeCompare(b.firstNight))
   return candidates[0]
 }
 
 /**
- * Format an ISO date as "Wednesday, March 25" for the banner copy. Pure JS
- * — no Intl dependency tweaking required.
+ * Format an ISO date as "Wednesday, March 25" for the banner copy.
  */
 export function formatBannerDate(iso: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso // e.g. "1 business day before"
-  const d = parseISO(iso)
+  if (!ISO_DATE.test(iso)) return iso // e.g. "1 business day before"
+  const d = new Date(`${iso}T12:00:00Z`)
   return d.toLocaleDateString("en-US", {
+    timeZone: "UTC",
     weekday: "long",
     month: "long",
     day: "numeric",

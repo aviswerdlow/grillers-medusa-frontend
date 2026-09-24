@@ -33,7 +33,7 @@ describe("homepage content destinations", () => {
           name: "Test holiday",
           firstNight: "2099-09-20",
           active: true,
-          cutoffs: [],
+          cutoffs: [{ service: "Pickup", cutoff: "1 business day before" }],
         }}
       />
     )
@@ -42,6 +42,21 @@ describe("homepage content destinations", () => {
       "href",
       "/us/holidays/order-deadlines"
     )
+  })
+
+  it("hides the holiday banner when every dated cutoff has passed", () => {
+    render(
+      <HolidayBanner
+        holiday={{
+          name: "Past deadlines",
+          firstNight: "2099-09-20",
+          active: true,
+          cutoffs: [{ service: "Delivery", cutoff: "2000-01-01" }],
+        }}
+      />
+    )
+
+    expect(screen.queryByRole("link", { name: "See all deadlines" })).toBeNull()
   })
 
   it.each([
