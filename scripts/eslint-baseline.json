@@ -1,7 +1,7 @@
 {
   "version": 1,
   "issue": "https://github.com/aviswerdlow/grillers-pride-strategy/issues/377",
-  "sourceBase": "bb993eacc7a141a9a881dfc8fb8d98959fa4244f",
+  "sourceBase": "8934f5ac584c9af1c306fbbc81fb41ba5c7c3be9",
   "policy": "Only these diagnostic counts on exact unchanged source files are accepted. New or changed errors remain fatal. Remove entries when owners fix the source.",
   "files": [
     {
@@ -60,30 +60,6 @@
           "endLine": 52,
           "endColumn": 6,
           "message": "Component definition is missing display name",
-          "count": 1
-        }
-      ]
-    },
-    {
-      "path": "src/components/wholesale-lead-form/index.tsx",
-      "sha256": "1456d4948f0335e6c725d01e1b34941bc8f44229b4a3285664761342d7f30610",
-      "errors": [
-        {
-          "ruleId": "react/no-unescaped-entities",
-          "line": 143,
-          "column": 18,
-          "endLine": null,
-          "endColumn": null,
-          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
-          "count": 1
-        },
-        {
-          "ruleId": "react/no-unescaped-entities",
-          "line": 276,
-          "column": 13,
-          "endLine": null,
-          "endColumn": null,
-          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
           "count": 1
         }
       ]
@@ -216,36 +192,6 @@
           "ruleId": "react/no-unescaped-entities",
           "line": 71,
           "column": 35,
-          "endLine": null,
-          "endColumn": null,
-          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
-          "count": 1
-        }
-      ]
-    },
-    {
-      "path": "src/modules/home/components/specialty-row/swiper.tsx",
-      "sha256": "f93fbbbad9b27486c50739db0a6207da0906f00340560bce897fb1dba1729f9e",
-      "errors": [
-        {
-          "ruleId": "react/no-unescaped-entities",
-          "line": 39,
-          "column": 25,
-          "endLine": null,
-          "endColumn": null,
-          "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
-          "count": 1
-        }
-      ]
-    },
-    {
-      "path": "src/modules/products/components/notify-back-in-stock/index.tsx",
-      "sha256": "d63c91b8abeaeb8a3bf3a16b64b864acceb82dac05c33a3439711ec48bd6f673",
-      "errors": [
-        {
-          "ruleId": "react/no-unescaped-entities",
-          "line": 79,
-          "column": 46,
           "endLine": null,
           "endColumn": null,
           "message": "`'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.",
