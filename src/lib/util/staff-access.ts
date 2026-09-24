@@ -11,6 +11,7 @@ export type StaffAccessRole =
   | "customer"
   | "staff"
   | "office"
+  | "driver"
   | "picker"
   | "packer"
   | "manager"
@@ -42,6 +43,12 @@ export const STAFF_ROLE_OPTIONS: Array<{
     description:
       "Customer context, account creation, phone orders, order support, and communications.",
     confirmation: "OFFICE",
+  },
+  {
+    value: "driver",
+    label: "Local delivery driver",
+    description: "Assigned local deliveries only. Cannot use order support, payments, or the office console.",
+    confirmation: "DRIVER",
   },
   {
     value: "picker",
@@ -168,6 +175,7 @@ export function staffMetadataRole(metadata: StaffMetadata): StaffAccessRole {
 
   if (
     role === "office" ||
+    role === "driver" ||
     role === "picker" ||
     role === "packer" ||
     role === "manager"
@@ -249,6 +257,14 @@ export function canRoleReceiveFinalChargeAccess(
 export function canUseOfficeConsole(customer: StaffCustomerLike): boolean {
   const role = staffAccessRole(customer)
   return ["staff", "office", "manager", "super_admin"].includes(role)
+}
+
+export function canUseLocalMilestones(customer: StaffCustomerLike): boolean {
+  return ["driver", "staff", "office", "manager", "super_admin"].includes(staffAccessRole(customer))
+}
+
+export function canCorrectLocalMilestones(customer: StaffCustomerLike): boolean {
+  return ["staff", "office", "manager", "super_admin"].includes(staffAccessRole(customer))
 }
 
 export function canPickCatchWeightOrders(customer: StaffCustomerLike): boolean {

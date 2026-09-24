@@ -76,6 +76,11 @@ const dailyChecklist = [
 
 const publicSurfaces = [
   {
+    route: "/us/account/staff/local-milestones",
+    name: "Local milestones — staff only, staged",
+    staffUse: "Phone page for assigned drivers and office staff. It is unavailable until GP_LOCAL_MILESTONES_ENABLED is approved and enabled.",
+  },
+  {
     route: "/us/account/staff/incoming-stock",
     name: "Incoming stock — staff only",
     staffUse: "Review expected and confirmed batches, available versus committed quantities, final receipts awaiting reconciliation, and orders affected by late, short or cancelled supply.",
@@ -587,6 +592,31 @@ const sections: GuideSection[] = [
       "Use customer-safe product names when discussing substitutions. QBD ListIDs are staff/accounting identity only.",
       "A charge-failed hold means contact the customer for payment update before shipment. It is owned by front office staff, not the packer.",
       "Final charge email goes after the card charge succeeds. It is separate from the checkout confirmation email.",
+    ],
+  },
+  {
+    id: "local-milestones",
+    eyebrow: "Pickup and local delivery",
+    title: "Local handoffs and exceptions — staged",
+    summary:
+      "This phone workflow remains off under GP_LOCAL_MILESTONES_ENABLED until the operating actions and notices are approved and rehearsed. It records physical handoffs on an order with a completed payment and release; it does not release or charge the order.",
+    useFor: [
+      "Recording that an approved pickup order is ready and then collected.",
+      "Recording that a local driver actually departed, delivered, failed delivery, or returned to the office.",
+      "Reviewing failed deliveries and correcting a milestone while retaining the original event and time.",
+    ],
+    howTo: [
+      "After activation, open Staff > Local milestones on a phone. The office uses the Medusa order ID from Staff Console to mark pickup readiness. At actual handoff, use Mark Fulfilled in Pack & Finalize to create the native fulfillment, then enter its ID to record collection or driver departure. The office can assign an approved driver by customer ID after fulfillment.",
+      "A driver sees only assigned local deliveries. The office can see active handoffs and the failed/returned exception queue. Refresh before recording a physical step if another staff member may have acted.",
+      "For pickup, the office records Ready for collection only after final charge or approved invoice release and physical readiness. Record Collected only after the customer has actually received it.",
+      "For local delivery, record Driver departed only after physical handoff. Record Delivered only after actual delivery. If delivery fails, enter a reason, mark Delivery failed, and ask the office to resolve the exception. Record Returned to office when the goods have physically returned.",
+      "If a staff member recorded the wrong milestone, office staff open the event history, choose the corrected outcome, and enter a reason. The earlier event remains in the audit history.",
+    ],
+    watch: [
+      "Do not treat a carrier label, provider callback, email status, or a Ready ship label as proof of physical departure or delivery.",
+      "The server refuses a milestone when final payment, invoice release, active fulfillment, assignment, or event version cannot be verified. Resolve the underlying order state before trying again; do not charge a card a second time to clear a milestone error.",
+      "Delivery photo upload and retrieval are held pending approved private storage. The phone page has no photo control. Photo-dependent cases remain pending.",
+      "Pickup and local notice choices remain a Peter decision. Do not promise a text or email until the notice policy is approved and the communications system records its outcome. Existing UPS-only order-text consent does not authorize local texts.",
     ],
   },
   {

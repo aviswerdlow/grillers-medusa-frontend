@@ -6,6 +6,8 @@ import {
   canRoleReceiveFinalChargeAccess,
   canReviewMerchandising,
   canUseOfficeConsole,
+  canUseLocalMilestones,
+  canCorrectLocalMilestones,
   isStaffCustomer,
   isStaffMetadata,
   isSuperAdminCustomer,
@@ -27,6 +29,7 @@ describe("staff access helpers", () => {
     expect(staffMetadataRole({ gp_staff_role: "picker" })).toBe("picker")
     expect(staffMetadataRole({ gp_staff_role: "packer" })).toBe("packer")
     expect(staffMetadataRole({ gp_staff_role: "office" })).toBe("office")
+    expect(staffMetadataRole({ gp_staff_role: "driver" })).toBe("driver")
     expect(staffMetadataRole({ gp_staff_role: "manager" })).toBe("manager")
     expect(staffMetadataRole({ gp_staff_role: "merchandising_reviewer" })).toBe(
       "merchandising_reviewer"
@@ -86,6 +89,18 @@ describe("staff access helpers", () => {
     expect(canPackCatchWeightOrders(office)).toBe(false)
     expect(canManageOrderSupport(manager)).toBe(true)
     expect(canPackCatchWeightOrders(manager)).toBe(true)
+  })
+
+  it("limits drivers to assigned local milestones", () => {
+    const driver = { staff_access: { role: "driver", session_current: true } } as any
+    const office = { staff_access: { role: "office", session_current: true } } as any
+    expect(canUseLocalMilestones(driver)).toBe(true)
+    expect(canCorrectLocalMilestones(driver)).toBe(false)
+    expect(canUseOfficeConsole(driver)).toBe(false)
+    expect(canManageOrderSupport(driver)).toBe(false)
+    expect(canChargeFinalOrders(driver)).toBe(false)
+    expect(canUseLocalMilestones(office)).toBe(true)
+    expect(canCorrectLocalMilestones(office)).toBe(true)
   })
 
   it("requires an operational role for final charge, not just a flag", () => {

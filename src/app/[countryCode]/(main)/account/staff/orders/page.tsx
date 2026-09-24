@@ -7,6 +7,7 @@ import {
   canReviewMerchandising,
   canUseOfficeConsole,
   isStaffCustomer,
+  staffAccessRole,
   isSuperAdminCustomer,
 } from "@lib/util/staff-access"
 import type { HttpTypes } from "@medusajs/types"
@@ -130,6 +131,11 @@ export default async function StaffPhoneOrdersPage({
     notFound()
   }
 
+  if (staffAccessRole(customer) === "driver") {
+    if (process.env.GP_LOCAL_MILESTONES_ENABLED !== "true") notFound()
+    redirect(`/${countryCode}/account/staff/local-milestones`)
+  }
+
   const requested = requestedWorkspace(resolvedSearchParams.workspace)
   const initialWorkspace =
     requested && canAccessWorkspace(customer, requested)
@@ -144,6 +150,7 @@ export default async function StaffPhoneOrdersPage({
       staffCustomer={customer}
       initialImpersonation={impersonation}
       initialWorkspace={initialWorkspace}
+      localMilestonesEnabled={process.env.GP_LOCAL_MILESTONES_ENABLED === "true"}
     />
   )
 }

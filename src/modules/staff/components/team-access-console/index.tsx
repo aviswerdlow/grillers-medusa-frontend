@@ -63,7 +63,7 @@ function formatDate(value?: string) {
   return date.toLocaleString()
 }
 
-export default function StaffTeamAccessConsole() {
+export default function StaffTeamAccessConsole({ localMilestonesEnabled = false }: { localMilestonesEnabled?: boolean }) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<StaffTeamUser[]>([])
   const [selected, setSelected] = useState<StaffTeamUser | null>(null)
@@ -338,7 +338,7 @@ export default function StaffTeamAccessConsole() {
 
               <div className="space-y-3">
                 <span className={labelClass()}>Assign role</span>
-                {STAFF_ROLE_OPTIONS.map((option) => (
+                {STAFF_ROLE_OPTIONS.filter(option => option.value !== "driver" || localMilestonesEnabled).map((option) => (
                   <label
                     className={`flex cursor-pointer gap-3 rounded-md border p-3 transition ${
                       roleDraft === option.value
