@@ -149,6 +149,45 @@ console.log(
     failures.filter((failure) => failure.startsWith("collection/")).length
   }/${handles.length} manifest collections`
 )
+
+// These are the published routes handled by customer-service/page.tsx and
+// page/[slug]/page.tsx. Visit the page as well as the CMS-backed homepage and
+// collections so the first customer request need not fill their Data Cache.
+const informationPaths = [
+  "/us/customer-service",
+  ...[
+    "about-us",
+    "our-mission",
+    "careers",
+    "catch-weight-pricing",
+    "wholesale",
+    "specialty",
+    "privacy-policy",
+    "terms-of-sale",
+    "terms-of-use",
+    "sms-terms",
+    "order-sms-terms",
+    "order-sms-privacy",
+  ].map((slug) => `/us/page/${slug}`),
+]
+let informationCursor = 0
+const informationWorker = async () => {
+  while (informationCursor < informationPaths.length) {
+    const path = informationPaths[informationCursor++]
+    try {
+      await warmRoute(path)
+    } catch (error) {
+      failures.push(error.message)
+    }
+  }
+}
+await Promise.all(Array.from({ length: 4 }, () => informationWorker()))
+console.log(
+  `Warmed ${
+    informationPaths.length -
+    failures.filter((failure) => failure.startsWith("Route /us/page/") || failure.startsWith("Route /us/customer-service")).length
+  }/${informationPaths.length} information routes`
+)
 if (failures.length) {
   throw new Error(`Production warm-up incomplete: ${failures.join(", ")}`)
 }

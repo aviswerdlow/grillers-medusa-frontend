@@ -1,6 +1,7 @@
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import {
   getActiveHoliday,
+  getUpcomingCutoffs,
   formatBannerDate,
   type Holiday,
 } from "@lib/data/holiday-deadlines"
@@ -12,8 +13,10 @@ type HolidayBannerProps = {
 }
 
 export default function HolidayBanner({ holiday }: HolidayBannerProps = {}) {
-  const active = holiday === undefined ? getActiveHoliday() : holiday
-  if (!active) return null
+  const now = new Date()
+  const active = holiday === undefined ? getActiveHoliday(now) : holiday
+  const cutoffs = active ? getUpcomingCutoffs(active, now) : []
+  if (!active || !cutoffs.length) return null
 
   return (
     <section
@@ -36,7 +39,7 @@ export default function HolidayBanner({ holiday }: HolidayBannerProps = {}) {
                 </span>
               </p>
               <ul className="mt-1 md:mt-0.5 text-p-sm font-maison-neue text-Charcoal/80 flex flex-wrap gap-x-4 gap-y-1">
-                {active.cutoffs.map((c) => (
+                {cutoffs.map((c) => (
                   <li key={c.service} className="whitespace-nowrap">
                     <span className="text-Charcoal/60">{c.service}:</span>{" "}
                     <span className="font-semibold text-Charcoal">
