@@ -36,7 +36,7 @@ export default function SpecialtySwiper({
             id="specialty-row-heading"
             className="text-h2-mobile md:text-h2 font-gyst text-Charcoal"
           >
-            Cuts you can't get from your supermarket.
+            Cuts you can&apos;t get from your supermarket.
           </h2>
         </div>
 

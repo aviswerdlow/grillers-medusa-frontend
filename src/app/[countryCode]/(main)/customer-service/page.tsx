@@ -13,11 +13,16 @@ export function generateStaticParams() {
   return [{ countryCode: "us" }]
 }
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { countryCode } = await params
   const data = await getCustomerServiceData()
+  const title = `${data.Title} | Grillers Pride`
+  const canonical = `${getBaseURL()}/${countryCode}/customer-service`
   return {
-    title: `${data.Title} | Grillers Pride`,
+    title,
     description: data.Intro,
+    alternates: { canonical },
+    openGraph: { url: canonical, title, type: "website" },
   }
 }
 

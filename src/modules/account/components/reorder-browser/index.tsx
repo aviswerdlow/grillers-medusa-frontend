@@ -215,25 +215,16 @@ function isStaffAssistedHistoryItem(item: PurchaseHistoryItem) {
   return item.mappingStatus === "staff_assisted"
 }
 
-function historyUnitPriceForSort(item: PurchaseHistoryItem) {
-  if (item.source === "legacy" || item.source === "medusa+legacy") {
-    return item.unitPrice
-  }
-
-  return item.unitPrice / 100
-}
-
 function getPrimaryVariant(product?: StrapiCollectionProduct) {
   return product?.MedusaProduct?.Variants?.[0]
 }
 
 function itemVariant(item: HydratedHistoryItem) {
   const variants = item.strapiProduct.MedusaProduct?.Variants || []
-  return (
-    variants.find(
-      (variant) => variant.VariantId && variant.VariantId === item.variantId
-    ) || getPrimaryVariant(item.strapiProduct)
-  )
+  if (item.variantId) {
+    return variants.find((variant) => variant.VariantId === item.variantId)
+  }
+  return getPrimaryVariant(item.strapiProduct)
 }
 
 function itemVariantId(item: HydratedHistoryItem) {
@@ -323,9 +314,7 @@ function itemPriceNumber(item: HydratedHistoryItem) {
   if (typeof productPrice === "number" && Number.isFinite(productPrice)) {
     return productPrice
   }
-
-  const historyPrice = historyUnitPriceForSort(item)
-  return Number.isFinite(historyPrice) ? historyPrice : 0
+  return null
 }
 
 function itemPriceLabel(item: HydratedHistoryItem) {
@@ -351,8 +340,7 @@ function itemPriceLabel(item: HydratedHistoryItem) {
     }`
   }
 
-  const amount = itemPriceNumber(item)
-  return amount ? formatLegacyMoney(amount, item.currencyCode) : ""
+  return "Current price shown in cart"
 }
 
 function canAddItem(item: HydratedHistoryItem) {
@@ -454,7 +442,13 @@ function sortItems(items: HydratedHistoryItem[], sort: SortOption) {
       )
       break
     case "price":
-      sorted.sort((a, b) => itemPriceNumber(a) - itemPriceNumber(b))
+      sorted.sort((a, b) => {
+        const aPrice = itemPriceNumber(a)
+        const bPrice = itemPriceNumber(b)
+        if (aPrice === null) return bPrice === null ? 0 : 1
+        if (bPrice === null) return -1
+        return aPrice - bPrice
+      })
       break
   }
 
@@ -1105,9 +1099,12 @@ function SelectionRail({
   onAddSelected: () => void
   onSelectGapItem: (item: HydratedHistoryItem) => void
 }) {
+  const hasUnknownPrice = selectedItems.some(
+    (item) => itemPriceNumber(item) === null
+  )
   const subtotal = selectedItems.reduce((sum, item) => {
     const key = historyKey(item)
-    return sum + itemPriceNumber(item) * (selected[key] || 1)
+    return sum + (itemPriceNumber(item) ?? 0) * (selected[key] || 1)
   }, 0)
   const categories = Array.from(new Set(selectedItems.map(categoryForItem)))
 
@@ -1130,7 +1127,9 @@ function SelectionRail({
           Estimated subtotal
         </p>
         <p className="mt-1 text-3xl font-gyst text-Charcoal">
-          {formatLegacyMoney(subtotal, "usd") || "$0.00"}
+          {hasUnknownPrice
+            ? "See cart for price"
+            : formatLegacyMoney(subtotal, "usd") || "$0.00"}
         </p>
         <p className="mt-1 text-xs font-maison-neue text-Charcoal/50">
           Final price and delivery threshold are confirmed at checkout.

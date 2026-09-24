@@ -141,4 +141,35 @@ describe("product enrichment alerts", () => {
       "shopper@example.com"
     )
   })
+
+  it("replaces stale reorder prices only with exact live variant prices", async () => {
+    const priced = strapiProduct(1)
+    priced.MedusaProduct.Variants[0].Price = {
+      CalculatedPriceNumber: 10,
+    }
+    priced.MedusaProduct.Variants.push({
+      VariantId: "variant-missing",
+      Price: { CalculatedPriceNumber: 11 },
+    })
+    const enriched = await enrichStrapiProductsWithMedusaPrices(
+      [priced],
+      "zz-enrichment-alert",
+      { requireLivePrices: true }
+    )
+    expect(enriched[0].MedusaProduct.Variants[0].Price).toEqual({
+      CalculatedPriceNumber: 1300,
+    })
+    expect(enriched[0].MedusaProduct.Variants[1].Price).toBeUndefined()
+
+    const unavailable = strapiProduct(0)
+    unavailable.MedusaProduct.Variants[0].Price = {
+      CalculatedPriceNumber: 10,
+    }
+    const withoutLivePrice = await enrichStrapiProductsWithMedusaPrices(
+      [unavailable],
+      "zz-enrichment-alert",
+      { requireLivePrices: true }
+    )
+    expect(withoutLivePrice[0].MedusaProduct.Variants[0].Price).toBeUndefined()
+  })
 })
