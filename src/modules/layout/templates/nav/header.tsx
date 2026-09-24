@@ -26,10 +26,10 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
       >
         Skip to main content
       </a>
-      <nav className="flex items-center justify-between w-full h-[106px] px-3 lg:px-8 gap-2">
+      <nav className="flex items-center justify-between w-full h-[76px] md:h-[88px] px-3 lg:px-8 gap-2">
         <MobileNavMenu navLinks={navLinks} navCounts={navCounts} />
 
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-4">
           <LocalizedClientLink
             href="/"
             data-testid="nav-store-link"
@@ -46,14 +46,14 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
               aria-hidden="true"
               className="h-[36px] w-[82px]"
             />
-            <span className="hidden md:inline text-xl font-rexton font-bold text-[#2D479D] uppercase tracking-wider">
+            <span className="hidden xl:inline text-xl font-rexton font-bold text-[#2D479D] uppercase tracking-wider whitespace-nowrap">
               Griller&apos;s <span className="text-Gold">&#9733;</span> Pride
             </span>
           </LocalizedClientLink>
         </div>
 
         {/* Search Bar */}
-        <div className="hidden md:block w-1/2 max-w-[558px] h-[50px] mx-4">
+        <div className="hidden md:block min-w-0 flex-1 max-w-[558px] h-[50px] mx-3">
           <SearchBar />
           {/* <input
             type="search"
@@ -62,7 +62,7 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
           /> */}
         </div>
 
-        <div className="flex items-center gap-8">
+        <div className="flex shrink-0 items-center gap-2 lg:gap-5">
           {/* Country Selector - Desktop */}
           <div className="hidden md:block">
             <HeaderCountrySelect regions={regions} />
@@ -71,7 +71,7 @@ const Header = ({ navLinks, regions, phoneNumber, navCounts }: HeaderProps) => {
           {phoneNumber && (
             <a
               href={`tel:${phoneNumber.replace(/\D/g, "")}`}
-              className="hidden md:inline-block text-p-md font-maison-neue text-Charcoal hover:underline"
+              className="hidden md:inline-flex min-h-[44px] items-center whitespace-nowrap text-sm font-maison-neue text-Charcoal hover:underline"
             >
               {phoneNumber}
             </a>

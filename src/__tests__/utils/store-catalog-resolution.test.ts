@@ -1,25 +1,33 @@
 import {
   resolveEmptyStoreCatalogDecision,
   isProductionBuildPhase,
+  isSoftEmptyStoreCatalog,
 } from "@lib/store-catalog-resolution"
 
 describe("resolveEmptyStoreCatalogDecision", () => {
   it("fails loudly when Strapi responded but the catalog is genuinely empty", () => {
     // loadFailed=false → onLoadFailure never fired → Strapi returned a real empty set.
     expect(
-      resolveEmptyStoreCatalogDecision({ loadFailed: false, isBuildPhase: false })
+      resolveEmptyStoreCatalogDecision({
+        loadFailed: false,
+        isBuildPhase: false,
+      })
     ).toBe("fail_empty")
     expect(
-      resolveEmptyStoreCatalogDecision({ loadFailed: false, isBuildPhase: true })
+      resolveEmptyStoreCatalogDecision({
+        loadFailed: false,
+        isBuildPhase: true,
+      })
     ).toBe("fail_empty")
   })
 
-  it("preserves the stale ISR page on a transient Strapi failure at runtime", () => {
-    // A Strapi timeout at runtime must NOT render an empty store or hard-timeout;
-    // throwing lets Next keep serving the last-good cached page.
+  it("renders a retry state when a cold runtime has no cached catalogue", () => {
     expect(
-      resolveEmptyStoreCatalogDecision({ loadFailed: true, isBuildPhase: false })
-    ).toBe("preserve_stale")
+      resolveEmptyStoreCatalogDecision({
+        loadFailed: true,
+        isBuildPhase: false,
+      })
+    ).toBe("render_soft")
   })
 
   it("renders the shell (does NOT fail the build) on a transient Strapi failure at build time", () => {
@@ -28,6 +36,20 @@ describe("resolveEmptyStoreCatalogDecision", () => {
     expect(
       resolveEmptyStoreCatalogDecision({ loadFailed: true, isBuildPhase: true })
     ).toBe("render_soft")
+  })
+})
+
+describe("isSoftEmptyStoreCatalog", () => {
+  it("noindexes only a failed cold catalogue, not a recovered or healthy one", () => {
+    expect(
+      isSoftEmptyStoreCatalog({ loadFailed: true, visibleProductCount: 0 })
+    ).toBe(true)
+    expect(
+      isSoftEmptyStoreCatalog({ loadFailed: false, visibleProductCount: 0 })
+    ).toBe(false)
+    expect(
+      isSoftEmptyStoreCatalog({ loadFailed: true, visibleProductCount: 12 })
+    ).toBe(false)
   })
 })
 

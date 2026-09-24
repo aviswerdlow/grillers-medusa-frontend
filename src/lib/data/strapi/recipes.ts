@@ -117,7 +117,7 @@ export const GetRecipeBySlugQuery = gql`
           }
         }
       }
-      Ingredients {
+      Ingredients(pagination: { limit: 100 }) {
         ingredient
         id
       }

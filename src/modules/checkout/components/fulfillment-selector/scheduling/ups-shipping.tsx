@@ -109,7 +109,7 @@ export default function UPSShippingScheduling({
     <div>
       <h2 className="text-2xl font-bold mb-2">When should it arrive?</h2>
       <p className="text-gray-600 mb-6">
-        Select your preferred delivery date. We'll ship your order to arrive on
+        Select your preferred delivery date. We&apos;ll ship your order to arrive on
         or before this date.
       </p>
 

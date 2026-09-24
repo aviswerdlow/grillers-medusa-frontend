@@ -153,11 +153,13 @@ export const listProductsWithSort = async ({
 /**
  * Strapi is the source of truth for product copy/metadata, but Medusa is the
  * source of truth for live prices and availability. Strapi product snapshots can
- * lag or miss fields, so this helper overlays live Medusa card state.
+ * lag or miss fields, so this helper overlays live Medusa card state. Reorder
+ * pages can require an exact live variant price instead of a Strapi snapshot.
  */
 export const enrichStrapiProductsWithMedusaPrices = async <T extends StrapiCollectionProduct>(
   products: T[],
-  countryCode: string
+  countryCode: string,
+  options: { requireLivePrices?: boolean } = {}
 ): Promise<T[]> => {
   const productIds = Array.from(
     new Set(
@@ -265,20 +267,21 @@ export const enrichStrapiProductsWithMedusaPrices = async <T extends StrapiColle
       }
     }
     const enrichedVariants = variants.map((v) => {
-      const snapshot =
-        variantById.get(v.VariantId) ??
-        firstVariantByProduct.get(p.MedusaProduct!.ProductId)
-      if (snapshot == null) return v
+      const snapshot = options.requireLivePrices
+        ? variantById.get(v.VariantId)
+        : variantById.get(v.VariantId) ??
+          firstVariantByProduct.get(p.MedusaProduct!.ProductId)
+      if (snapshot == null) {
+        return options.requireLivePrices ? { ...v, Price: undefined } : v
+      }
       return {
         ...v,
-        ...(typeof snapshot.price === "number"
-          ? {
-              Price: {
-                ...(v.Price ?? {}),
-                CalculatedPriceNumber: snapshot.price,
-              },
-            }
-          : {}),
+        Price:
+          typeof snapshot.price === "number"
+            ? { ...(v.Price ?? {}), CalculatedPriceNumber: snapshot.price }
+            : options.requireLivePrices
+            ? undefined
+            : v.Price,
         manage_inventory: snapshot.manage_inventory,
         allow_backorder: snapshot.allow_backorder,
         inventory_quantity: snapshot.inventory_quantity,

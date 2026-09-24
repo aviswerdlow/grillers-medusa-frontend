@@ -13,18 +13,18 @@
  * Outcomes:
  *  - "fail_empty"      → genuine empty catalog: throw (fail the build + error at
  *                        runtime) so a real catalog outage is loud and un-shippable.
- *  - "preserve_stale"  → transient Strapi failure at RUNTIME: throw so Next's ISR
- *                        discards the failed regeneration and keeps serving the
- *                        last-good cached page (stale-while-error) instead of an
- *                        empty store or a 30s hard timeout.
- *  - "render_soft"     → transient Strapi failure at BUILD time: do NOT fail the
- *                        deploy. Render the store shell; ISR repopulates /store
- *                        within `revalidate` once Strapi recovers.
+ *  - "render_soft"     → transient failure without a cached catalogue: render
+ *                        navigation and a retry state. The loader already uses
+ *                        a last-successful catalogue when one is available.
  */
-export type EmptyStoreCatalogDecision =
-  | "fail_empty"
-  | "preserve_stale"
-  | "render_soft"
+export type EmptyStoreCatalogDecision = "fail_empty" | "render_soft"
+
+export function isSoftEmptyStoreCatalog(input: {
+  loadFailed: boolean
+  visibleProductCount: number
+}): boolean {
+  return input.loadFailed && input.visibleProductCount === 0
+}
 
 export function resolveEmptyStoreCatalogDecision(input: {
   /** True when getStoreProducts' onLoadFailure fired unrecovered (both queries failed). */
@@ -37,7 +37,7 @@ export function resolveEmptyStoreCatalogDecision(input: {
     return "fail_empty"
   }
   // Strapi errored/timed out — transient. Never hard-fail on this.
-  return input.isBuildPhase ? "render_soft" : "preserve_stale"
+  return "render_soft"
 }
 
 export { isProductionBuildPhase } from "@lib/util/build-context"

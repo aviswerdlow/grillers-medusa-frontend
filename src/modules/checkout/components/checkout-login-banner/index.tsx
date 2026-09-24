@@ -387,7 +387,7 @@ const CheckoutLoginBanner: React.FC<Props> = ({ customer }) => {
             </h3>
             <p className="text-sm text-Charcoal/70 mb-5">
               If an account exists for{" "}
-              <span className="font-semibold">{email}</span>, we've sent a link
+              <span className="font-semibold">{email}</span>, we&apos;ve sent a link
               to reset your password.
             </p>
             <button
@@ -424,7 +424,7 @@ const CheckoutLoginBanner: React.FC<Props> = ({ customer }) => {
           </div>
 
           <p className="text-sm text-Charcoal/60 mb-4">
-            Enter your email and we'll send you a link to reset your password.
+            Enter your email and we&apos;ll send you a link to reset your password.
           </p>
 
           <form onSubmit={handleForgotPassword} className="space-y-3">
