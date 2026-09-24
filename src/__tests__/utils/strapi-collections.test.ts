@@ -22,6 +22,8 @@ import {
   getProductsByCollectionSlugStrict,
   getProductsByTag,
   getProductsByTagStrict,
+  getProductCollectionByHandle,
+  getProductTagBySlugStrict,
 } from "@lib/data/strapi/collections"
 
 describe("Strapi collection product loaders", () => {
@@ -36,6 +38,41 @@ describe("Strapi collection product loaders", () => {
   afterEach(() => {
     jest.restoreAllMocks()
     process.env = originalEnv
+  })
+
+  it("distinguishes a missing collection from a broken CMS response", async () => {
+    const client = {
+      request: jest
+        .fn()
+        .mockResolvedValueOnce({ productCollections: [] })
+        .mockResolvedValueOnce({ productCollections: null }),
+    }
+    await expect(
+      getProductCollectionByHandle("kosher-beef", client)
+    ).resolves.toBeNull()
+    await expect(
+      getProductCollectionByHandle("kosher-beef", client)
+    ).rejects.toThrow("not an array")
+  })
+
+  it("does not turn a failed tag lookup into a false not-found result", async () => {
+    const client = {
+      request: jest.fn().mockRejectedValue(new Error("Strapi unavailable")),
+    }
+    await expect(
+      getProductTagBySlugStrict("kosher-beef", client)
+    ).rejects.toThrow("Strapi unavailable")
+  })
+
+  it("does not retry or use the legacy query after a collection transport timeout", async () => {
+    const error = Object.assign(new Error("The operation was aborted"), {
+      name: "TimeoutError",
+    })
+    const client = { request: jest.fn().mockRejectedValue(error) }
+    await expect(
+      getProductsByCollectionSlugStrict("kosher-beef", client)
+    ).rejects.toBe(error)
+    expect(client.request).toHaveBeenCalledTimes(1)
   })
 
   it("falls back to the legacy collection query when the primary collection query fails", async () => {
@@ -190,7 +227,7 @@ describe("Strapi collection product loaders", () => {
     )
   })
 
-  it("times out a stalled store catalog query and recovers through the legacy query", async () => {
+  it("returns the cached catalogue after primary timeout without a legacy call", async () => {
     process.env.STRAPI_STORE_CATALOG_TIMEOUT_MS = "5"
     const products = [
       {
@@ -213,14 +250,52 @@ describe("Strapi collection product loaders", () => {
     ]
     const never = new Promise(() => {})
     const client = {
-      request: jest.fn().mockReturnValueOnce(never).mockResolvedValueOnce({
-        products,
-      }),
+      request: jest
+        .fn()
+        .mockResolvedValueOnce({ products })
+        .mockReturnValueOnce(never),
     }
     const onLoadFailure = jest.fn()
 
+    await getStoreProducts(client)
+    client.request.mockClear()
+
     await expect(getStoreProducts(client, { onLoadFailure })).resolves.toEqual([
       expect.objectContaining({ Title: "Kosher Timeout Recovery" }),
+    ])
+    expect(client.request).toHaveBeenCalledTimes(1)
+    expect(onLoadFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: "primary",
+        recovered: true,
+        timeoutMs: 5,
+      })
+    )
+  })
+
+  it("lets a cold miss pass the stale bound and fills the catalogue cache", async () => {
+    process.env.STRAPI_STORE_CATALOG_TIMEOUT_MS = "5"
+    process.env.STRAPI_FETCH_TIMEOUT_MS = "40"
+    const products = [{ documentId: "cold-filled", Title: "Cold catalogue" }]
+    const client = {
+      request: jest
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              setTimeout(() => resolve({ products }), 15)
+            })
+        )
+        .mockReturnValueOnce(new Promise(() => {})),
+    }
+
+    await expect(getStoreProducts(client)).resolves.toEqual([
+      expect.objectContaining({ documentId: "cold-filled" }),
+    ])
+
+    const onLoadFailure = jest.fn()
+    await expect(getStoreProducts(client, { onLoadFailure })).resolves.toEqual([
+      expect.objectContaining({ documentId: "cold-filled" }),
     ])
     expect(client.request).toHaveBeenCalledTimes(2)
     expect(onLoadFailure).toHaveBeenCalledWith(
@@ -230,6 +305,44 @@ describe("Strapi collection product loaders", () => {
         timeoutMs: 5,
       })
     )
+  })
+
+  it("does not retry a transport timeout and cannot reuse a different client's catalogue", async () => {
+    const warmClient = {
+      request: jest.fn().mockResolvedValue({
+        products: [{ documentId: "only-warm", Title: "Warm" }],
+      }),
+    }
+    await getStoreProducts(warmClient)
+    const error = Object.assign(new Error("The operation was aborted"), {
+      name: "TimeoutError",
+    })
+    const client = { request: jest.fn().mockRejectedValue(error) }
+    const onLoadFailure = jest.fn()
+    await expect(getStoreProducts(client, { onLoadFailure })).resolves.toEqual(
+      []
+    )
+    expect(client.request).toHaveBeenCalledTimes(1)
+    expect(onLoadFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: "primary",
+        recovered: false,
+        timeoutMs: 20000,
+      })
+    )
+  })
+
+  it("recovers both failed queries from the same client's last successful catalogue", async () => {
+    const products = [{ documentId: "saved", Title: "Saved" }]
+    const client = {
+      request: jest
+        .fn()
+        .mockResolvedValueOnce({ products })
+        .mockRejectedValue(new Error("unavailable")),
+    }
+    const cached = await getStoreProducts(client)
+    await expect(getStoreProducts(client)).resolves.toEqual(cached)
+    expect(client.request).toHaveBeenCalledTimes(3)
   })
 
   it("retries direct Strapi product pagination before rendering an empty catalog", async () => {

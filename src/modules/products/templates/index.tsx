@@ -4,9 +4,7 @@ import { notFound } from "next/navigation"
 
 import { HttpTypes } from "@medusajs/types"
 import ProductDetail from "@modules/products/components/product-detail"
-import HowItWorksSection from "@modules/products/components/how-it-works"
 import HowItFitsSection from "@modules/products/components/how-it-fits"
-import WhyUsSection from "@modules/products/components/why-us"
 import PairsWellWith from "@modules/products/components/pairs-well-with"
 import RelatedProducts from "@modules/products/components/related-products"
 import SkeletonRelatedProducts from "@modules/skeletons/templates/skeleton-related-products"
@@ -16,7 +14,6 @@ type ProductTemplateProps = {
   product: HttpTypes.StoreProduct
   region: HttpTypes.StoreRegion
   countryCode: string
-  strapiCommonPdpData: any | Promise<any>
   strapiProductData: any
   purchaseHistoryItem?: PurchaseHistoryItem | null
   pdpExperimentVariant?: string | null
@@ -24,19 +21,13 @@ type ProductTemplateProps = {
 }
 
 async function PdpEducationSections({
-  strapiCommonPdpData,
   strapiProductData,
 }: {
-  strapiCommonPdpData: any | Promise<any>
   strapiProductData: any
 }) {
-  const commonPdpData = await Promise.resolve(strapiCommonPdpData)
-
   return (
     <>
-      <HowItWorksSection data={commonPdpData?.HowItWorks} />
       <HowItFitsSection recipes={strapiProductData?.Recipes} />
-      <WhyUsSection data={commonPdpData?.WhyUs} />
     </>
   )
 }
@@ -45,7 +36,6 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
   product,
   region,
   countryCode,
-  strapiCommonPdpData,
   strapiProductData,
   purchaseHistoryItem,
   pdpExperimentVariant,
@@ -77,7 +67,6 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
       </Suspense>
       <Suspense fallback={null}>
         <PdpEducationSections
-          strapiCommonPdpData={strapiCommonPdpData}
           strapiProductData={strapiProductData}
         />
       </Suspense>

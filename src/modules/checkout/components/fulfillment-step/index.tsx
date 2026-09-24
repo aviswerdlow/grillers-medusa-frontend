@@ -772,7 +772,7 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
                 {hasSavedAddress ? (
                   <>
                     <p className="text-sm font-semibold text-Charcoal leading-tight">
-                      Local delivery and pickup aren't available for this address
+                      Local delivery and pickup aren&apos;t available for this address
                     </p>
                     <p className="text-xs text-Charcoal/65 mt-1 leading-snug">
                       Currently using <span className="font-medium">{formatFulfillmentAddressLine(activeAddress)}</span>. Try a different address to see more options.
@@ -781,10 +781,10 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
                 ) : (
                   <>
                     <p className="text-sm font-semibold text-Charcoal leading-tight">
-                      We don't have your delivery address yet
+                      We don&apos;t have your delivery address yet
                     </p>
                     <p className="text-xs text-Charcoal/65 mt-1 leading-snug">
-                      Add one to unlock Atlanta delivery and Southeast pickup. We'll save it to your profile.
+                      Add one to unlock Atlanta delivery and Southeast pickup. We&apos;ll save it to your profile.
                     </p>
                   </>
                 )}

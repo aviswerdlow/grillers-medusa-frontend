@@ -169,7 +169,7 @@ const RecipesCollection = ({
               Grillers Pride recipes
             </p>
             <h1 className="mt-3 max-w-4xl text-h1-mobile md:text-h2 font-gyst text-Charcoal">
-              Kosher recipes by cut, occasion, and cooking intent
+              Kosher recipes for your table
             </h1>
             <p className="mt-5 max-w-2xl text-p-lg font-maison-neue text-Charcoal/75">
               Browse like a butcher&apos;s cookbook: Shabbos roasts, weeknight
@@ -181,20 +181,6 @@ const RecipesCollection = ({
               variant="hero"
               placeholder="Search brisket, cutlets, turkey, roast, grilling..."
             />
-            <nav
-              className="mt-5 flex flex-wrap gap-2"
-              aria-label="Popular recipe searches"
-            >
-              {BROWSE_PATHS.slice(0, 6).map((path) => (
-                <LocalizedClientLink
-                  key={path.label}
-                  href={path.href}
-                  className="inline-flex min-h-[44px] items-center rounded-full border border-Charcoal/15 bg-white px-4 text-p-sm font-maison-neue font-semibold text-Charcoal hover:border-Gold focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold"
-                >
-                  {path.label}
-                </LocalizedClientLink>
-              ))}
-            </nav>
           </div>
 
           {featuredRecipe && (
@@ -211,68 +197,18 @@ const RecipesCollection = ({
         </div>
       </section>
 
-      <section className="hidden border-b border-Charcoal/10 bg-white md:block">
-        <div className="mx-auto max-w-7xl px-4.5 py-8">
-          <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="font-maison-neue text-p-sm font-bold uppercase text-Gold">
-                Browse paths
-              </p>
-              <h2 className="font-gyst text-h3 text-Charcoal">
-                Start with how dinner is actually decided
-              </h2>
-            </div>
-            <p className="max-w-xl text-p-md font-maison-neue text-Charcoal/65">
-              Occasion, cut, time, and confidence matter more than alphabetic
-              order.
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {BROWSE_PATHS.map((path) => {
-              const Icon = path.icon
-
-              return (
-                <LocalizedClientLink
-                  key={path.label}
-                  href={path.href}
-                  className="group flex min-h-[156px] flex-col justify-between border border-Charcoal/10 bg-Scroll/50 p-4 transition-colors hover:border-Gold hover:bg-Gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-maison-neue text-p-sm font-bold uppercase text-Charcoal/55">
-                        {path.eyebrow}
-                      </p>
-                      <h3 className="mt-2 font-gyst text-h4 font-bold text-Charcoal">
-                        {path.label}
-                      </h3>
-                    </div>
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-Charcoal ring-1 ring-Charcoal/10 group-hover:text-Gold">
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                  </div>
-                  <p className="mt-4 text-p-sm font-maison-neue text-Charcoal/70">
-                    {path.description}
-                  </p>
-                </LocalizedClientLink>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
       <div
         id="recipes-results"
         className="scroll-mt-4 mx-auto max-w-7xl px-4.5 py-8 md:scroll-mt-8 md:py-12"
       >
-        <section className="mb-6 border-b border-Charcoal/10 pb-5 md:hidden">
+        <section className="mb-6 border-b border-Charcoal/10 pb-5">
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
               <p className="font-maison-neue text-p-sm font-bold uppercase text-Gold">
-                Browse paths
+                Recipe categories
               </p>
               <h2 className="mt-1 font-gyst text-h4 text-Charcoal">
-                Choose a shelf
+                Browse by occasion or cut
               </h2>
             </div>
             <LocalizedClientLink
@@ -324,7 +260,7 @@ const RecipesCollection = ({
               ? `${total} ${total === 1 ? "recipe" : "recipes"} shown for ${
                   activeMission?.label || activeBucket?.label
                 }.`
-              : `${total} recipe ideas across every path.`}
+              : `${total} recipe ideas to explore.`}
           </p>
         </section>
 
@@ -332,7 +268,7 @@ const RecipesCollection = ({
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="font-maison-neue text-p-sm font-bold uppercase text-Crimson">
-                Refine the shelf
+                Your recipes
               </p>
               <h2 className="mt-2 font-gyst text-h3 text-Charcoal">
                 {resultLabel}
@@ -375,7 +311,7 @@ const RecipesCollection = ({
                     href={shelf.href}
                     className="inline-flex min-h-[44px] items-center gap-2 self-start rounded-[5px] border border-Charcoal bg-white px-4 text-p-sm font-maison-neue font-bold text-Charcoal hover:bg-Charcoal hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-Gold md:self-end"
                   >
-                    View shelf
+                    Browse recipes
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </LocalizedClientLink>
                 </div>

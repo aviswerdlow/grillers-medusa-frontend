@@ -30,6 +30,7 @@ describe("store catalog ops alerts", () => {
         alertKind: "store_catalog_load_degraded",
         severity: "warn",
         fingerprint: "store_catalog:primary:degraded",
+        dedupeWindowMs: 300000,
         path: "src/lib/data/strapi/collections.ts",
         meta: expect.objectContaining({
           catalog_surface: "store",
@@ -55,12 +56,37 @@ describe("store catalog ops alerts", () => {
       expect.objectContaining({
         alertKind: "store_catalog_load_failed",
         severity: "page",
-        fingerprint: "store_catalog:all_queries_failed",
+        fingerprint: "store_catalog:legacy:failed",
+        dedupeWindowMs: 300000,
         meta: expect.objectContaining({
           stage: "legacy",
           recovered: false,
           primary_error_message: "Error: primary unavailable",
         }),
+      })
+    )
+  })
+
+  it("does not let a recovered warning suppress an unrecovered page for the same stage", async () => {
+    const input = {
+      stage: "primary" as const,
+      error: new Error("Strapi unavailable"),
+      timeoutMs: 8000,
+    }
+    await emitStoreCatalogLoadFailureAlert({ ...input, recovered: true })
+    await emitStoreCatalogLoadFailureAlert({ ...input, recovered: false })
+    expect(mockEmitStorefrontOpsAlert).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        fingerprint: "store_catalog:primary:degraded",
+        severity: "warn",
+      })
+    )
+    expect(mockEmitStorefrontOpsAlert).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        fingerprint: "store_catalog:primary:failed",
+        severity: "page",
       })
     )
   })

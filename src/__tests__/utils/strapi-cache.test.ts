@@ -56,6 +56,26 @@ describe("cachedStrapiRequest", () => {
     }
   })
 
+  it("keeps the twenty-second transport deadline for slower cached queries", async () => {
+    const original = process.env.STRAPI_FETCH_TIMEOUT_MS
+    const originalFetch = global.fetch
+    delete process.env.STRAPI_FETCH_TIMEOUT_MS
+    const deadline = jest.spyOn(AbortSignal, "timeout")
+    global.fetch = jest.fn(async () => ({ ok: true })) as any
+    try {
+      await import("@lib/strapi")
+      await mockGraphqlClientOptions.fetch?.("https://strapi.test/graphql", {
+        method: "POST",
+      })
+      expect(deadline).toHaveBeenCalledWith(20000)
+    } finally {
+      deadline.mockRestore()
+      global.fetch = originalFetch
+      if (original === undefined) delete process.env.STRAPI_FETCH_TIMEOUT_MS
+      else process.env.STRAPI_FETCH_TIMEOUT_MS = original
+    }
+  })
+
   it("reuses one module-level cache wrapper for the same query", async () => {
     const { cachedStrapiRequest } = await import("@lib/strapi")
     const query = "query Product($id: String) { product(id: $id) { id } }"
@@ -75,6 +95,55 @@ describe("cachedStrapiRequest", () => {
     expect(mockRequest).toHaveBeenCalledTimes(2)
   })
 
+  it("recovers opt-in display reads from the last success but never policy reads", async () => {
+    const { cachedStrapiRequest } = await import("@lib/strapi")
+    const query = "query Home { home { title } }"
+    mockRequest.mockResolvedValueOnce({
+      variables: { title: "Approved title" },
+    })
+    const first = await cachedStrapiRequest(
+      "home-page",
+      query,
+      {},
+      { staleOnError: true }
+    )
+    mockRequest.mockRejectedValueOnce(new Error("unavailable"))
+    await expect(
+      cachedStrapiRequest("home-page", query, {}, { staleOnError: true })
+    ).resolves.toEqual(first)
+    mockRequest.mockRejectedValueOnce(new Error("unavailable"))
+    await expect(cachedStrapiRequest("home-page", query)).rejects.toThrow(
+      "unavailable"
+    )
+    mockRequest.mockRejectedValueOnce(new Error("different query"))
+    await expect(
+      cachedStrapiRequest(
+        "home-page",
+        "query Other { other }",
+        {},
+        { staleOnError: true }
+      )
+    ).rejects.toThrow("different query")
+  })
+
+  it("bounds a stalled homepage read and returns its cached content", async () => {
+    const { cachedStrapiRequest } = await import("@lib/strapi")
+    const query = "query Home { home { title } }"
+    const options = { staleOnError: true, timeoutMs: 5, onError: jest.fn() }
+    mockRequest.mockResolvedValueOnce({
+      variables: { title: "Approved title" },
+    })
+    const first = await cachedStrapiRequest("home-page", query, {}, options)
+    mockRequest.mockImplementationOnce(() => new Promise(() => {}))
+    await expect(
+      cachedStrapiRequest("home-page", query, {}, options)
+    ).resolves.toEqual(first)
+    expect(options.onError).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "TimeoutError" }),
+      true
+    )
+  })
+
   it("creates a new wrapper when query text changes under the same name", async () => {
     const { cachedStrapiRequest } = await import("@lib/strapi")
 
@@ -85,9 +154,7 @@ describe("cachedStrapiRequest", () => {
   })
 
   it("coalesces concurrent cold requests for the same query and variables", async () => {
-    let resolveRequest:
-      | ((value: { variables: unknown }) => void)
-      | undefined
+    let resolveRequest: ((value: { variables: unknown }) => void) | undefined
     mockRequest.mockImplementationOnce(
       () =>
         new Promise((resolve) => {

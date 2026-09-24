@@ -13,6 +13,33 @@ describe("emitStorefrontOpsAlert", () => {
     jest.restoreAllMocks()
   })
 
+  it("coalesces each CMS stage for five minutes without suppressing another stage", async () => {
+    process.env = {
+      ...originalEnv,
+      GP_ANALYTICS_ENDPOINT: "https://ingest.example.com",
+      GP_ANALYTICS_SERVER_KEY: "test",
+    }
+    global.fetch = jest.fn().mockResolvedValue({ ok: true })
+    const now = jest.spyOn(Date, "now").mockReturnValue(1000)
+    const alert = {
+      alertKind: "cms_test",
+      title: "CMS",
+      path: "test",
+      fingerprint: "cms-test:primary",
+      dedupeWindowMs: 300000,
+    }
+    await Promise.all([
+      emitStorefrontOpsAlert(alert),
+      emitStorefrontOpsAlert(alert),
+    ])
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    await emitStorefrontOpsAlert({ ...alert, fingerprint: "cms-test:legacy" })
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    now.mockReturnValue(301000)
+    await emitStorefrontOpsAlert(alert)
+    expect(global.fetch).toHaveBeenCalledTimes(3)
+  })
+
   it("skips without gp-analytics endpoint/key", async () => {
     process.env = {
       ...originalEnv,
@@ -117,12 +144,9 @@ describe("emitStorefrontOpsAlert", () => {
     // enum constraints the ingestion API validates
     expect(["client", "medusa-server", "admin"]).toContain(body.source)
     expect(["legacy", "medusa"]).toContain(body.experience_version)
-    expect([
-      "atlanta_metro",
-      "southeast",
-      "national",
-      "unknown",
-    ]).toContain(body.route_market)
+    expect(["atlanta_metro", "southeast", "national", "unknown"]).toContain(
+      body.route_market
+    )
     expect(["dtc", "institutional", "unknown"]).toContain(body.customer_type)
   })
 

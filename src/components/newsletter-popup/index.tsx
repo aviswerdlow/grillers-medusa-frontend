@@ -1,19 +1,40 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useId, useState, useTransition } from "react"
+import { usePathname } from "next/navigation"
+import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react"
 import { subscribeToNewsletter } from "@lib/data/newsletter"
 
 const STORAGE_KEY = "gp-newsletter-popup"
-const SHOW_AFTER_MS = 18_000
+const INTEREST_DELAY_MS = 60_000
 const SNOOZE_DAYS = 30
+let dismissedThisSession = false
 
-/**
- * Email-capture popup: appears once after ~18s on the storefront, snoozes
- * for 30 days on dismiss, and never returns after a successful signup.
- * Suppressed for signed-in customers (the layout only mounts it for
- * guests). Feeds GP Comms → express consent + Welcome Series.
- */
+function suppressed() {
+  if (dismissedThisSession) return true
+  try {
+    const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}")
+    return Boolean(state.subscribed || Date.now() < state.snoozedUntil)
+  } catch {
+    return false
+  }
+}
+
+function remember(state: { subscribed?: boolean; snoozedUntil?: number }) {
+  dismissedThisSession = true
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch {
+    /* Session suppression still applies. */
+  }
+}
+
+/** A reading-intent shortcut; the signup dialog opens only on an explicit click. */
 export default function NewsletterPopup() {
+  const pathname = usePathname()
+  const allowedRoute = /^\/[^/]+\/(recipes|learn)(\/|$)/.test(pathname || "")
+  const emailId = useId()
+  const [eligible, setEligible] = useState(false)
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState("")
   const [done, setDone] = useState(false)
@@ -21,103 +42,145 @@ export default function NewsletterPopup() {
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
-    try {
-      const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}")
-      if (state.subscribed) return
-      if (state.snoozedUntil && Date.now() < state.snoozedUntil) return
-    } catch {
-      // first visit
+    setEligible(false)
+    setOpen(false)
+    if (!allowedRoute || suppressed()) return
+    let elapsed = false
+    const checkInterest = () => {
+      const distance =
+        document.documentElement.scrollHeight - window.innerHeight
+      if (
+        elapsed &&
+        distance > 0 &&
+        window.scrollY >= distance / 2 &&
+        !suppressed()
+      )
+        setEligible(true)
     }
-    const timer = window.setTimeout(() => setOpen(true), SHOW_AFTER_MS)
-    return () => window.clearTimeout(timer)
-  }, [])
+    const timer = window.setTimeout(() => {
+      elapsed = true
+      checkInterest()
+    }, INTEREST_DELAY_MS)
+    window.addEventListener("scroll", checkInterest, { passive: true })
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener("scroll", checkInterest)
+    }
+  }, [pathname, allowedRoute])
 
   const dismiss = () => {
     setOpen(false)
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          snoozedUntil: Date.now() + SNOOZE_DAYS * 24 * 60 * 60 * 1000,
-        })
-      )
-    } catch {
-      // storage unavailable — popup just re-arms next session
-    }
+    remember(
+      done
+        ? { subscribed: true }
+        : { snoozedUntil: Date.now() + SNOOZE_DAYS * 86400000 }
+    )
   }
 
-  const submit = () => {
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (isPending) return
     setError(null)
     startTransition(async () => {
-      const result = await subscribeToNewsletter(email.trim(), "storefront_popup")
-      if (result.success) {
-        setDone(true)
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ subscribed: true }))
-        } catch {
-          // fine
-        }
-        window.setTimeout(() => setOpen(false), 2500)
-      } else {
-        setError(result.error || "Could not sign you up — try again.")
+      try {
+        const result = await subscribeToNewsletter(
+          email.trim(),
+          "storefront_popup"
+        )
+        if (result.success) {
+          setDone(true)
+          remember({ subscribed: true })
+        } else
+          setError(result.error || "Could not sign you up. Please try again.")
+      } catch {
+        setError("Could not sign you up. Please try again.")
       }
     })
   }
 
-  if (!open) return null
-
+  if (!allowedRoute || !eligible) return null
   return (
-    <div
-      className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-5 shadow-xl small:left-auto small:right-6 small:mx-0"
-      role="dialog"
-      aria-label="Newsletter signup"
-      data-testid="newsletter-popup"
-    >
+    <>
       <button
         type="button"
-        onClick={dismiss}
-        aria-label="Close"
-        className="absolute right-3 top-2 text-xl leading-none text-Charcoal/45 hover:text-Charcoal"
+        onClick={() => setOpen(true)}
+        className="fixed bottom-4 right-4 z-30 min-h-[44px] rounded-full border border-Charcoal/20 bg-Scroll px-4 py-2 font-maison-neue text-sm text-Charcoal shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-Gold"
       >
-        ×
+        Email updates
       </button>
-      {done ? (
-        <p className="pr-4 text-sm font-maison-neue text-Charcoal">
-          You&apos;re on the list — a welcome note is on its way. 🥩
-        </p>
-      ) : (
-        <>
-          <p className="pr-4 text-base font-gyst font-bold text-Charcoal">
-            First crack at holiday cuts
-          </p>
-          <p className="mt-1 pr-4 text-sm text-Charcoal/65">
-            Order deadlines, new cuts, and butcher tips — a couple of emails a
-            month, never on Shabbos.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && submit()}
-              placeholder="you@example.com"
-              className="min-h-[42px] flex-1 rounded-md border border-gray-200 px-3 text-sm outline-none focus:border-Gold"
-              data-testid="newsletter-popup-email"
-            />
+      <Dialog open={open} onClose={dismiss} className="fixed inset-0 z-50">
+        <div className="fixed inset-0 bg-black/35" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-4">
+          <DialogPanel
+            className="relative w-full max-w-md rounded-lg bg-white p-6 text-Charcoal shadow-xl"
+            data-testid="newsletter-popup"
+          >
             <button
               type="button"
-              onClick={submit}
-              disabled={isPending || !email.trim()}
-              className="inline-flex min-h-[42px] items-center justify-center rounded-md bg-Charcoal px-4 text-xs font-rexton font-bold uppercase text-white disabled:opacity-50"
+              onClick={dismiss}
+              aria-label="Close newsletter signup"
+              className="absolute right-2 top-2 flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-Gold"
             >
-              Sign up
+              ×
             </button>
-          </div>
-          {error ? (
-            <p className="mt-2 text-xs text-red-600">{error}</p>
-          ) : null}
-        </>
-      )}
-    </div>
+            <DialogTitle className="pr-10 font-gyst text-xl font-bold">
+              First crack at holiday cuts
+            </DialogTitle>
+            {done ? (
+              <p role="status" className="mt-3 text-sm">
+                You&apos;re on the list. You can unsubscribe from any email.
+              </p>
+            ) : (
+              <>
+                <p className="mt-3 text-sm leading-relaxed">
+                  Order deadlines, new cuts, and butcher tips — a couple of
+                  emails a month, never on Shabbos.
+                </p>
+                <form onSubmit={submit} className="mt-4">
+                  <label
+                    htmlFor={emailId}
+                    className="block text-sm font-semibold"
+                  >
+                    Email address
+                  </label>
+                  <input
+                    id={emailId}
+                    data-autofocus
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    aria-describedby={error ? `${emailId}-error` : undefined}
+                    className="mt-1 min-h-[44px] w-full rounded border border-Charcoal/25 px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-Gold"
+                    data-testid="newsletter-popup-email"
+                  />
+                  <p className="mt-2 text-xs leading-relaxed text-Charcoal/70">
+                    By signing up, you agree to receive these emails.
+                    Unsubscribe anytime.
+                  </p>
+                  {error && (
+                    <p
+                      id={`${emailId}-error`}
+                      role="alert"
+                      className="mt-2 text-sm text-red-700"
+                    >
+                      {error}
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isPending}
+                    className="mt-4 min-h-[44px] w-full rounded bg-Charcoal px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                  >
+                    {isPending ? "Signing up…" : "Sign up"}
+                  </button>
+                </form>
+              </>
+            )}
+          </DialogPanel>
+        </div>
+      </Dialog>
+    </>
   )
 }
