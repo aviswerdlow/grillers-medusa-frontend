@@ -427,7 +427,7 @@ export default function LegacyArrivalCalendar({
       )}
 
       <p className="text-xs text-Charcoal/55 leading-snug" aria-live="polite">
-        {eligibility.reason} Arrival dates are estimates — we don't control
+        {eligibility.reason} Arrival dates are estimates — we don&apos;t control
         carrier schedules.
       </p>
     </div>
