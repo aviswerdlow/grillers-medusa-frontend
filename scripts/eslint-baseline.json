@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "issue": "https://github.com/aviswerdlow/grillers-pride-strategy/issues/377",
-  "sourceBase": "8934f5ac584c9af1c306fbbc81fb41ba5c7c3be9",
-  "policy": "Only these diagnostic counts on exact unchanged source files are accepted. New or changed errors remain fatal. Remove entries when owners fix the source.",
-  "files": []
-}

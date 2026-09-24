@@ -12,7 +12,7 @@
     "build": "next build && node scripts/fix-parallel-route-manifests.js",
     "postbuild": "next-sitemap",
     "start": "next start -p 8000",
-    "lint": "node scripts/lint-with-baseline.cjs",
+    "lint": "eslint src --ext .js,.mjs,.cjs,.jsx,.ts,.mts,.cts,.tsx",
     "analyze": "ANALYZE=true next build",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -25,9 +25,7 @@
     "cutover:check": "node scripts/check-cutover.cjs",
     "experiments:report": "node scripts/experiments/report.mjs",
     "experiments:promote": "node scripts/experiments/promote-winner.mjs",
-    "postmark:ensure-templates": "node scripts/postmark/ensure-templates.js --apply",
-    "lint:strict": "node scripts/lint-with-baseline.cjs --strict",
-    "lint:baseline": "node scripts/generate-lint-baseline.cjs"
+    "postmark:ensure-templates": "node scripts/postmark/ensure-templates.js --apply"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.2",
@@ -84,7 +82,7 @@
     "autoprefixer": "^10.4.21",
     "babel-loader": "^8.2.3",
     "eslint": "8.57.1",
-    "eslint-config-next": "15.3.9",
+    "eslint-config-next": "15.5.7",
     "husky": "^9.1.7",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
