@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+
 import { useEffect, useState } from "react"
 import {
   isTransientNavigationError,
@@ -122,7 +124,7 @@ export default function GlobalError({
                 Try again
               </button>
 
-              <a
+              <Link
                 href="/"
                 style={{
                   padding: "12px 24px",
@@ -132,7 +134,7 @@ export default function GlobalError({
                 }}
               >
                 Go to homepage
-              </a>
+              </Link>
             </div>
 
             {error?.digest && (

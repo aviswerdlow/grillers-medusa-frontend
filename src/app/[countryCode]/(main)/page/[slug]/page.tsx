@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { getBaseURL, isProductionHost } from "@lib/util/env"
 import {
   getInfoPage,
   getLegalPage,
@@ -39,16 +40,21 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params
+  const { slug, countryCode } = await params
   if (!VALID_SLUGS.has(slug)) {
-    return { title: "Not Found | Grillers Pride" }
+    return { title: "Not Found | Grillers Pride", robots: { index: false, follow: false } }
   }
   const page = isLegalSlug(slug)
     ? await getLegalPage(slug)
     : await getInfoPage(slug)
+  if (!page) return { title: "Not Found | Grillers Pride", robots: { index: false, follow: false } }
+  const canonical = `${getBaseURL()}/${countryCode}/page/${slug}`
   const title = page?.SEO?.metaTitle || `${page?.Title} | Grillers Pride`
   return {
     title,
+    alternates: { canonical },
+    openGraph: { url: canonical, title, type: "website" },
+    robots: { index: isProductionHost(), follow: isProductionHost() },
     description:
       page?.SEO?.metaDescription ||
       `Read ${page?.Title} from Grillers Pride.`,

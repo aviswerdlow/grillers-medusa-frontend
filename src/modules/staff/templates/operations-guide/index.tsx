@@ -231,7 +231,7 @@ const publicSurfaces = [
     route: "/us/recipes",
     name: "Recipe hub",
     staffUse:
-      "Use for recipe discovery, filters, holiday buckets, and product-related cooking guidance.",
+      "Use for recipe discovery by occasion or cut, then refine with search and filters. Clear the selected category to see all recipes. Published recipe addresses stay the same.",
   },
   {
     route: "/us/learn",
@@ -267,21 +267,27 @@ const sections: GuideSection[] = [
       "The customer site is the normal shopping experience. Staff should understand it because the staff console can enter a customer's account and use the same flow.",
     useFor: [
       "Browsing the homepage, store, search, collections, recipes, butcher guide, shipping pages, kashruth pages, legal pages, customer service, and site navigation.",
+      "Email signup never opens automatically. Guests reading recipes or guides may see an Email updates button after one minute and halfway down the page. It opens only when selected; closing it snoozes future prompts for 30 days. Subscribed customers remain suppressed, and the footer signup stays available.",
       "Viewing product pages with Strapi product titles, photos, ingredient disclosures, kosher status, shipping eligibility, and waitlist options.",
       "Adding products to cart, choosing fulfillment, paying by card, and receiving confirmation emails.",
       "Letting customers sign in, save addresses, manage saved cards, use wishlist, reorder from current or legacy history, and view order details.",
     ],
     howTo: [
+      "The homepage opens with Beef and Chicken, plus search and delivery/pickup links. Returning customers can still use the reorder shortcut. Item-specific supervision details remain on product pages and the kashruth pages.",
       "Use /us/store for the full catalog. It is powered directly by Strapi product records so customer-safe names, descriptions, images, and merchandising stay current.",
       "Use /us/search when a customer is looking for a product by name or SKU. Search is live and should surface customer-safe titles.",
+      "The homepage puts retail products and collections first. Recipes, cut guidance, and storage/thawing share one section; wholesale follows the retail content. Confirm product claims on the specific item instead of applying a homepage promise to the whole catalog.",
       "Use /us/collections for curated shopping paths. Individual collection pages may be Strapi product collections, product tags, or curated collections.",
+      "Product cards put the pack amount first. Est. marks catch-weight totals; the secondary per-pound rate appears only when a pack weight is available. Catch-weight product pages still lead with the per-pound rate. Zero or missing card prices are hidden; confirm the current Medusa price before quoting. Open the product photo or name for the full gallery and product details. Collection order still comes from the catalog owner.",
       "Use a product page when confirming exact packaging, price mode, ingredient disclosure, kosher status, shipping eligibility, and whether a waitlist is offered.",
       "On desktop, click a main navigation label to open its menu. Moving the pointer across the navigation does not open a menu; click the same label again, click outside, or press Escape to close it.",
       "In the cart, each line shows its customer-safe SKU, quantity, and discount-aware extended Total so a customer can adjust quantities against a budget. Larger screens also show the per-pack Price in its own column.",
       "Use /us/navigation as a plain index of products and collections when staff need a fast reference page.",
+      "Keyboard help: use Tab and Shift+Tab to move through account and address fields. Show password and Hide password work with Enter or Space. When a password reset reports a short or mismatched password, correct the field that receives focus before submitting again.",
     ],
     watch: [
       "Do not promise a product fact unless it appears in Strapi, Medusa, or current staff guidance.",
+      "Business payment terms are account-specific and require approval. The wholesale page is an application/contact path, not a promise of Net 30 or automatic credit. Confirm the approved account terms in QuickBooks; no backup card is required.",
       "If a page shows a QuickBooks accounting title to customers, treat that as a bug. Customer-facing names should come from Strapi or Medusa.",
       "For catch-weight items, the cart line Total is still an estimate until staff record the actual weight. Do not promise it as the final charge.",
       "If a product is intentionally inactive, customers should not see a normal back-in-stock promise for it.",

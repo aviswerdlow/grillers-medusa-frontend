@@ -76,7 +76,7 @@ export default function NotifyBackInStockForm({
         aria-live="polite"
         className="rounded-md border border-emerald-300 bg-emerald-50 p-4 text-sm font-maison-neue text-emerald-900"
       >
-        <p className="font-semibold mb-1">You're on the list.</p>
+        <p className="font-semibold mb-1">You&apos;re on the list.</p>
         <p>
           We&apos;ll email you when{" "}
           <span className="font-semibold">{productTitle}</span> is back.

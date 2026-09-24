@@ -57,3 +57,4 @@ dump.rdb
 /playwright/.auth
 scripts/.migrate.env
 .env*.local
+/output/

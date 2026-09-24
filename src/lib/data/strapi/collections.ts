@@ -2,6 +2,11 @@ import { gql } from "graphql-request"
 import strapiClient, { cachedStrapiRequest } from "@lib/strapi"
 import { compactCollectionProducts } from "@lib/util/collection-product"
 import { withTimeout } from "@lib/util/promise-timeout"
+import {
+  isStrapiTimeout,
+  strapiTransportTimeoutMs,
+  withStrapiTimeout,
+} from "@lib/util/strapi-timeout"
 import type { StrapiSEO, StrapiSocialMeta } from "./seo"
 import type { IngredientDisclosure } from "types/strapi"
 
@@ -25,7 +30,17 @@ function requestStrapi<T>(
   variables?: Record<string, unknown>
 ): Promise<T> {
   if (!client || client === strapiClient) {
-    return cachedStrapiRequest<T>(strapiQueryCacheName(query), query, variables)
+    const isStore = /query GetStoreProducts\b/.test(query)
+    const isDisplayRail = /query GetProductsByHandles\b/.test(query)
+    return cachedStrapiRequest<T>(
+      strapiQueryCacheName(query),
+      query,
+      variables,
+      {
+        revalidateSeconds: isStore || isDisplayRail ? 300 : 3600,
+        staleOnError: isDisplayRail,
+      }
+    )
   }
   return client.request(query, variables)
 }
@@ -91,6 +106,19 @@ export const GetProductCollectionQuery = gql`
   }
 `
 
+export async function getProductCollectionByHandle(
+  handle: string,
+  client: any = strapiClient
+): Promise<ProductCollectionData | null> {
+  const result = await requestStrapi<{
+    productCollections: ProductCollectionData[]
+  }>(client, GetProductCollectionQuery, { handle })
+  if (!Array.isArray(result?.productCollections)) {
+    throw new Error("Strapi product collections response was not an array.")
+  }
+  return result.productCollections[0] || null
+}
+
 // Helper to extract tag value from tag name (removes L1:/L2:/L3: prefix)
 export function extractTagValue(tagName: string): string {
   if (tagName.match(/^L[123]:/)) {
@@ -134,21 +162,29 @@ export async function getProductTagBySlug(
   client: any
 ): Promise<ProductTag | null> {
   try {
-    const result = await requestStrapi<any>(client, GetProductTagBySlugQuery)
-    const tags = result.productTags || []
-
-    // Find tag where generated slug matches the handle
-    const matchedTag = tags.find((tag: ProductTag) => {
-      const tagValue = extractTagValue(tag.Name)
-      const tagSlug = generateTagSlug(tagValue)
-      return tagSlug === handle
-    })
-
-    return matchedTag || null
+    return await getProductTagBySlugStrict(handle, client)
   } catch (error) {
     console.error("Error fetching product tag:", error)
     return null
   }
+}
+
+export async function getProductTagBySlugStrict(
+  handle: string,
+  client: any = strapiClient
+): Promise<ProductTag | null> {
+  const result = await requestStrapi<{ productTags: ProductTag[] }>(
+    client,
+    GetProductTagBySlugQuery
+  )
+  if (!Array.isArray(result?.productTags)) {
+    throw new Error("Strapi product tags response was not an array.")
+  }
+  return (
+    result.productTags.find(
+      (tag) => generateTagSlug(extractTagValue(tag.Name)) === handle
+    ) || null
+  )
 }
 
 // Strapi Product types for collections
@@ -548,6 +584,7 @@ async function requestStrapiProductsWithRetry(
       return result.products
     } catch (error) {
       lastError = error
+      if (isStrapiTimeout(error)) break
       if (attempt < attempts) {
         await wait(150 * attempt)
       }
@@ -609,6 +646,7 @@ export async function getProductsByTagStrict(
     })
   } catch (error) {
     console.error("Error fetching products by tag:", error)
+    if (isStrapiTimeout(error)) throw error
   }
 
   try {
@@ -646,6 +684,7 @@ export async function getProductsByCollectionSlugStrict(
     )
   } catch (error) {
     console.error("Error fetching products by collection slug:", error)
+    if (isStrapiTimeout(error)) throw error
   }
 
   try {
@@ -798,11 +837,15 @@ export async function getProductsByMedusaIds(
   if (productIds.length === 0) return []
 
   try {
-    const result = await requestStrapi<any>(client, GetProductsByMedusaIdsQuery, {
-      productIds,
-      limit: productIds.length,
-      start: 0,
-    })
+    const result = await requestStrapi<any>(
+      client,
+      GetProductsByMedusaIdsQuery,
+      {
+        productIds,
+        limit: productIds.length,
+        start: 0,
+      }
+    )
 
     return compactCollectionProducts(result.products || [])
   } catch (error) {
@@ -947,6 +990,7 @@ export async function getProductsByHandlesStrict(
   } catch (error) {
     primaryError = error
     console.error("Error fetching products by handles:", error)
+    if (isStrapiTimeout(error)) throw error
   }
 
   try {
@@ -1147,7 +1191,14 @@ export const GetStoreProductsQuery = gql`
 `
 
 const LegacyGetStoreProductsQuery = legacyProductQuery(GetStoreProductsQuery)
-const DEFAULT_STORE_CATALOG_TIMEOUT_MS = 25_000
+const DEFAULT_STORE_CATALOG_TIMEOUT_MS = 8_000
+// Separate injected clients cannot share content or test fixtures. Next's Data
+// Cache remains the durable cache; this retains a successful response when a
+// cold/tag-invalidated refresh in the same process fails.
+const lastSuccessfulStoreCatalog = new WeakMap<
+  object,
+  StrapiCollectionProduct[]
+>()
 
 export type StoreCatalogLoadFailure = {
   stage: "primary" | "legacy"
@@ -1163,7 +1214,7 @@ type StoreProductsOptions = {
 
 function storeCatalogTimeoutMs() {
   const value = Number(process.env.STRAPI_STORE_CATALOG_TIMEOUT_MS)
-  return Number.isFinite(value) && value > 0
+  return Number.isSafeInteger(value) && value > 0
     ? value
     : DEFAULT_STORE_CATALOG_TIMEOUT_MS
 }
@@ -1173,21 +1224,7 @@ function withStoreCatalogTimeout<T>(
   stage: "primary" | "legacy",
   timeoutMs: number
 ): Promise<T> {
-  let timeout: ReturnType<typeof setTimeout> | undefined
-
-  const timeoutPromise = new Promise<T>((_, reject) => {
-    timeout = setTimeout(() => {
-      reject(
-        new Error(
-          `Store catalog ${stage} Strapi query timed out after ${timeoutMs}ms`
-        )
-      )
-    }, timeoutMs)
-  })
-
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    if (timeout) clearTimeout(timeout)
-  })
+  return withStrapiTimeout(promise, timeoutMs, `Store catalog ${stage}`)
 }
 
 function notifyStoreCatalogFailure(
@@ -1207,27 +1244,53 @@ export async function getStoreProducts(
   client: any,
   options: StoreProductsOptions = {}
 ): Promise<StrapiCollectionProduct[]> {
-  const timeoutMs = storeCatalogTimeoutMs()
+  const cacheKey = client || strapiClient
+  const hasStaleCatalog = Boolean(
+    lastSuccessfulStoreCatalog.get(cacheKey)?.length
+  )
+  // An early return is safe only when this process can serve a last-good
+  // catalogue. A true cold miss must outlive the transport's own deadline so
+  // its successful result can populate the shared Next Data Cache.
+  const timeoutMs = hasStaleCatalog
+    ? Math.min(storeCatalogTimeoutMs(), DEFAULT_STORE_CATALOG_TIMEOUT_MS)
+    : strapiTransportTimeoutMs()
+  const queryBoundMs = hasStaleCatalog ? timeoutMs : timeoutMs + 1_000
+  const remember = (products: StrapiCollectionProduct[]) => {
+    const catalog = compactCollectionProducts(products)
+    lastSuccessfulStoreCatalog.set(cacheKey, catalog)
+    return catalog
+  }
+  const recover = (failure: Omit<StoreCatalogLoadFailure, "recovered">) => {
+    const catalog = lastSuccessfulStoreCatalog.get(cacheKey)
+    notifyStoreCatalogFailure(options, {
+      ...failure,
+      recovered: Boolean(catalog?.length),
+    })
+    return catalog || []
+  }
   let primaryError: unknown
 
   try {
     const products = await withStoreCatalogTimeout(
       fetchPaginatedProducts(client, GetStoreProductsQuery, {}, 1000, 1),
       "primary",
-      timeoutMs
+      queryBoundMs
     )
 
-    return compactCollectionProducts(products)
+    return remember(products)
   } catch (error) {
     primaryError = error
     console.error("Error fetching store products from Strapi:", error)
+    if (isStrapiTimeout(error)) {
+      return recover({ stage: "primary", error, timeoutMs })
+    }
   }
 
   try {
     const products = await withStoreCatalogTimeout(
       fetchPaginatedProducts(client, LegacyGetStoreProductsQuery, {}, 1000, 1),
       "legacy",
-      timeoutMs
+      queryBoundMs
     )
 
     notifyStoreCatalogFailure(options, {
@@ -1237,17 +1300,15 @@ export async function getStoreProducts(
       recovered: true,
     })
 
-    return compactCollectionProducts(products)
+    return remember(products)
   } catch (error) {
     console.error("Error fetching legacy store products from Strapi:", error)
-    notifyStoreCatalogFailure(options, {
+    return recover({
       stage: "legacy",
       error,
       timeoutMs,
-      recovered: false,
       primaryError,
     })
-    return []
   }
 }
 

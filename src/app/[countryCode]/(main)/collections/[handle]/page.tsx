@@ -1,65 +1,36 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { cache } from "react"
-import strapiClient from "@lib/strapi"
 
-import {
-  GetProductCollectionQuery,
-  type ProductCollectionData,
-  getProductTagBySlug,
-  extractTagValue,
-  getProductsByTagStrict,
-  getProductsByCollectionSlugStrict,
-  type StrapiCollectionProduct,
-} from "@lib/data/strapi/collections"
+import { type ProductCollectionData } from "@lib/data/strapi/collections"
+import { getCollectionPageData } from "@lib/data/strapi/collection-page"
 import { enrichStrapiProductsWithMedusaPrices } from "@lib/data/products"
 import CollectionTemplate from "@modules/collections/templates"
 import CuratedCollectionTemplate from "@modules/collections/templates/curated-collection"
 import { getBaseURL } from "@lib/util/env"
 import { retrieveCustomer } from "@lib/data/customer"
 import { listPurchaseHistory } from "@lib/data/orders"
-import { compactCollectionProducts } from "@lib/util/collection-product"
+import {
+  compactCollectionProducts,
+  withoutUnverifiedProductState,
+} from "@lib/util/collection-product"
 import { withTimeout } from "@lib/util/promise-timeout"
 import {
-  getCuratedCollectionBySlug,
+  refreshCuratedCollectionPrices,
   type CuratedCollection,
 } from "@lib/data/strapi/curated-collections"
 import ExperimentExposure from "@lib/experiments/exposure"
 import { getExperimentAssignment } from "@lib/experiments/server"
 
-interface GetProductCollectionResponse {
-  productCollections: ProductCollectionData[]
-}
-
 type Props = {
   params: Promise<{ handle: string; countryCode: string }>
 }
 
-const getCuratedCollectionForPage = cache(
-  (handle: string, countryCode: string) =>
-    getCuratedCollectionBySlug(handle, countryCode)
+const loadCollectionForPage = cache((handle: string, countryCode: string) =>
+  getCollectionPageData(handle, countryCode)
 )
 
-const getProductCollectionForPage = cache(async (handle: string) => {
-  const res = await strapiClient.request<GetProductCollectionResponse>(
-    GetProductCollectionQuery,
-    { handle }
-  )
-
-  return res?.productCollections?.[0] || null
-})
-
-const getProductTagForPage = cache((handle: string) =>
-  getProductTagBySlug(handle, strapiClient)
-)
-
-const getCollectionProductsForPage = cache((handle: string) =>
-  getProductsByCollectionSlugStrict(handle, strapiClient)
-)
-
-const getTagProductsForPage = cache((tagName: string) =>
-  getProductsByTagStrict(tagName, strapiClient)
-)
+export const maxDuration = 60
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params
@@ -69,8 +40,22 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     notFound()
   }
 
-  const curated = await getCuratedCollectionForPage(handle, countryCode)
-  if (curated) {
+  const loaded = await loadCollectionForPage(handle, countryCode)
+  if (loaded.status === "unavailable") {
+    return {
+      title: "Collection temporarily unavailable | Grillers Pride",
+      robots: { index: false, follow: true },
+    }
+  }
+  if (loaded.status === "not_found") {
+    return {
+      title: "Collection Not Found | Grillers Pride",
+      description: "The requested collection could not be found.",
+    }
+  }
+
+  if (loaded.content.kind === "curated") {
+    const curated = loaded.content.collection
     const baseUrl = getBaseURL()
     const canonicalUrl = `${baseUrl}/${countryCode}/collections/${handle}`
     const seo = curated.SEO
@@ -123,36 +108,13 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     }
   }
 
-  let collection = await getProductCollectionForPage(handle)
-  let tag: any = null
-
-  // If not found as collection, check if it's a product tag
-  if (!collection) {
-    tag = await getProductTagForPage(handle)
-
-    if (tag) {
-      const tagValue = extractTagValue(tag.Name)
-      collection = {
-        Name: `Kosher ${tagValue}`,
-        Slug: handle,
-        Description:
-          tag.Description || `Browse our Kosher ${tagValue} products`,
-      } as ProductCollectionData
-    } else {
-      return {
-        title: "Collection Not Found | Grillers Pride",
-        description: "The requested collection could not be found.",
-      }
-    }
-  }
+  const { collection, tagSEODescription } = loaded.content
 
   const baseUrl = getBaseURL()
   const canonicalUrl = `${baseUrl}/${countryCode}/collections/${handle}`
 
   const seo = collection.SEO
   const socialMeta = collection.SocialMeta
-  const tagSEODescription = tag ? tag.SEODescription || "" : ""
-
   const title = seo?.metaTitle || `${collection.Name} | Grillers Pride`
   const description =
     seo?.metaDescription ||
@@ -292,13 +254,36 @@ export default async function CollectionPage(props: Props) {
     return notFound()
   }
 
-  const curated = await getCuratedCollectionForPage(handle, countryCode)
+  const loaded = await loadCollectionForPage(handle, countryCode)
   const plpExperiment = await getExperimentAssignment("plp_merchandising_v1", {
     routeMarket: countryCode,
     customerType: "unknown",
   })
 
-  if (curated) {
+  if (loaded.status === "not_found") return notFound()
+  if (loaded.status === "unavailable") {
+    return (
+      <main className="content-container py-12" role="status">
+        <h1>Collection temporarily unavailable</h1>
+        <p>Please try again, or continue shopping from the store.</p>
+        <a href={`/${countryCode}/collections/${handle}`} className="underline">
+          Try again
+        </a>{" "}
+        <a href={`/${countryCode}/store`} className="underline">
+          Shop all products
+        </a>
+      </main>
+    )
+  }
+
+  if (loaded.content.kind === "curated") {
+    const curated = loaded.stale
+      ? await refreshCuratedCollectionPrices(
+          loaded.content.collection,
+          countryCode,
+          true
+        )
+      : loaded.content.collection
     const jsonLd = generateCuratedCollectionJsonLd(curated, countryCode)
     return (
       <>
@@ -322,43 +307,11 @@ export default async function CollectionPage(props: Props) {
     `collection customer lookup for ${handle}`
   )
 
-  // First, try to get as a ProductCollection
-  const res = await withTimeout(
-    getProductCollectionForPage(handle),
-    1500,
-    null,
-    `collection metadata for ${handle}`
-  )
-  let collection = res
-  let products: StrapiCollectionProduct[] = []
-
-  if (collection) {
-    // Fetch products assigned to this collection
-    products = await getCollectionProductsForPage(handle)
-  } else {
-    // Check if it's a product tag
-    const tag = await withTimeout(
-      getProductTagForPage(handle),
-      1500,
-      null,
-      `collection tag lookup for ${handle}`
-    )
-
-    if (tag) {
-      const tagValue = extractTagValue(tag.Name)
-
-      products = await getTagProductsForPage(tag.Name)
-
-      collection = {
-        Name: `Kosher ${tagValue}`,
-        Slug: handle,
-        Description:
-          tag.Description || `Browse our Kosher ${tagValue} products`,
-      } as ProductCollectionData
-    } else {
-      return notFound()
-    }
-  }
+  const { collection } = loaded.content
+  let products = loaded.content.products
+  const fallbackProducts = loaded.stale
+    ? products.map(withoutUnverifiedProductState)
+    : products
 
   const recentProductIdsPromise = customerPromise.then(async (customer) => {
     if (!customer) return []
@@ -383,11 +336,11 @@ export default async function CollectionPage(props: Props) {
   // current price regardless of Strapi sync state.
   const [enrichedProducts, recentProductIds] = await Promise.all([
     withTimeout(
-      enrichStrapiProductsWithMedusaPrices(products, countryCode).catch(
-        () => products
-      ),
+      enrichStrapiProductsWithMedusaPrices(fallbackProducts, countryCode, {
+        requireLivePrices: loaded.stale,
+      }).catch(() => fallbackProducts),
       1200,
-      products,
+      fallbackProducts,
       `collection price enrichment for ${handle}`
     ),
     recentProductIdsPromise,
