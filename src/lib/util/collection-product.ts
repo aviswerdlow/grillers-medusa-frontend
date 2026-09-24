@@ -1,6 +1,25 @@
 import type { StrapiCollectionProduct } from "@lib/data/strapi/collections"
 import { isInternalStrapiProduct } from "@lib/util/internal-products"
 
+export function withoutUnverifiedProductState<
+  T extends StrapiCollectionProduct
+>(product: T): T {
+  if (!product.MedusaProduct) return product
+  return {
+    ...product,
+    MedusaProduct: {
+      ...product.MedusaProduct,
+      Variants: (product.MedusaProduct.Variants || []).map((variant) => ({
+        ...variant,
+        Price: undefined,
+        manage_inventory: undefined,
+        allow_backorder: undefined,
+        inventory_quantity: undefined,
+      })),
+    },
+  } as T
+}
+
 export const COLLECTION_PRODUCT_METADATA_KEYS = [
   "AvgPackSize",
   "AvgPackWeight",

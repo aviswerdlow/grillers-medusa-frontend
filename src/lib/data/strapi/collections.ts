@@ -106,6 +106,19 @@ export const GetProductCollectionQuery = gql`
   }
 `
 
+export async function getProductCollectionByHandle(
+  handle: string,
+  client: any = strapiClient
+): Promise<ProductCollectionData | null> {
+  const result = await requestStrapi<{
+    productCollections: ProductCollectionData[]
+  }>(client, GetProductCollectionQuery, { handle })
+  if (!Array.isArray(result?.productCollections)) {
+    throw new Error("Strapi product collections response was not an array.")
+  }
+  return result.productCollections[0] || null
+}
+
 // Helper to extract tag value from tag name (removes L1:/L2:/L3: prefix)
 export function extractTagValue(tagName: string): string {
   if (tagName.match(/^L[123]:/)) {
@@ -149,21 +162,29 @@ export async function getProductTagBySlug(
   client: any
 ): Promise<ProductTag | null> {
   try {
-    const result = await requestStrapi<any>(client, GetProductTagBySlugQuery)
-    const tags = result.productTags || []
-
-    // Find tag where generated slug matches the handle
-    const matchedTag = tags.find((tag: ProductTag) => {
-      const tagValue = extractTagValue(tag.Name)
-      const tagSlug = generateTagSlug(tagValue)
-      return tagSlug === handle
-    })
-
-    return matchedTag || null
+    return await getProductTagBySlugStrict(handle, client)
   } catch (error) {
     console.error("Error fetching product tag:", error)
     return null
   }
+}
+
+export async function getProductTagBySlugStrict(
+  handle: string,
+  client: any = strapiClient
+): Promise<ProductTag | null> {
+  const result = await requestStrapi<{ productTags: ProductTag[] }>(
+    client,
+    GetProductTagBySlugQuery
+  )
+  if (!Array.isArray(result?.productTags)) {
+    throw new Error("Strapi product tags response was not an array.")
+  }
+  return (
+    result.productTags.find(
+      (tag) => generateTagSlug(extractTagValue(tag.Name)) === handle
+    ) || null
+  )
 }
 
 // Strapi Product types for collections
@@ -563,6 +584,7 @@ async function requestStrapiProductsWithRetry(
       return result.products
     } catch (error) {
       lastError = error
+      if (isStrapiTimeout(error)) break
       if (attempt < attempts) {
         await wait(150 * attempt)
       }
@@ -624,6 +646,7 @@ export async function getProductsByTagStrict(
     })
   } catch (error) {
     console.error("Error fetching products by tag:", error)
+    if (isStrapiTimeout(error)) throw error
   }
 
   try {
@@ -661,6 +684,7 @@ export async function getProductsByCollectionSlugStrict(
     )
   } catch (error) {
     console.error("Error fetching products by collection slug:", error)
+    if (isStrapiTimeout(error)) throw error
   }
 
   try {
@@ -1221,7 +1245,9 @@ export async function getStoreProducts(
   options: StoreProductsOptions = {}
 ): Promise<StrapiCollectionProduct[]> {
   const cacheKey = client || strapiClient
-  const hasStaleCatalog = Boolean(lastSuccessfulStoreCatalog.get(cacheKey)?.length)
+  const hasStaleCatalog = Boolean(
+    lastSuccessfulStoreCatalog.get(cacheKey)?.length
+  )
   // An early return is safe only when this process can serve a last-good
   // catalogue. A true cold miss must outlive the transport's own deadline so
   // its successful result can populate the shared Next Data Cache.

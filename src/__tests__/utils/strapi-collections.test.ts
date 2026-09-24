@@ -22,6 +22,8 @@ import {
   getProductsByCollectionSlugStrict,
   getProductsByTag,
   getProductsByTagStrict,
+  getProductCollectionByHandle,
+  getProductTagBySlugStrict,
 } from "@lib/data/strapi/collections"
 
 describe("Strapi collection product loaders", () => {
@@ -36,6 +38,41 @@ describe("Strapi collection product loaders", () => {
   afterEach(() => {
     jest.restoreAllMocks()
     process.env = originalEnv
+  })
+
+  it("distinguishes a missing collection from a broken CMS response", async () => {
+    const client = {
+      request: jest
+        .fn()
+        .mockResolvedValueOnce({ productCollections: [] })
+        .mockResolvedValueOnce({ productCollections: null }),
+    }
+    await expect(
+      getProductCollectionByHandle("kosher-beef", client)
+    ).resolves.toBeNull()
+    await expect(
+      getProductCollectionByHandle("kosher-beef", client)
+    ).rejects.toThrow("not an array")
+  })
+
+  it("does not turn a failed tag lookup into a false not-found result", async () => {
+    const client = {
+      request: jest.fn().mockRejectedValue(new Error("Strapi unavailable")),
+    }
+    await expect(
+      getProductTagBySlugStrict("kosher-beef", client)
+    ).rejects.toThrow("Strapi unavailable")
+  })
+
+  it("does not retry or use the legacy query after a collection transport timeout", async () => {
+    const error = Object.assign(new Error("The operation was aborted"), {
+      name: "TimeoutError",
+    })
+    const client = { request: jest.fn().mockRejectedValue(error) }
+    await expect(
+      getProductsByCollectionSlugStrict("kosher-beef", client)
+    ).rejects.toBe(error)
+    expect(client.request).toHaveBeenCalledTimes(1)
   })
 
   it("falls back to the legacy collection query when the primary collection query fails", async () => {
@@ -272,11 +309,9 @@ describe("Strapi collection product loaders", () => {
 
   it("does not retry a transport timeout and cannot reuse a different client's catalogue", async () => {
     const warmClient = {
-      request: jest
-        .fn()
-        .mockResolvedValue({
-          products: [{ documentId: "only-warm", Title: "Warm" }],
-        }),
+      request: jest.fn().mockResolvedValue({
+        products: [{ documentId: "only-warm", Title: "Warm" }],
+      }),
     }
     await getStoreProducts(warmClient)
     const error = Object.assign(new Error("The operation was aborted"), {
