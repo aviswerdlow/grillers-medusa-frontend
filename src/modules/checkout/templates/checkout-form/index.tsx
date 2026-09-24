@@ -148,6 +148,7 @@ export default async function CheckoutForm({
                   availablePaymentMethods={paymentMethods}
                   savedPaymentMethods={savedPaymentMethods}
                   invoiceApproved={
+                    process.env.GP_INSTITUTIONAL_TERMS_ENABLED === "true" &&
                     (customer?.metadata as Record<string, unknown> | undefined)
                       ?.gp_offline_payment_approved === true
                   }

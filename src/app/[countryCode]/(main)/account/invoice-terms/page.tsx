@@ -11,6 +11,9 @@ export const metadata: Metadata = {
 }
 
 export default async function InvoiceTerms() {
+  if (process.env.GP_INSTITUTIONAL_TERMS_ENABLED !== "true") {
+    notFound()
+  }
   const customer = await retrieveCustomer().catch(() => null)
 
   if (!customer) {

@@ -32,6 +32,9 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
                 customer={layoutCustomer}
                 staffCustomer={staffCustomer}
                 staffImpersonation={staffImpersonation}
+                institutionalTermsEnabled={
+                  process.env.GP_INSTITUTIONAL_TERMS_ENABLED === "true"
+                }
               />
             </aside>
             <main className="flex-1 min-w-0">{children}</main>
