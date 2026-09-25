@@ -6,7 +6,7 @@ import { HttpTypes } from "@medusajs/types"
 import { setFulfillmentDetails, setShippingMethod, clearFulfillmentDetails, type FulfillmentType } from "@lib/data/cart"
 import { saveAddressToProfileAndCart } from "@lib/data/customer"
 import { findShippingOptionByType } from "@lib/data/fulfillment"
-import { convertToLocale } from "@lib/util/money"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
 import {
   isAtlantaZip as sharedIsAtlantaZip,
   isFulfillmentTypeRegionValid,
@@ -207,7 +207,7 @@ export default function FulfillmentStep({ cart, customer, config, availableFulfi
     setIsEditingFulfillment(showSelection)
   }, [showSelection, setIsEditingFulfillment])
 
-  const cartTotal = cart.total || 0
+  const cartTotal = toMoneyAmount(cart.total) ?? 0
   // #265: the plant-pickup and Southeast-pickup credits gate off the
   // FREE-DELIVERY ELIGIBLE subtotal (excludes SKUs flagged
   // `free_delivery_eligible = false`), matching FulfillmentProgress and the
