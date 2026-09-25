@@ -1,6 +1,7 @@
 import { gql } from "graphql-request"
 import { cache } from "react"
-import strapiClient from "@lib/strapi"
+import { cachedStrapiRequest } from "@lib/strapi"
+import { LEGACY_STRAPI_CACHE_TAG } from "@lib/strapi/cache-tags"
 
 export type StrapiMedia = {
   url: string
@@ -524,9 +525,11 @@ function sanitizeLegalPage(page: LegalPageData): LegalPageData {
 const fetchLegalPage = cache(
   async (slug: string): Promise<LegalPageData | null> => {
     try {
-      const data = await strapiClient.request<LegalPagesQueryResult>(
+      const data = await cachedStrapiRequest<LegalPagesQueryResult>(
+        "legal-page",
         GetLegalPageQuery,
-        { slug }
+        { slug },
+        { tags: [LEGACY_STRAPI_CACHE_TAG] }
       )
       const page = data?.legalPages?.[0]
       if (pageHasContent(page)) return sanitizeLegalPage(page!)
