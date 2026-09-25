@@ -2,6 +2,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import FulfillmentProgress from "@modules/common/components/fulfillment-progress"
 import type { CartConversionState } from "@lib/data/conversion"
 import type { PurchaseHistoryItem } from "@lib/data/orders"
+import { toMoneyAmount } from "@lib/util/money"
 
 type ProductConversionPanelProps = {
   cartState?: CartConversionState | null
@@ -25,7 +26,8 @@ export default function ProductConversionPanel({
   currencyCode = "usd",
   purchaseHistoryItem,
 }: ProductConversionPanelProps) {
-  const subtotal = cartState?.subtotal ?? 0
+  const subtotal = toMoneyAmount(cartState?.subtotal) ?? 0
+  const cartSubtotal = toMoneyAmount(cartState?.cartSubtotal)
 
   const lastOrdered = formatDate(purchaseHistoryItem?.lastOrderedAt)
 
@@ -60,7 +62,7 @@ export default function ProductConversionPanel({
 
       <FulfillmentProgress
         subtotal={subtotal}
-        cartSubtotal={cartState?.cartSubtotal}
+        cartSubtotal={cartSubtotal}
         excludedSubtotal={cartState?.excludedSubtotal}
         currencyCode={currencyCode}
         fulfillmentType={cartState?.fulfillmentType}

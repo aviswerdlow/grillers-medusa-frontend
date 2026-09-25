@@ -6,6 +6,7 @@ import { clx } from "@medusajs/ui"
 
 import PaymentButton from "../payment-button"
 import { useSearchParams } from "next/navigation"
+import { toMoneyAmount } from "@lib/util/money"
 
 // Net-weight final charge disclosure
 const NetWeightDisclaimer = () => (
@@ -49,7 +50,7 @@ const Review = ({ cart }: { cart: any }) => {
   const isOpen = searchParams.get("step") === "review"
 
   const paidByGiftcard =
-    cart?.gift_cards && cart?.gift_cards?.length > 0 && cart?.total === 0
+    cart?.gift_cards && cart?.gift_cards?.length > 0 && toMoneyAmount(cart?.total) === 0
 
   const previousStepsCompleted =
     cart.shipping_address &&

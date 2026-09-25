@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { jitsuTrack } from "@lib/jitsu"
+import { toMoneyAmount } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 
 type Props = {
@@ -21,13 +22,13 @@ export default function CartViewedTracker({ cart }: Props) {
     fired.current = true
     jitsuTrack("cart_viewed", {
       cart_id: cart.id,
-      value: cart.subtotal ?? 0,
+      value: toMoneyAmount(cart.subtotal) ?? 0,
       currency: cart.currency_code?.toUpperCase() || "USD",
       item_count: cart.items.reduce((acc, item) => acc + item.quantity, 0),
       items: cart.items.map((item) => ({
         item_id: item.product_id || item.id,
         item_name: item.product_title || item.title,
-        price: item.unit_price ?? 0,
+        price: toMoneyAmount(item.unit_price) ?? 0,
         quantity: item.quantity,
       })),
     })

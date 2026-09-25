@@ -260,16 +260,17 @@ export default function SideCart({
   const [deliveryZip, setDeliveryZip] = useState(
     normalizeDeliveryZip(initialDeliveryZip)
   )
-  const prevCartRef = useRef(cart?.subtotal)
+  const cartSubtotal = toMoneyAmount(cart?.subtotal)
+  const prevCartRef = useRef(cartSubtotal)
 
   // Reset optimistic delta when server data arrives
   useEffect(() => {
-    if (cart?.subtotal !== prevCartRef.current) {
+    if (cartSubtotal !== prevCartRef.current) {
       setOptimisticDelta(0)
       setOptimisticEligibleDelta(0)
-      prevCartRef.current = cart?.subtotal
+      prevCartRef.current = cartSubtotal
     }
-  }, [cart?.subtotal])
+  }, [cartSubtotal])
 
   const handleOptimisticDelta = useCallback(
     (delta: number, eligibleDelta = delta) => {
