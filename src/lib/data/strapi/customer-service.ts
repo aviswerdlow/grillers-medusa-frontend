@@ -1,5 +1,6 @@
 import { gql } from "graphql-request"
-import strapiClient from "@lib/strapi"
+import { cachedStrapiRequest } from "@lib/strapi"
+import { LEGACY_STRAPI_CACHE_TAG } from "@lib/strapi/cache-tags"
 
 export type FAQItem = {
   Question: string
@@ -92,9 +93,11 @@ const PLACEHOLDER: CustomerServiceData = {
 
 export async function getCustomerServiceData(): Promise<CustomerServiceData> {
   try {
-    const data = await strapiClient.request<{
+    const data = await cachedStrapiRequest<{
       customerService?: CustomerServiceData
-    }>(GetCustomerServiceQuery)
+    }>("customer-service", GetCustomerServiceQuery, undefined, {
+      tags: [LEGACY_STRAPI_CACHE_TAG],
+    })
     const cs = data?.customerService
     if (cs?.Title) {
       // Merge with placeholder so partial Strapi entries still render fully.

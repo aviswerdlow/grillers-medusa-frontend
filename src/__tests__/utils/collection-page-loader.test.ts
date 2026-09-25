@@ -77,6 +77,36 @@ describe("collection last-good loading", () => {
       status: "ready",
       content: content("Fresh beef"),
       stale: true,
+      lastGoodAgeSeconds: expect.any(Number),
+    })
+  })
+
+  it("reports the age of the exact last-good copy used after a failed refresh", async () => {
+    const now = jest.spyOn(Date, "now").mockReturnValue(1_000)
+    const client = {}
+    await withLastGoodCollection(
+      client,
+      "kosher-beef",
+      "us",
+      async () => content("First"),
+      5
+    )
+    now.mockReturnValue(3_500)
+
+    const fallback = await withLastGoodCollection(
+      client,
+      "kosher-beef",
+      "us",
+      async () => {
+        throw new Error("Strapi unavailable")
+      },
+      5
+    )
+    expect(fallback).toEqual({
+      status: "ready",
+      content: content("First"),
+      stale: true,
+      lastGoodAgeSeconds: 2,
     })
   })
 

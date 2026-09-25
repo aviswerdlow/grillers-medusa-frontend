@@ -23,6 +23,7 @@ import type {
   PickupCreditConfig,
 } from "@lib/data/strapi/checkout"
 import type { FulfillmentBlackouts } from "@lib/util/eligible-arrival-dates"
+import { canShowInvoiceCheckout } from "@lib/util/institutional-terms"
 
 function needsShippingMethodSelection(cart: HttpTypes.StoreCart): boolean {
   const fulfillmentType = cart.metadata?.fulfillmentType as
@@ -147,10 +148,10 @@ export default async function CheckoutForm({
                   cart={cart}
                   availablePaymentMethods={paymentMethods}
                   savedPaymentMethods={savedPaymentMethods}
-                  invoiceApproved={
+                  invoiceApproved={canShowInvoiceCheckout(
                     (customer?.metadata as Record<string, unknown> | undefined)
                       ?.gp_offline_payment_approved === true
-                  }
+                  )}
                 />
               )}
           </CheckoutStepsGate>

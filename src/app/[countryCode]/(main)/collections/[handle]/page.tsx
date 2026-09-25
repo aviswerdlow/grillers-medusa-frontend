@@ -7,6 +7,7 @@ import { getCollectionPageData } from "@lib/data/strapi/collection-page"
 import { enrichStrapiProductsWithMedusaPrices } from "@lib/data/products"
 import CollectionTemplate from "@modules/collections/templates"
 import CuratedCollectionTemplate from "@modules/collections/templates/curated-collection"
+import CollectionSourceMarker from "@modules/collections/components/source-marker"
 import { getBaseURL } from "@lib/util/env"
 import { retrieveCustomer } from "@lib/data/customer"
 import { listPurchaseHistory } from "@lib/data/orders"
@@ -287,6 +288,7 @@ export default async function CollectionPage(props: Props) {
     const jsonLd = generateCuratedCollectionJsonLd(curated, countryCode)
     return (
       <>
+        <CollectionSourceMarker result={loaded} />
         <ExperimentExposure assignment={plpExperiment} />
         <script
           type="application/ld+json"
@@ -351,6 +353,7 @@ export default async function CollectionPage(props: Props) {
 
   return (
     <>
+      <CollectionSourceMarker result={loaded} />
       <ExperimentExposure assignment={plpExperiment} />
       <script
         type="application/ld+json"

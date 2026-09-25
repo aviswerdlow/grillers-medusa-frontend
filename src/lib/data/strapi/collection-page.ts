@@ -24,7 +24,13 @@ export type CollectionPageContent =
     }
 
 export type CollectionPageLoadResult =
-  | { status: "ready"; content: CollectionPageContent; stale: boolean }
+  | { status: "ready"; content: CollectionPageContent; stale: false }
+  | {
+      status: "ready"
+      content: CollectionPageContent
+      stale: true
+      lastGoodAgeSeconds: number
+    }
   | { status: "not_found"; stale: false }
   | { status: "unavailable"; stale: false }
 
@@ -33,7 +39,7 @@ const DEFAULT_COLLECTION_TIMEOUT_MS = 8_000
 // Next's shared Data Cache, including when a timed-out refresh finishes later.
 const lastGoodByClient = new WeakMap<
   object,
-  Map<string, CollectionPageContent>
+  Map<string, { content: CollectionPageContent; loadedAtMs: number }>
 >()
 
 export async function withLastGoodCollection(
@@ -51,7 +57,7 @@ export async function withLastGoodCollection(
   const key = `${countryCode}:${handle}`
   const previous = entries.get(key)
   const refresh = load().then((content) => {
-    if (content) entries!.set(key, content)
+    if (content) entries!.set(key, { content, loadedAtMs: Date.now() })
     else entries!.delete(key)
     return content
   })
@@ -68,7 +74,15 @@ export async function withLastGoodCollection(
   } catch (error) {
     console.error(`Error loading collection ${handle}:`, error)
     return previous
-      ? { status: "ready", content: previous, stale: true }
+      ? {
+          status: "ready",
+          content: previous.content,
+          stale: true,
+          lastGoodAgeSeconds: Math.max(
+            0,
+            Math.floor((Date.now() - previous.loadedAtMs) / 1000)
+          ),
+        }
       : { status: "unavailable", stale: false }
   }
 }
