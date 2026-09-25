@@ -4,10 +4,11 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { retrieveCustomer } from "@lib/data/customer"
 import InvoiceTermsForm from "@modules/account/components/invoice-terms-form"
+import { canShowInvoiceCheckout } from "@lib/util/institutional-terms"
 
 export const metadata: Metadata = {
   title: "Invoice terms | Grillers Pride",
-  description: "Apply to pay by invoice (Net terms) for your business orders.",
+  description: "Request invoice terms for your business orders.",
 }
 
 export default async function InvoiceTerms() {
@@ -19,6 +20,7 @@ export default async function InvoiceTerms() {
 
   const meta = (customer.metadata ?? {}) as Record<string, unknown>
   const approved = meta.gp_offline_payment_approved === true
+  const invoiceCheckoutEnabled = canShowInvoiceCheckout(approved)
   const status =
     typeof meta.gp_invoice_application_status === "string"
       ? meta.gp_invoice_application_status
@@ -31,15 +33,25 @@ export default async function InvoiceTerms() {
           Invoice terms
         </h1>
         <p className="text-sm font-maison-neue text-Charcoal/50 mt-1">
-          Apply to pay by invoice (Net terms) for your business orders.
+          Request invoice terms for your business orders.
         </p>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         {approved ? (
           <p className="text-Charcoal font-maison-neue">
-            Your account is approved to pay by invoice. Choose &quot;Pay by
-            invoice&quot; at checkout.
+            {invoiceCheckoutEnabled ? (
+              <>
+                Your account is approved for invoice terms. Choose &quot;Pay by
+                invoice&quot; at checkout when available.
+              </>
+            ) : (
+              <>
+                Your invoice terms application is approved. Invoice payment is
+                not available at checkout yet; please use a card for current
+                orders.
+              </>
+            )}
           </p>
         ) : status === "pending" ? (
           <p className="text-Charcoal font-maison-neue">
