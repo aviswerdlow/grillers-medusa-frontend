@@ -1,4 +1,4 @@
-import { convertToLocale } from "@lib/util/money"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 import { clx } from "@medusajs/ui"
 
@@ -14,11 +14,15 @@ const LineItemUnitPrice = ({
   currencyCode,
 }: LineItemUnitPriceProps) => {
   const { total, original_total } = item
-  const hasReducedPrice = total < original_total
+  const originalPrice = toMoneyAmount(original_total)
+  const currentPrice = toMoneyAmount(total)
+  const hasReducedPrice =
+    originalPrice !== null && currentPrice !== null &&
+    originalPrice > 0 && currentPrice < originalPrice
 
-  const percentage_diff = Math.round(
-    ((original_total - total) / original_total) * 100
-  )
+  const percentage_diff = hasReducedPrice
+    ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
+    : 0
 
   return (
     <div className="flex flex-col text-ui-fg-muted justify-center h-full">
@@ -33,7 +37,7 @@ const LineItemUnitPrice = ({
               data-testid="product-unit-original-price"
             >
               {convertToLocale({
-                amount: original_total / item.quantity,
+                amount: originalPrice! / item.quantity,
                 currency_code: currencyCode,
               })}
             </span>
@@ -50,7 +54,7 @@ const LineItemUnitPrice = ({
         data-testid="product-unit-price"
       >
         {convertToLocale({
-          amount: total / item.quantity,
+          amount: currentPrice === null ? null : currentPrice / item.quantity,
           currency_code: currencyCode,
         })}
       </span>

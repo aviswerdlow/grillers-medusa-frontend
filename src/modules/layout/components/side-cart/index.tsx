@@ -9,7 +9,8 @@ import {
   TransitionChild,
 } from "@headlessui/react"
 import { HttpTypes } from "@medusajs/types"
-import { convertToLocale } from "@lib/util/money"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
+import { getItemsSubtotal } from "@lib/util/cart-totals"
 import DeleteButton from "@modules/common/components/delete-button"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { useProductFeaturedImageSrc } from "@lib/hooks/use-product-featured-image"
@@ -86,7 +87,7 @@ const CartItemPrice = ({
 }) => {
   const productId = item.product_id || item.product?.id
   const metadata = useProductMetadata(productId, productDetails?.metadata)
-  const unit = item.unit_price ?? 0
+  const unit = toMoneyAmount(item.unit_price) ?? 0
   // formatProductPriceDisplay already does the per-lb math (pack price
   // ÷ avg weight) and returns the headline, so render `display.primary`
   // instead of the raw `unit`. Previously this surface bypassed the
@@ -167,7 +168,7 @@ const QuantitySelector = ({
     if (newQuantity < 1 || isUpdating) return
 
     const qtyDelta = newQuantity - optimisticQuantity
-    const priceDelta = qtyDelta * (item.unit_price ?? 0)
+    const priceDelta = qtyDelta * (toMoneyAmount(item.unit_price) ?? 0)
     const eligiblePriceDelta = countsTowardFreeDelivery ? priceDelta : 0
 
     setIsUpdating(true)
@@ -186,7 +187,7 @@ const QuantitySelector = ({
         item_name: item.product_title || item.title,
         previous_quantity: item.quantity,
         new_quantity: newQuantity,
-        price: item.unit_price ?? 0,
+        price: toMoneyAmount(item.unit_price) ?? 0,
       })
     } catch (error) {
       setOptimisticQuantity(item.quantity)
@@ -280,7 +281,7 @@ export default function SideCart({
 
   const totalItems =
     cart?.items?.reduce((acc, item) => acc + item.quantity, 0) || 0
-  const subtotal = (cart?.subtotal ?? 0) + optimisticDelta
+  const subtotal = getItemsSubtotal(cart) + optimisticDelta
   const eligibleSubtotal =
     getFreeDeliveryEligibleSubtotal(cart?.items) + optimisticEligibleDelta
   const excludedSubtotal =
@@ -318,13 +319,13 @@ export default function SideCart({
     if (isOpen && cart?.items?.length) {
       jitsuTrack("cart_viewed", {
         cart_id: cart.id,
-        value: cart.subtotal ?? 0,
+        value: getItemsSubtotal(cart),
         currency: cart.currency_code?.toUpperCase() || "USD",
         item_count: cart.items.reduce((acc, item) => acc + item.quantity, 0),
         items: cart.items.map((item) => ({
           item_id: item.product_id || item.id,
           item_name: item.product_title || item.title,
-          price: item.unit_price ?? 0,
+          price: toMoneyAmount(item.unit_price) ?? 0,
           quantity: item.quantity,
         })),
       })

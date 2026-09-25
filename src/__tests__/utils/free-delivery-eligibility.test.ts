@@ -113,4 +113,13 @@ describe("free delivery eligibility", () => {
       "Bulky low-margin item"
     )
   })
+
+  it("uses serialized item amounts for free-delivery progress", () => {
+    const items = [
+      { metadata: {}, subtotal: { value: "19.99" }, unit_price: "19.99", quantity: 1 },
+      { metadata: {}, subtotal: { value: "invalid" }, unit_price: { numeric_: "12.50" }, quantity: 2 },
+    ] as any[]
+
+    expect(getFreeDeliveryEligibleSubtotal(items)).toBeCloseTo(44.99)
+  })
 })

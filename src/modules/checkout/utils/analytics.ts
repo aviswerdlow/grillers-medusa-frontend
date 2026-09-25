@@ -21,7 +21,7 @@ export type CheckoutAnalyticsItem = {
 export function getCheckoutAnalyticsValue(
   cart: CheckoutAnalyticsCart | null | undefined
 ) {
-  return cart?.total ?? 0
+  return toMoneyAmount(cart?.total) ?? 0
 }
 
 export function getCheckoutAnalyticsItems(
@@ -31,8 +31,9 @@ export function getCheckoutAnalyticsItems(
     cart?.items?.map((item) => ({
       id: item.product_id || item.id,
       title: item.product_title || "",
-      price: item.unit_price ?? 0,
+      price: toMoneyAmount(item.unit_price) ?? 0,
       quantity: item.quantity ?? 0,
     })) || []
   )
 }
+import { toMoneyAmount } from "@lib/util/money"

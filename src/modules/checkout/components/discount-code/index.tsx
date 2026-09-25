@@ -5,7 +5,7 @@ import React, { useActionState } from "react"
 
 import { applyPromotions, submitPromotionForm } from "@lib/data/cart"
 import { jitsuTrack } from "@lib/jitsu"
-import { convertToLocale } from "@lib/util/money"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 import Trash from "@modules/common/icons/trash"
 import ErrorMessage from "../error-message"
@@ -141,6 +141,9 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart, variant = "light" }) 
               </Heading>
 
               {promotions.map((promotion) => {
+                const promotionAmount = toMoneyAmount(
+                  promotion.application_method?.value
+                )
                 return (
                   <div
                     key={promotion.id}
@@ -164,11 +167,11 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart, variant = "light" }) 
                             <>
                               {promotion.application_method.type ===
                               "percentage"
-                                ? `${promotion.application_method.value}%`
+                                ? promotionAmount === null
+                                  ? "—"
+                                  : `${promotionAmount}%`
                                 : convertToLocale({
-                                    amount: Number(
-                                      promotion.application_method.value
-                                    ),
+                                    amount: promotion.application_method.value,
                                     currency_code:
                                       promotion.application_method
                                         .currency_code,

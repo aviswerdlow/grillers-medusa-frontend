@@ -1,4 +1,5 @@
 import type { HttpTypes } from "@medusajs/types"
+import { toMoneyAmount } from "./money"
 
 export const FREE_DELIVERY_ELIGIBLE_METADATA_KEY = "free_delivery_eligible"
 export const FREE_DELIVERY_EXCLUSION_REASON_METADATA_KEY =
@@ -49,12 +50,12 @@ export function getLineItemFreeDeliveryExclusionReason(
 }
 
 export function getLineItemSubtotal(item: CartLine): number {
-  const explicit = Number(item.subtotal)
-  if (Number.isFinite(explicit) && explicit >= 0) return explicit
+  const explicit = toMoneyAmount(item.subtotal)
+  if (explicit !== null && explicit >= 0) return explicit
 
-  const unit = Number(item.unit_price)
+  const unit = toMoneyAmount(item.unit_price)
   const quantity = Number(item.quantity)
-  if (!Number.isFinite(unit) || !Number.isFinite(quantity)) return 0
+  if (unit === null || !Number.isFinite(quantity)) return 0
   return Math.max(0, unit * quantity)
 }
 

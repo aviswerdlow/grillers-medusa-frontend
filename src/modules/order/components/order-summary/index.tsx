@@ -1,4 +1,4 @@
-import { convertToLocale } from "@lib/util/money"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 
 type OrderSummaryProps = {
@@ -6,16 +6,11 @@ type OrderSummaryProps = {
 }
 
 const OrderSummary = ({ order }: OrderSummaryProps) => {
-  const getAmount = (amount?: number | null) => {
-    if (!amount) {
-      return
-    }
-
-    return convertToLocale({
+  const getAmount = (amount: unknown) =>
+    convertToLocale({
       amount,
       currency_code: order.currency_code,
     })
-  }
 
   return (
     <div>
@@ -26,13 +21,13 @@ const OrderSummary = ({ order }: OrderSummaryProps) => {
           <span>{getAmount(order.subtotal)}</span>
         </div>
         <div className="flex flex-col gap-y-1">
-          {order.discount_total > 0 && (
+          {(toMoneyAmount(order.discount_total) ?? 0) > 0 && (
             <div className="flex items-center justify-between">
               <span>Discount</span>
               <span>- {getAmount(order.discount_total)}</span>
             </div>
           )}
-          {order.gift_card_total > 0 && (
+          {(toMoneyAmount(order.gift_card_total) ?? 0) > 0 && (
             <div className="flex items-center justify-between">
               <span>Discount</span>
               <span>- {getAmount(order.gift_card_total)}</span>

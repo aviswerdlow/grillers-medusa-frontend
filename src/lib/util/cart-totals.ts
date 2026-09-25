@@ -12,14 +12,21 @@
  * `cart.total` already equals item_subtotal + shipping_total + tax − discount,
  * so it is correct as-is; only the displayed subtotal needs this.
  */
+import { toMoneyAmount } from "./money"
+
 type ItemsSubtotalSource = {
-  item_subtotal?: number | null
-  item_total?: number | null
-  subtotal?: number | null
+  item_subtotal?: unknown
+  item_total?: unknown
+  subtotal?: unknown
 }
 
 export function getItemsSubtotal(
   source: ItemsSubtotalSource | null | undefined
 ): number {
-  return source?.item_subtotal ?? source?.item_total ?? source?.subtotal ?? 0
+  return (
+    toMoneyAmount(source?.item_subtotal) ??
+    toMoneyAmount(source?.item_total) ??
+    toMoneyAmount(source?.subtotal) ??
+    0
+  )
 }
