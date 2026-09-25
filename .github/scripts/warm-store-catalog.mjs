@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises"
 import warmRouteModule from "./warm-route.cjs"
 
-const { warmRoute } = warmRouteModule
+const { warmRoute, warm: warmSurface } = warmRouteModule
 
 const {
   DEPLOY_SHA,
@@ -60,26 +60,11 @@ if (main.commit?.sha !== DEPLOY_SHA) {
   process.exit(0)
 }
 
-async function warm(surface, handle) {
-  const response = await fetch(new URL("/api/revalidate", deployment), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${REVALIDATE_SECRET}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ event: "deployment.ready", surface, handle }),
-    signal: AbortSignal.timeout(70_000),
+const warm = (surface, handle) =>
+  warmSurface(surface, handle, {
+    deployment,
+    revalidateSecret: REVALIDATE_SECRET,
   })
-  const result = await response.json().catch(() => null)
-  if (!response.ok || !result?.warmed) {
-    throw new Error(
-      `${surface}${handle ? `/${handle}` : ""} warm-up failed (${
-        response.status
-      })`
-    )
-  }
-  return result
-}
 
 const store = await warm("store")
 if (store.visibleProductCount < 1) {
@@ -161,7 +146,7 @@ const informationPaths = [
 ]
 let informationCursor = 0
 let informationWarmed = 0
-let informationSkipped = 0
+const informationSkippedPaths = []
 const informationWorker = async () => {
   while (informationCursor < informationPaths.length) {
     const path = informationPaths[informationCursor++]
@@ -169,7 +154,7 @@ const informationWorker = async () => {
       const result = await warmRoute(path, deployment, {
         allowNotFound: path.startsWith("/us/page/"),
       })
-      if (result === "not_found") informationSkipped++
+      if (result === "not_found") informationSkippedPaths.push(path)
       else informationWarmed++
     } catch (error) {
       failures.push(String(error.message || error))
@@ -177,7 +162,14 @@ const informationWorker = async () => {
   }
 }
 await Promise.all(Array.from({ length: 4 }, () => informationWorker()))
-console.log(`Warmed ${informationWarmed}/${informationPaths.length - informationSkipped} available information routes; skipped ${informationSkipped} 404 routes`)
+console.log(
+  `Warmed ${informationWarmed}/${informationPaths.length - informationSkippedPaths.length} available information routes; skipped ${informationSkippedPaths.length} 404 routes`
+)
+if (informationSkippedPaths.length) {
+  console.log(
+    `Skipped information paths: ${informationSkippedPaths.sort().join(", ")}`
+  )
+}
 if (failures.length) {
   throw new Error(`Production warm-up incomplete: ${failures.join(", ")}`)
 }
