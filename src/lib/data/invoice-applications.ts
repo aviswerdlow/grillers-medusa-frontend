@@ -16,6 +16,9 @@ export async function submitInvoiceApplication(
   _currentState: { success: boolean; error: string | null },
   formData: FormData
 ): Promise<{ success: boolean; error: string | null }> {
+  if (process.env.GP_INSTITUTIONAL_TERMS_ENABLED !== "true") {
+    return { success: false, error: "Invoice terms are unavailable." }
+  }
   const business_name = String(formData.get("business_name") ?? "").trim()
   const contact_name = String(formData.get("contact_name") ?? "").trim()
   const contact_email = String(formData.get("contact_email") ?? "").trim()

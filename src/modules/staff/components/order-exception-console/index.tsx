@@ -68,6 +68,7 @@ import {
   type ArrivalMethod,
 } from "@lib/util/eligible-arrival-dates"
 import Button from "@modules/common/components/button"
+import InstitutionalCollectionStatus from "@modules/staff/components/institutional-collection-status"
 
 const FULFILLMENT_OPTIONS: Array<{
   value: StaffFulfillmentType
@@ -1136,8 +1137,10 @@ function OrderItemEditPanel({
 
 export default function StaffOrderExceptionConsole({
   staffRole = "staff",
+  institutionalTermsEnabled = false,
 }: {
   staffRole?: StaffOrderSupportRole
+  institutionalTermsEnabled?: boolean
 }) {
   const [query, setQuery] = useState("")
   const [queueFilter, setQueueFilter] =
@@ -1804,6 +1807,10 @@ export default function StaffOrderExceptionConsole({
             <LegacyOrderReadOnlyPanel order={selectedOrder} />
           ) : (
             <div className="grid gap-6 p-5">
+              {institutionalTermsEnabled &&
+                selectedOrder.metadata?.payment_workflow === "invoice_ar" && (
+                  <InstitutionalCollectionStatus orderId={selectedOrder.id} />
+                )}
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]">
                 <div className="rounded-md border border-gray-100 p-4">
                   <div className="flex items-center gap-2">
