@@ -134,14 +134,20 @@ function addCalendarDays(iso: string, days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
-/** Relative cutoffs remain as supplied; only dated entries can expire. */
+/** Undated and relative entries remain; an ISO date expires after its Eastern day. */
+export function isUpcomingDeadlineDate(
+  deadline: string | null | undefined,
+  now: Date = new Date()
+): boolean {
+  return !deadline || !ISO_DATE.test(deadline) || deadline >= easternCalendarDate(now)
+}
+
 export function getUpcomingCutoffs(
   holiday: Holiday,
   now: Date = new Date()
 ): HolidayCutoff[] {
-  const today = easternCalendarDate(now)
-  return holiday.cutoffs.filter(
-    ({ cutoff }) => !ISO_DATE.test(cutoff) || cutoff >= today
+  return holiday.cutoffs.filter(({ cutoff }) =>
+    isUpcomingDeadlineDate(cutoff, now)
   )
 }
 
