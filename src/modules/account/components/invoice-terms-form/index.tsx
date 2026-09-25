@@ -6,12 +6,6 @@ import { Text, Input, Label, Textarea } from "@medusajs/ui"
 import { SubmitButton } from "@modules/checkout/components/submit-button"
 import { CheckCircleMiniSolid } from "@medusajs/icons"
 
-const METHODS: { value: string; label: string }[] = [
-  { value: "zelle", label: "Zelle" },
-  { value: "check", label: "Check" },
-  { value: "wire", label: "Wire" },
-]
-
 export default function InvoiceTermsForm() {
   const [state, formAction] = useActionState(submitInvoiceApplication, {
     success: false,
@@ -74,20 +68,6 @@ export default function InvoiceTermsForm() {
             inputMode="numeric"
             placeholder="2500"
           />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-y-1">
-        <Label size="small" weight="plus">
-          Preferred payment methods
-        </Label>
-        <div className="flex gap-x-4">
-          {METHODS.map((m) => (
-            <label key={m.value} className="flex items-center gap-x-2">
-              <input type="checkbox" name="methods" value={m.value} />
-              <span className="text-sm text-Charcoal">{m.label}</span>
-            </label>
-          ))}
         </div>
       </div>
 

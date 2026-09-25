@@ -7,6 +7,7 @@ import {
   isLegalSlug,
   LEGAL_SLUGS,
 } from "@lib/data/strapi/legal"
+import { getCustomerInstitutionalTerms } from "@lib/data/institutional-terms"
 import InfoPageTemplate from "@modules/info/templates/info-page"
 import WholesaleLeadForm from "../../../../../components/wholesale-lead-form"
 
@@ -74,6 +75,11 @@ export default async function StaticPage({ params }: Props) {
 
   const page = await getInfoPage(slug)
   if (!page) notFound()
+  const approvedTerms =
+    slug === "wholesale" &&
+    process.env.GP_INSTITUTIONAL_TERMS_ENABLED === "true"
+      ? await getCustomerInstitutionalTerms()
+      : null
   return (
     <>
       <InfoPageTemplate
@@ -82,6 +88,12 @@ export default async function StaticPage({ params }: Props) {
       />
       {slug === "wholesale" && (
         <section className="content-container py-12 md:py-20">
+          {approvedTerms?.status === "approved" && approvedTerms.terms ? (
+            <div className="mb-10 rounded-xl border border-gray-200 bg-white p-6 font-maison-neue text-Charcoal">
+              <h2 className="text-xl font-semibold">Your approved invoice terms</h2>
+              <p className="mt-2">Your account is approved for {approvedTerms.terms.name} invoice terms.</p>
+            </div>
+          ) : null}
           <WholesaleLeadForm />
         </section>
       )}

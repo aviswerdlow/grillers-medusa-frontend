@@ -8,7 +8,7 @@ import InvoiceTermsForm from "@modules/account/components/invoice-terms-form"
 
 export const metadata: Metadata = {
   title: "Invoice terms | Grillers Pride",
-  description: "Apply to pay by invoice (Net terms) for your business orders.",
+  description: "Apply for account-specific invoice terms for your business orders.",
 }
 
 export default async function InvoiceTerms() {
@@ -35,7 +35,7 @@ export default async function InvoiceTerms() {
           Invoice terms
         </h1>
         <p className="text-sm font-maison-neue text-Charcoal/50 mt-1">
-          Apply to pay by invoice (Net terms) for your business orders.
+          Apply for account-specific invoice terms for your business orders.
         </p>
       </div>
 
