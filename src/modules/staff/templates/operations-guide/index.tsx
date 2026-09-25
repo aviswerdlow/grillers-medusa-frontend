@@ -78,7 +78,7 @@ const publicSurfaces = [
   {
     route: "/us/account/staff/local-milestones",
     name: "Local milestones — staff only, staged",
-    staffUse: "Phone page for assigned drivers and office staff. It is unavailable until GP_LOCAL_MILESTONES_ENABLED is approved and enabled.",
+    staffUse: "Phone page for assigned drivers and office staff to record handoffs, store a delivery photo privately, and review exceptions. It is unavailable until GP_LOCAL_MILESTONES_ENABLED is approved and enabled.",
   },
   {
     route: "/us/account/staff/incoming-stock",
@@ -611,11 +611,14 @@ const sections: GuideSection[] = [
       "For pickup, the office records Ready for collection only after final charge or approved invoice release and physical readiness. Record Collected only after the customer has actually received it.",
       "For local delivery, record Driver departed only after physical handoff. Record Delivered only after actual delivery. If delivery fails, enter a reason, mark Delivery failed, and ask the office to resolve the exception. Record Returned to office when the goods have physically returned.",
       "If a staff member recorded the wrong milestone, office staff open the event history, choose the corrected outcome, and enter a reason. The earlier event remains in the audit history.",
+      "For a local delivery, take or choose a JPEG, PNG, WebP or HEIC photo under 4 MiB on the phone page and tap Store photo privately. Wait for the stored confirmation. If the connection fails, keep the same photo and retry; a pending upload is not proof of delivery. The photo is optional until Peter approves the exception policy.",
+      "To review a stored delivery photo, open that order's evidence list and request a short-lived link. Open it promptly; the link expires after one minute. Staff should review the order event history and actual outcome alongside the photo.",
     ],
     watch: [
       "Do not treat a carrier label, provider callback, email status, or a Ready ship label as proof of physical departure or delivery.",
       "The server refuses a milestone when final payment, invoice release, active fulfillment, assignment, or event version cannot be verified. Resolve the underlying order state before trying again; do not charge a card a second time to clear a milestone error.",
-      "Delivery photo upload and retrieval are held pending approved private storage. The phone page has no photo control. Photo-dependent cases remain pending.",
+      "Do not mark a delivery successful because a photo uploaded. Record Delivered only after the physical delivery. If photo upload fails, leave the visible pending state and tell the office; do not claim a photo was stored. Do not paste a private photo link into a customer message or ticket.",
+      "Private photo storage must pass the bucket privacy, signed-link expiry and real-device checks before the feature is enabled. Peter's photo and no-photo exception policy is still pending.",
       "Pickup and local notice choices remain a Peter decision. Do not promise a text or email until the notice policy is approved and the communications system records its outcome. Existing UPS-only order-text consent does not authorize local texts.",
     ],
   },

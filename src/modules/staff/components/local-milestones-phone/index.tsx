@@ -1,12 +1,15 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import {
   assignLocalMilestoneDriver,
   getLocalMilestoneOrder,
+  listLocalEvidence,
   listLocalMilestones,
   recordLocalMilestone,
+  signLocalEvidence,
+  type LocalEvidenceRecord,
   type LocalMilestone,
   type LocalMilestoneEvent,
   type LocalMilestoneState,
@@ -60,6 +63,18 @@ export default function LocalMilestonesPhone({ office }: { office: boolean }) {
   const [driverId, setDriverId] = useState("")
   const [reason, setReason] = useState("")
   const [correction, setCorrection] = useState<Action | "">("")
+  const [evidence, setEvidence] = useState<LocalEvidenceRecord[]>([])
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoLink, setPhotoLink] = useState<{ uploadId: string; url: string; expiresAt: string } | null>(null)
+  const photoInput = useRef<HTMLInputElement>(null)
+
+  const refreshEvidence = useCallback(async (id: string, mode: LocalMilestoneState["mode"]) => {
+    if (mode !== "local_delivery") { setEvidence([]); return }
+    const result = await listLocalEvidence(id)
+    if (result.ok) setEvidence(result.data)
+    else setError(result.error)
+  }, [])
 
   const refresh = useCallback(async (selectedId?: string) => {
     try {
@@ -73,7 +88,7 @@ export default function LocalMilestonesPhone({ office }: { office: boolean }) {
       else if (queue && !queue.ok) setError(queue.error)
       if (selectedId) {
         const result = await getLocalMilestoneOrder(selectedId)
-        if (result.ok) setDetail(result.data)
+        if (result.ok) { setDetail(result.data); await refreshEvidence(selectedId, result.data.state.mode) }
         else setError(result.error)
       }
     } catch {
@@ -81,7 +96,7 @@ export default function LocalMilestonesPhone({ office }: { office: boolean }) {
     } finally {
       setLoading(false)
     }
-  }, [office])
+  }, [office, refreshEvidence])
 
   useEffect(() => { void refresh() }, [refresh])
 
@@ -95,6 +110,9 @@ export default function LocalMilestonesPhone({ office }: { office: boolean }) {
         setFulfillmentId(result.data.state.fulfillment_id || "")
         setReason("")
         setCorrection("")
+        setPhoto(null)
+        setPhotoLink(null)
+        await refreshEvidence(id, result.data.state.mode)
       } else setError(result.error)
     } catch {
       setError("Connection interrupted. Refresh to confirm the latest order state.")
@@ -145,6 +163,54 @@ export default function LocalMilestonesPhone({ office }: { office: boolean }) {
     } finally {
       setBusy(false)
     }
+  }
+
+  async function uploadPhoto() {
+    if (!detail || detail.state.mode !== "local_delivery" || !photo) return
+    if (photo.size < 1 || photo.size > 4 * 1024 * 1024 ||
+      !["image/jpeg", "image/png", "image/webp", "image/heic"].includes(photo.type)) {
+      setError("Choose a JPEG, PNG, WebP or HEIC photo smaller than 4 MiB.")
+      return
+    }
+    setPhotoBusy(true); setError(""); setNotice("")
+    try {
+      const bytes = await photo.arrayBuffer()
+      const digest = await crypto.subtle.digest("SHA-256", bytes)
+      const hash = Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, "0")).join("")
+      const key = `gp_local_evidence:${detail.state.order_id}:${photo.type}:${photo.size}:${hash}`
+      const uploadId = sessionStorage.getItem(key) || `upload_${crypto.randomUUID()}`
+      sessionStorage.setItem(key, uploadId)
+      const response = await fetch(`/api/staff/local-milestones/orders/${detail.state.order_id}/evidence/${uploadId}`, {
+        method: "PUT", body: photo,
+        headers: { "Content-Type": photo.type, "x-gp-evidence-size": String(photo.size),
+          "x-gp-evidence-sha256": hash },
+        cache: "no-store",
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || result.evidence?.status !== "stored_private") {
+        setError("Photo upload is incomplete. Keep the same photo selected and retry; the order was not marked delivered.")
+        await refreshEvidence(detail.state.order_id, detail.state.mode)
+        return
+      }
+      sessionStorage.removeItem(key)
+      setPhoto(null)
+      if (photoInput.current) photoInput.current.value = ""
+      setNotice(result.duplicate ? "Photo was already stored privately." : "Photo stored privately. Recording delivery is a separate action.")
+      await refreshEvidence(detail.state.order_id, detail.state.mode)
+    } catch {
+      setError("Connection interrupted. Keep the same photo selected and retry; the order was not marked delivered.")
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+
+  async function retrievePhoto(uploadId: string) {
+    if (!detail) return
+    setPhotoLink(null); setError("")
+    const result = await signLocalEvidence(detail.state.order_id, uploadId)
+    if (!result.ok) { setError(result.error); return }
+    setPhotoLink({ uploadId, ...result.data })
+    window.setTimeout(() => setPhotoLink(current => current?.url === result.data.url ? null : current), 60_000)
   }
 
   const active = detail?.state
@@ -241,6 +307,21 @@ export default function LocalMilestonesPhone({ office }: { office: boolean }) {
               <label className="text-sm font-semibold">Correction reason<input aria-label="Correction reason" className={`${field} mt-1`} maxLength={500} onChange={e => setReason(e.target.value)} value={reason} /></label>
             </div>
             <button className={`${button} mt-3 border border-Charcoal/20 bg-white`} disabled={busy || !correction || !reason.trim()} onClick={() => correction && void record(correction, active, active.current_event_id || undefined)}>Save correction</button>
+          </div>}
+          {active.mode === "local_delivery" && <div className="mt-6 border-t border-Charcoal/10 pt-5">
+            <h3 className="font-semibold">Delivery photo evidence</h3>
+            <p className="mt-1 text-sm text-Charcoal/60">Optional while the office confirms the photo policy. A stored photo does not mark the order delivered. Only assigned drivers and office staff can retrieve it.</p>
+            <label className="mt-3 block text-sm font-semibold">Take or choose a photo
+              <input ref={photoInput} aria-label="Delivery photo" className={`${field} mt-1`} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" onChange={event => setPhoto(event.target.files?.[0] || null)} />
+            </label>
+            <p className="mt-1 text-xs text-Charcoal/60">JPEG, PNG, WebP or HEIC, up to 4 MiB on this phone page.</p>
+            <button className={`${button} mt-3 border border-Charcoal/20 bg-white`} disabled={photoBusy || busy || !photo} onClick={() => void uploadPhoto()}>{photoBusy ? "Storing photo…" : "Store photo privately"}</button>
+            {evidence.length > 0 && <ul className="mt-4 space-y-2" aria-label="Delivery photo evidence">{evidence.map((item, index) => <li key={item.evidenceId} className="rounded-xl bg-[#F7F5F0] p-3 text-sm">
+              <span className="font-semibold">Photo {index + 1}</span>
+              <span className="ml-2 text-Charcoal/60">{item.status === "stored_private" ? `Stored ${item.storedAt ? new Date(item.storedAt).toLocaleString() : "privately"}` : "Upload pending — reselect the same photo and retry"}</span>
+              {item.status === "stored_private" && <button className="ml-2 min-h-[44px] font-semibold underline" onClick={() => void retrievePhoto(item.uploadId)}>Get short-lived link</button>}
+              {photoLink?.uploadId === item.uploadId && <p className="mt-2"><a className="font-semibold underline" href={photoLink.url} target="_blank" rel="noopener noreferrer">Open stored photo</a><span className="ml-2 text-xs text-Charcoal/60">Expires {new Date(photoLink.expiresAt).toLocaleTimeString()}</span></p>}
+            </li>)}</ul>}
           </div>}
           <div className="mt-6 border-t border-Charcoal/10 pt-5"><h3 className="font-semibold">Event history</h3>
             {detail?.events.length === 0 && <p className="mt-2 text-sm text-Charcoal/60">No milestone events yet.</p>}

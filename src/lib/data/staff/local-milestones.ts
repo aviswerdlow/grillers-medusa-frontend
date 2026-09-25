@@ -53,6 +53,18 @@ export type LocalMilestoneEvent = {
   recorded_at: string
 }
 
+export type LocalEvidenceRecord = {
+  evidenceId: string
+  uploadId: string
+  orderId: string
+  status: "pending" | "stored_private"
+  contentType: string
+  sizeBytes: number
+  sha256: string
+  storedAt: string | null
+  retainUntil: string | null
+}
+
 type Result<T> = { ok: true; data: T } | { ok: false; error: string }
 
 const messages: Record<string, string> = {
@@ -70,6 +82,12 @@ const messages: Record<string, string> = {
   milestone_reason_required: "Enter a reason for this exception or correction.",
   approved_driver_not_found: "The driver must have an active driver staff role.",
   local_milestone_unavailable: "The milestone service is temporarily unavailable.",
+  evidence_access_denied: "This photo is not available to your staff account.",
+  evidence_upload_id_conflict: "This upload ID was used for different photo content. Select the photo again.",
+  invalid_evidence_upload: "Choose a JPEG, PNG, WebP or HEIC photo within the size limit.",
+  evidence_content_mismatch: "The photo changed during upload. Select it again.",
+  unsupported_evidence_bytes: "The selected file is not a supported photo.",
+  private_evidence_provider_unconfigured: "Private photo storage is not ready. Ask the office to check setup.",
 }
 
 function errorText(error: unknown): string {
@@ -155,4 +173,22 @@ export async function assignLocalMilestoneDriver(input: {
       driver_customer_id: safeId(input.driverCustomerId),
     }),
   }))
+}
+
+export async function listLocalEvidence(orderId: string): Promise<Result<LocalEvidenceRecord[]>> {
+  return run(false, async () => {
+    const result = await adminFetch<{ evidence: LocalEvidenceRecord[] }>(
+      `/admin/grillers/local-milestones/orders/${safeId(orderId)}/evidence`
+    )
+    return result.evidence
+  })
+}
+
+export async function signLocalEvidence(orderId: string, uploadId: string): Promise<Result<{
+  url: string
+  expiresAt: string
+}>> {
+  return run(false, () => adminFetch(
+    `/admin/grillers/local-milestones/orders/${safeId(orderId)}/evidence/${safeId(uploadId)}`
+  ))
 }
