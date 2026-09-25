@@ -62,6 +62,26 @@ test("displays server amounts, contacts and pricing basis with direct edit paths
   ).toBeEnabled()
   expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
 })
+test("formats serialized review amounts without NaN", async () => {
+  const review = checkoutReviewFixture()
+  review.placement_total = { numeric_: 72, value: "72.00" } as any
+  review.item_total = { value: "60.00" } as any
+  review.shipping_total = { numeric_: "12" } as any
+  review.lines[0].estimated_line_total = { value: "60" } as any
+  review.lines[0].rate_per_lb = { numeric_: 10 } as any
+  ;(loadCheckoutReview as jest.Mock).mockResolvedValue({ review, error: null })
+
+  const { container } = render(
+    <CheckoutOrderReview cart={cart} paymentMode="card">
+      {child}
+    </CheckoutOrderReview>
+  )
+  await screen.findByText("2 × Fixture roast")
+  expect(container.textContent).toContain("$72.00")
+  expect(container.textContent).toContain("$60.00")
+  expect(container.textContent).toContain("$12.00")
+  expect(container.textContent).not.toContain("NaN")
+})
 test("a basket change disables the old review before its replacement resolves", async () => {
   const view = render(
     <CheckoutOrderReview cart={cart} paymentMode="card">

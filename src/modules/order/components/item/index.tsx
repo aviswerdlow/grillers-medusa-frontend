@@ -2,7 +2,7 @@
 
 import { HttpTypes } from "@medusajs/types"
 import Image from "next/image"
-import { convertToLocale } from "@lib/util/money"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
 import { useProductFeaturedImageSrc } from "@lib/hooks/use-product-featured-image"
 import { useProductMetadata } from "@lib/hooks/use-product-metadata"
 import { useProductTitle } from "@lib/hooks/use-product-title"
@@ -25,7 +25,7 @@ const OrderItem = ({ item, currencyCode }: ItemProps) => {
   )
   const metadata = useProductMetadata(productId)
   const priceDisplay = formatProductPriceDisplay(
-    item.unit_price ?? 0,
+    toMoneyAmount(item.unit_price) ?? 0,
     metadata,
     (item as any).variant?.sku || (item as any).variant_sku || null
   )
@@ -57,7 +57,7 @@ const OrderItem = ({ item, currencyCode }: ItemProps) => {
       <div className="text-right flex-shrink-0">
         <p className="text-sm font-maison-neue font-bold text-Charcoal">
           {convertToLocale({
-            amount: (item.unit_price ?? 0) * item.quantity,
+            amount: (toMoneyAmount(item.unit_price) ?? 0) * item.quantity,
             currency_code: currencyCode,
           })}
         </p>

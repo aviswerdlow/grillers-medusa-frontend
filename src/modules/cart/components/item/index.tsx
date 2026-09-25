@@ -22,6 +22,7 @@ import { useProductFeaturedImageSrc } from "@lib/hooks/use-product-featured-imag
 import { useProductMetadata } from "@lib/hooks/use-product-metadata"
 import { useProductTitle } from "@lib/hooks/use-product-title"
 import { dispatchCartUpdated } from "@lib/util/cart-events"
+import { toMoneyAmount } from "@lib/util/money"
 import type {
   CartProductDetails,
   CartProductDetailsMap,
@@ -150,7 +151,7 @@ const Item = ({
           <div className="mt-2 space-y-1">
             <NetWeightBadge />
             <NetWeightPricing
-              unitPrice={item.unit_price || 0}
+              unitPrice={toMoneyAmount(item.unit_price) ?? 0}
               currencyCode={currencyCode}
               avgWeight={metadata?.AvgPackWeight}
               isNetWeight={isNetWeight}
@@ -169,7 +170,7 @@ const Item = ({
               productInfo={{
                 id: item.product_id || item.id,
                 title: item.product_title || "",
-                price: item.unit_price ?? undefined,
+                price: toMoneyAmount(item.unit_price) ?? undefined,
                 quantity: item.quantity,
                 currency: currencyCode,
               }}

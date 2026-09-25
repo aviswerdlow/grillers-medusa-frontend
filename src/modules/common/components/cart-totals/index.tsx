@@ -1,6 +1,6 @@
 "use client"
 
-import { convertToLocale } from "@lib/util/money"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
 import React, { useState } from "react"
 import { FreeShippingHelper } from "@modules/common/components/cart-helpers"
 import { getItemsSubtotal } from "@lib/util/cart-totals"
@@ -88,14 +88,16 @@ const CartTotals: React.FC<CartTotalsProps> = ({
   const {
     currency_code,
     total,
-    subtotal,
     tax_total,
     discount_total,
     gift_card_total,
     shipping_total,
     shipping_subtotal,
   } = totals
-  const shippingAmount = shipping_total ?? shipping_subtotal ?? 0
+  const shippingAmount =
+    toMoneyAmount(shipping_total) ?? toMoneyAmount(shipping_subtotal) ?? 0
+  const discountAmount = toMoneyAmount(discount_total) ?? 0
+  const giftCardAmount = toMoneyAmount(gift_card_total) ?? 0
   const itemsSubtotal = getItemsSubtotal(totals)
 
   return (
@@ -118,16 +120,16 @@ const CartTotals: React.FC<CartTotalsProps> = ({
             {convertToLocale({ amount: itemsSubtotal, currency_code })}
           </span>
         </div>
-        {!!discount_total && (
+        {discountAmount > 0 && (
           <div className="flex items-center justify-between">
             <span>Discount</span>
             <span
               className="text-ui-fg-interactive"
               data-testid="cart-discount"
-              data-value={discount_total || 0}
+              data-value={discountAmount}
             >
               -{" "}
-              {convertToLocale({ amount: discount_total ?? 0, currency_code })}
+              {convertToLocale({ amount: discountAmount, currency_code })}
             </span>
           </div>
         )}
@@ -139,20 +141,20 @@ const CartTotals: React.FC<CartTotalsProps> = ({
         </div>
         <div className="flex justify-between">
           <span className="flex gap-x-1 items-center ">Taxes (estimated)</span>
-          <span data-testid="cart-taxes" data-value={tax_total || 0}>
+          <span data-testid="cart-taxes" data-value={toMoneyAmount(tax_total) ?? 0}>
             {convertToLocale({ amount: tax_total ?? 0, currency_code })}
           </span>
         </div>
-        {!!gift_card_total && (
+        {giftCardAmount > 0 && (
           <div className="flex items-center justify-between">
             <span>Gift card</span>
             <span
               className="text-ui-fg-interactive"
               data-testid="cart-gift-card-amount"
-              data-value={gift_card_total || 0}
+              data-value={giftCardAmount}
             >
               -{" "}
-              {convertToLocale({ amount: gift_card_total ?? 0, currency_code })}
+              {convertToLocale({ amount: giftCardAmount, currency_code })}
             </span>
           </div>
         )}
@@ -166,7 +168,7 @@ const CartTotals: React.FC<CartTotalsProps> = ({
         <span
           className="txt-xlarge-plus"
           data-testid="cart-total"
-          data-value={total || 0}
+          data-value={toMoneyAmount(total) ?? 0}
         >
           {convertToLocale({ amount: total ?? 0, currency_code })}
         </span>

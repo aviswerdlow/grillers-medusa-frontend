@@ -7,6 +7,7 @@ import {
 } from "@lib/data/order-review"
 import { getConsentCookie } from "@lib/utils/cookies"
 import { FINAL_CHARGE_CONSENT_TEXT } from "@lib/order-review"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
 import type {
   CheckoutReview,
   OrderAcceptance,
@@ -20,10 +21,8 @@ const modes: Record<string, string> = {
   atlanta_delivery: "Atlanta delivery",
   southeast_pickup: "Regional pickup",
 }
-const money = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    value
-  )
+const money = (value: unknown) =>
+  convertToLocale({ amount: value, currency_code: "usd" })
 const civilDate = (value: string): string | null => {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
     return null
@@ -430,7 +429,7 @@ export default function CheckoutOrderReview({
               <dt>Tax included</dt>
               <dd>{money(review.tax_total)}</dd>
             </div>
-            {review.discount_total > 0 && (
+            {(toMoneyAmount(review.discount_total) ?? 0) > 0 && (
               <div className="flex justify-between gap-3 text-gray-600">
                 <dt>Discounts included</dt>
                 <dd>{money(review.discount_total)}</dd>

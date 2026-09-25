@@ -6,7 +6,7 @@ import {
   setShippingMethod,
 } from "@lib/data/cart"
 import { calculatePriceForShippingOption, findShippingOptionByType } from "@lib/data/fulfillment"
-import { convertToLocale } from "@lib/util/money"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
 import { trackAddShippingInfo } from "@lib/gtm"
 import { jitsuTrack } from "@lib/jitsu"
 import { useCartTitleMap } from "@lib/hooks/use-cart-title-map"
@@ -517,17 +517,18 @@ const Shipping: React.FC<ShippingProps> = ({
                           (option as ShippingOptionWithServiceZone).service_code ||
                           option.name
                       )
-                    const rawAmount =
+                    const rawAmount = toMoneyAmount(
                       option.price_type === "flat"
                         ? option.amount
                         : calculatedPricesMap[option.id]
+                    )
                     const freeShipApplies =
                       isFreeShipPromoActive &&
                       isUpsServiceEligibleForFreeShipping({
                         serviceCode,
                         destinationZip,
                       }) &&
-                      typeof rawAmount === "number" &&
+                      rawAmount !== null &&
                       rawAmount > 0
 
                     return (
@@ -550,7 +551,7 @@ const Shipping: React.FC<ShippingProps> = ({
                             </span>
                           </div>
                           <span className="text-sm text-gray-500 flex items-center gap-2">
-                            {freeShipApplies && typeof rawAmount === "number" && (
+                            {freeShipApplies && rawAmount !== null && (
                               <span className="text-xs text-gray-400 line-through">
                                 {convertToLocale({
                                   amount: rawAmount,
@@ -713,8 +714,9 @@ const Shipping: React.FC<ShippingProps> = ({
         <div>
           {cart && (cart.shipping_methods?.length ?? 0) > 0 && (() => {
             const selected = cart.shipping_methods?.at(-1)
-            const selectedAmount = selected?.amount ?? 0
-            const cartShippingTotal = (cart as any).shipping_total ?? selectedAmount
+            const selectedAmount = toMoneyAmount(selected?.amount) ?? 0
+            const cartShippingTotal =
+              toMoneyAmount(cart.shipping_total) ?? selectedAmount
             const selectedServiceCode = normalizeUpsServiceCode(
               (selected as any)?.data?.service_code ||
                 (selected as any)?.service_code ||

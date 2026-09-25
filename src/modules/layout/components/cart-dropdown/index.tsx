@@ -7,6 +7,7 @@ import {
   Transition,
 } from "@headlessui/react"
 import { convertToLocale } from "@lib/util/money"
+import { getItemsSubtotal } from "@lib/util/cart-totals"
 import { HttpTypes } from "@medusajs/types"
 import { Button } from "@medusajs/ui"
 import DeleteButton from "@modules/common/components/delete-button"
@@ -59,7 +60,7 @@ const CartDropdown = ({
       return acc + item.quantity
     }, 0) || 0
 
-  const subtotal = cartState?.subtotal ?? 0
+  const subtotal = getItemsSubtotal(cartState)
   const itemRef = useRef<number>(totalItems || 0)
 
   const timedOpen = () => {

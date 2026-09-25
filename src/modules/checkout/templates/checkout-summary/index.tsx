@@ -1,7 +1,7 @@
 "use client"
 
 import { HttpTypes } from "@medusajs/types"
-import { convertToLocale } from "@lib/util/money"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
 import { getItemsSubtotal } from "@lib/util/cart-totals"
 import { useProductFeaturedImageSrc } from "@lib/hooks/use-product-featured-image"
 import { useProductTitle } from "@lib/hooks/use-product-title"
@@ -104,7 +104,7 @@ const CheckoutItem = ({
             // Use unit_price * quantity — Medusa's `item.total` rolls in
             // promotion discounts (including shipping promos) and ends up
             // wrong on a free-shipping cart.
-            amount: (item.unit_price ?? 0) * item.quantity,
+            amount: (toMoneyAmount(item.unit_price) ?? 0) * item.quantity,
             currency_code: currencyCode,
           })}
         </p>
@@ -144,11 +144,15 @@ const CheckoutSummary = ({
   const freeShipApplied = isFreeShipPromoApplied(cart)
   const shippingSavings = Math.max(
     0,
-    (cart.shipping_subtotal ?? 0) - (cart.shipping_total ?? 0)
+    (toMoneyAmount(cart.shipping_subtotal) ?? 0) -
+      (toMoneyAmount(cart.shipping_total) ?? 0)
   )
   // Show any non-shipping discount as its own line. Shipping savings are
   // already reflected in the struck-through Shipping line.
-  const itemDiscount = Math.max(0, (cart.discount_total ?? 0) - shippingSavings)
+  const itemDiscount = Math.max(
+    0,
+    (toMoneyAmount(cart.discount_total) ?? 0) - shippingSavings
+  )
   // Trust Medusa's cart.total — that's what Stripe will charge. The line
   // items themselves are post-discount, so showing the same number here
   // keeps the math internally consistent for the customer.

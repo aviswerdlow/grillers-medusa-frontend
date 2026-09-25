@@ -124,4 +124,25 @@ describe("cart line item price and identity", () => {
       "SKU 10-01-01-LEGACY"
     )
   })
+
+  it("renders serialized Medusa line prices without NaN", () => {
+    const serializedItem = {
+      ...item,
+      unit_price: { numeric_: 10, value: "10.00" },
+      total: { numeric_: 27, value: "27.00" },
+      original_total: { value: "30.00" },
+    } as unknown as HttpTypes.StoreCartLineItem
+
+    render(
+      <Table>
+        <Table.Body>
+          <CartLineItem item={serializedItem} currencyCode="usd" />
+        </Table.Body>
+      </Table>
+    )
+
+    expect(screen.getByTestId("product-price")).toHaveTextContent("$27.00")
+    expect(screen.getByTestId("product-unit-price")).toHaveTextContent("$9.00")
+    expect(screen.queryByText(/NaN/)).not.toBeInTheDocument()
+  })
 })

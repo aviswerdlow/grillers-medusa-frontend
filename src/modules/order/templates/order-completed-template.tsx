@@ -1,6 +1,6 @@
 import { cookies as nextCookies } from "next/headers"
 import { HttpTypes } from "@medusajs/types"
-import { convertToLocale } from "@lib/util/money"
+import { convertToLocale, toMoneyAmount } from "@lib/util/money"
 import { formatPhone, stripPhone } from "@lib/util/format-phone"
 
 import OnboardingCta from "@modules/order/components/onboarding-cta"
@@ -37,12 +37,12 @@ export default async function OrderCompletedTemplate({
 
   const purchaseOrderData = {
     id: order.id,
-    total: order.total ?? 0,
+    total: toMoneyAmount(order.total) ?? 0,
     currency_code: order.currency_code,
     items: order.items?.map((item) => ({
       product_id: item.product_id ?? item.id,
       title: item.product_title ?? item.title ?? "",
-      unit_price: item.unit_price ?? 0,
+      unit_price: toMoneyAmount(item.unit_price) ?? 0,
       quantity: item.quantity,
     })) ?? [],
   }
@@ -181,7 +181,7 @@ export default async function OrderCompletedTemplate({
                   })}
                 </span>
               </div>
-              {(order.discount_total ?? 0) > 0 && (
+              {(toMoneyAmount(order.discount_total) ?? 0) > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>Discount</span>
                   <span>
