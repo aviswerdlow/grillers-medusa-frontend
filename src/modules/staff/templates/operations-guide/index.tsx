@@ -404,8 +404,10 @@ const sections: GuideSection[] = [
       "Verify the exact QuickBooks customer ListID and test-company identity. A matching name or Medusa approval field is not enough.",
       "Confirm Pay By Check Approval, explicit credit limit and terms, current open invoices, source revision, and last successful read. Missing or stale evidence holds the order.",
       "The Customer Account workspace shows the protected QuickBooks terms read for the selected Medusa customer. Its open-invoice total excludes unposted order commitments; the server credit check includes both before an invoice order is accepted or finalized.",
-      "Treat a credit hold as active until a named approver records a reason and the override audit. Do not release a held order from a generic staff action.",
+      "A stale source, credit hold, or changed QuickBooks TermsRef blocks finalization and records a denied release attempt. No override is available until Peter's hold rule and the named capability are approved.",
+      "An old cart credit reservation without an exact order link is quarantined after 24 hours. Its amount remains in exposure and blocks new invoice terms until operations verifies the native order state and follows an approved recovery procedure.",
       "After posting, verify the specific invoice and any collection through its approved method in QuickBooks. A pending or uncertain receipt does not reduce verified exposure.",
+      "A linked credit memo alone does not prove the amount applied to an invoice. Keep partial credits and posted refunds on review hold until the approved QuickBooks evidence path confirms the application and remaining A/R.",
       "Order Support shows a read-only Invoice collection panel for flagged invoice orders. Refresh collection status after the QuickBooks Web Connector read; the button does not start a Web Connector session. A missing source or null remaining A/R stays on review hold.",
     ],
     watch: [
