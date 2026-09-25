@@ -91,6 +91,7 @@ type Props = {
   initialMerchandisingError?: string | null
   initialMerchandisingTags?: ProductMerchandisingTagSummary[] | null
   initialWorkspace?: StaffWorkspace
+  localMilestonesEnabled?: boolean
 }
 
 export type StaffWorkspace =
@@ -274,6 +275,7 @@ export default function PhoneOrderCopilot({
   initialMerchandisingError = null,
   initialMerchandisingTags = null,
   initialWorkspace = "phone_order",
+  localMilestonesEnabled = false,
 }: Props) {
   const router = useRouter()
   const [customerQuery, setCustomerQuery] = useState("")
@@ -1663,6 +1665,12 @@ export default function PhoneOrderCopilot({
               className="inline-flex min-h-[44px] items-center justify-center rounded-md border border-Charcoal px-3.5 text-sm font-maison-neue font-semibold text-Charcoal focus-visible:outline focus-visible:outline-2"
             >Incoming stock</LocalizedClientLink>}
             {canUseOffice && (
+              localMilestonesEnabled && <LocalizedClientLink
+                href="/account/staff/local-milestones"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-md border border-Charcoal px-3.5 text-sm font-maison-neue font-semibold text-Charcoal"
+              >Local milestones</LocalizedClientLink>
+            )}
+            {canUseOffice && (
               <LocalizedClientLink
                 href="/account/staff/communications"
                 className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-md border border-Charcoal px-3.5 text-sm font-maison-neue font-semibold text-Charcoal transition hover:bg-Charcoal hover:text-white"
@@ -1729,7 +1737,7 @@ export default function PhoneOrderCopilot({
           initialTags={initialMerchandisingTags}
         />
       ) : activeWorkspace === "team_access" && canManageTeamAccess ? (
-        <StaffTeamAccessConsole />
+        <StaffTeamAccessConsole localMilestonesEnabled={localMilestonesEnabled} />
       ) : activeWorkspace === "quickbooks_sync" && canUseOrderSupport ? (
         <StaffQuickBooksSyncStatusConsole />
       ) : activeWorkspace === "finalization" ? (

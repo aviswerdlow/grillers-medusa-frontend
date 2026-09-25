@@ -37,6 +37,7 @@ jest.mock("@lib/util/staff-access", () => ({
   canUseOfficeConsole: jest.fn(() => true),
   isStaffCustomer: jest.fn(() => true),
   isSuperAdminCustomer: jest.fn(() => true),
+  staffAccessRole: jest.fn((customer) => customer?.metadata?.gp_staff_role || "customer"),
 }))
 
 jest.mock("@modules/staff/components/phone-order-copilot", () => ({
@@ -92,5 +93,23 @@ describe("staff orders merchandising preload", () => {
     expect(props.initialWorkspace).toBe("exceptions")
     expect(props.initialMerchandisingTags).toBeUndefined()
     expect(props.initialMerchandisingError).toBeUndefined()
+  })
+
+  it("routes a driver to the phone page only while local milestones are enabled", async () => {
+    const prior = process.env.GP_LOCAL_MILESTONES_ENABLED
+    mockRetrieveAuthenticatedCustomer.mockResolvedValue({
+      ...staffCustomer, metadata: { gp_staff_role: "driver" },
+    } as any)
+    try {
+      process.env.GP_LOCAL_MILESTONES_ENABLED = "true"
+      await expect(StaffPhoneOrdersPage({ params: Promise.resolve({ countryCode: "us" }) }))
+        .rejects.toThrow("redirect:/us/account/staff/local-milestones")
+      process.env.GP_LOCAL_MILESTONES_ENABLED = "false"
+      await expect(StaffPhoneOrdersPage({ params: Promise.resolve({ countryCode: "us" }) }))
+        .rejects.toThrow("notFound")
+    } finally {
+      if (prior === undefined) delete process.env.GP_LOCAL_MILESTONES_ENABLED
+      else process.env.GP_LOCAL_MILESTONES_ENABLED = prior
+    }
   })
 })

@@ -52,6 +52,7 @@ const VALID_ROLES = new Set<StaffAccessRole>([
   "customer",
   "staff",
   "office",
+  "driver",
   "picker",
   "packer",
   "manager",
@@ -225,6 +226,9 @@ export async function updateStaffTeamRole(
     const role = input.role
     if (!VALID_ROLES.has(role)) {
       throw new Error("Choose a valid staff role.")
+    }
+    if (role === "driver" && process.env.GP_LOCAL_MILESTONES_ENABLED !== "true") {
+      throw new Error("The local delivery driver role is not enabled.")
     }
 
     const reason = input.reason.trim()
