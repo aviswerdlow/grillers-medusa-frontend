@@ -2,15 +2,16 @@
 
 import { useEffect, useRef } from "react"
 import { trackPurchase } from "@lib/gtm"
+import { toMoneyAmount } from "@lib/util/money"
 
 type OrderData = {
   id: string
-  total: number
+  total: unknown
   currency_code: string
   items: Array<{
     product_id: string
     title: string
-    unit_price: number
+    unit_price: unknown
     quantity: number
   }>
 }
@@ -31,12 +32,12 @@ export default function PurchaseTracker({ order }: { order: OrderData }) {
 
     trackPurchase({
       id: order.id,
-      total: order.total,
+      total: toMoneyAmount(order.total) ?? 0,
       currency_code: order.currency_code,
       items: order.items?.map((item) => ({
         product_id: item.product_id,
         title: item.title,
-        unit_price: item.unit_price,
+        unit_price: toMoneyAmount(item.unit_price) ?? 0,
         quantity: item.quantity,
       })),
     })

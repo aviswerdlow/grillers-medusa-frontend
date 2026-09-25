@@ -8,6 +8,7 @@ import { getFreeShippingThresholds } from "@lib/data/strapi/checkout"
 import type { FulfillmentType } from "@lib/util/free-shipping"
 import type { AtlantaZipDayConfig } from "@lib/util/eligible-arrival-dates"
 import { getAddressBookDeliveryZip } from "@lib/util/delivery-zip"
+import { toMoneyAmount } from "@lib/util/money"
 import { withTimeout } from "@lib/util/promise-timeout"
 import {
   getExcludedFreeDeliverySubtotal,
@@ -73,7 +74,7 @@ export async function getCartConversionState(): Promise<CartConversionState> {
 
   return {
     subtotal: eligibleSubtotal,
-    cartSubtotal: cart.subtotal ?? eligibleSubtotal,
+    cartSubtotal: toMoneyAmount(cart.subtotal) ?? eligibleSubtotal,
     excludedSubtotal,
     currencyCode: cart.currency_code || "usd",
     itemCount:

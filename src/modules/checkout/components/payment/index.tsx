@@ -24,6 +24,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { isCheckoutFulfillmentReadyForPayment } from "@lib/checkout-payment-readiness"
+import { toMoneyAmount } from "@lib/util/money"
 
 const Payment = ({
   cart,
@@ -164,7 +165,7 @@ const Payment = ({
   }
 
   const paidByGiftcard =
-    cart?.gift_cards && cart?.gift_cards?.length > 0 && cart?.total === 0
+    cart?.gift_cards && cart?.gift_cards?.length > 0 && toMoneyAmount(cart?.total) === 0
 
   const hasPreparedCardForFinalCharge = Boolean(
     selectedSavedPaymentMethodId || (setupIntentClientSecret && cardComplete)

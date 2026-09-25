@@ -1,4 +1,5 @@
 // Google Tag Manager initialization and helpers
+import { toMoneyAmount } from "@lib/util/money"
 
 export type GTMConfig = {
   gtmId: string
@@ -70,7 +71,7 @@ export function trackAddToCart(
         {
           item_id: product.id,
           item_name: titleOverride || product.title,
-          price: product.price,
+          price: toMoneyAmount(product.price) ?? undefined,
           quantity: quantity,
         },
       ],
@@ -83,14 +84,14 @@ export function trackPurchase(order: any, titleMap?: Record<string, string>) {
     event: "purchase",
     ecommerce: {
       transaction_id: order.id,
-      value: order.total,
+      value: toMoneyAmount(order.total) ?? 0,
       currency: order.currency_code,
       items: order.items?.map((item: any) => ({
         item_id: item.product_id,
         item_name:
           (titleMap && item.product_id && titleMap[item.product_id]) ||
           item.title,
-        price: item.unit_price,
+        price: toMoneyAmount(item.unit_price) ?? 0,
         quantity: item.quantity,
       })),
     },
@@ -107,16 +108,17 @@ export function trackViewItem(product: {
   variant?: string
   titleOverride?: string
 }) {
+  const price = toMoneyAmount(product.price) ?? 0
   pushToDataLayer({
     event: "view_item",
     ecommerce: {
       currency: product.currency || "USD",
-      value: product.price || 0,
+      value: price,
       items: [
         {
           item_id: product.id,
           item_name: product.titleOverride || product.title,
-          price: product.price,
+          price: toMoneyAmount(product.price) ?? undefined,
           item_category: product.category,
           item_variant: product.variant,
         },
@@ -134,16 +136,17 @@ export function trackRemoveFromCart(product: {
   currency?: string
   titleOverride?: string
 }) {
+  const price = toMoneyAmount(product.price) ?? 0
   pushToDataLayer({
     event: "remove_from_cart",
     ecommerce: {
       currency: product.currency || "USD",
-      value: (product.price || 0) * product.quantity,
+      value: price * product.quantity,
       items: [
         {
           item_id: product.id,
           item_name: product.titleOverride || product.title,
-          price: product.price,
+          price: toMoneyAmount(product.price) ?? undefined,
           quantity: product.quantity,
         },
       ],
@@ -168,11 +171,11 @@ export function trackBeginCheckout(cart: {
     event: "begin_checkout",
     ecommerce: {
       currency: cart.currency || "USD",
-      value: cart.total,
+      value: toMoneyAmount(cart.total) ?? 0,
       items: cart.items.map((item) => ({
         item_id: item.id,
         item_name: (cart.titleMap && cart.titleMap[item.id]) || item.title,
-        price: item.price,
+        price: toMoneyAmount(item.price) ?? 0,
         quantity: item.quantity,
       })),
     },
@@ -196,12 +199,12 @@ export function trackAddShippingInfo(cart: {
     event: "add_shipping_info",
     ecommerce: {
       currency: cart.currency || "USD",
-      value: cart.total,
+      value: toMoneyAmount(cart.total) ?? 0,
       shipping_tier: cart.shippingTier,
       items: cart.items.map((item) => ({
         item_id: item.id,
         item_name: (cart.titleMap && cart.titleMap[item.id]) || item.title,
-        price: item.price,
+        price: toMoneyAmount(item.price) ?? 0,
         quantity: item.quantity,
       })),
     },
@@ -225,12 +228,12 @@ export function trackAddPaymentInfo(cart: {
     event: "add_payment_info",
     ecommerce: {
       currency: cart.currency || "USD",
-      value: cart.total,
+      value: toMoneyAmount(cart.total) ?? 0,
       payment_type: cart.paymentType,
       items: cart.items.map((item) => ({
         item_id: item.id,
         item_name: (cart.titleMap && cart.titleMap[item.id]) || item.title,
-        price: item.price,
+        price: toMoneyAmount(item.price) ?? 0,
         quantity: item.quantity,
       })),
     },
@@ -339,7 +342,7 @@ export function trackViewItemList(params: {
       items: params.items.map((item, index) => ({
         item_id: item.id,
         item_name: item.title,
-        price: item.price,
+        price: toMoneyAmount(item.price) ?? undefined,
         index: item.position ?? index,
       })),
     },
@@ -366,7 +369,7 @@ export function trackSelectItem(params: {
         {
           item_id: params.product.id,
           item_name: params.product.title,
-          price: params.product.price,
+          price: toMoneyAmount(params.product.price) ?? undefined,
           index: params.product.position,
         },
       ],
