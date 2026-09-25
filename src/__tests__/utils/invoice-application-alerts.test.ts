@@ -54,9 +54,28 @@ function validForm(overrides: Record<string, string | string[]> = {}) {
 }
 
 describe("invoice application alerts", () => {
+  const previousInstitutionalFlag = process.env.GP_INSTITUTIONAL_TERMS_ENABLED
+
   beforeEach(() => {
+    process.env.GP_INSTITUTIONAL_TERMS_ENABLED = "true"
     jest.clearAllMocks()
     mockGetAuthHeaders.mockResolvedValue({ authorization: "Bearer customer" })
+  })
+
+  afterAll(() => {
+    if (previousInstitutionalFlag === undefined) {
+      delete process.env.GP_INSTITUTIONAL_TERMS_ENABLED
+    } else {
+      process.env.GP_INSTITUTIONAL_TERMS_ENABLED = previousInstitutionalFlag
+    }
+  })
+
+  it("keeps applications off without calling auth or backend when the flag is unset", async () => {
+    delete process.env.GP_INSTITUTIONAL_TERMS_ENABLED
+    await expect(submitInvoiceApplication({ success: false, error: null }, validForm()))
+      .resolves.toEqual({ success: false, error: "Invoice terms are unavailable." })
+    expect(mockGetAuthHeaders).not.toHaveBeenCalled()
+    expect(mockSdkFetch).not.toHaveBeenCalled()
   })
 
   it("alerts when invoice application submission fails after auth", async () => {
