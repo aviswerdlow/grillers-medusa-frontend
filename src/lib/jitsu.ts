@@ -7,6 +7,13 @@
  */
 
 import { reportClientOpsAlert } from "@lib/client-ops-alert"
+import { hasConsent } from "@lib/utils/cookies"
+import {
+  browserAnalyticsDestination,
+  getBrowserAnalyticsContext,
+  isServerOwnedAnalyticsEvent,
+  type BrowserAnalyticsContext,
+} from "@lib/analytics/browser-boundary"
 
 const COOKIE_ANON_ID = "_gp_anon_id"
 const COOKIE_USER_ID = "_gp_user_id"
@@ -60,7 +67,8 @@ const GP_ANALYTICS_CONTEXT_KEYS = new Set([
 ])
 
 function getUserId(): string | undefined {
-  return getCookie(COOKIE_USER_ID) || undefined
+  const id = getCookie(COOKIE_USER_ID)
+  return id && !id.includes("@") ? id : undefined
 }
 
 // ── Cookie helpers ──────────────────────────────────────────────
@@ -82,7 +90,9 @@ function setCookie(name: string, value: string, maxAgeSec: number) {
       typeof window !== "undefined" && window.location.protocol === "https:"
         ? ";Secure"
         : ""
-    document.cookie = `${name}=${encodeURIComponent(value)};path=/;max-age=${maxAgeSec};SameSite=Lax${secure}`
+    document.cookie = `${name}=${encodeURIComponent(
+      value
+    )};path=/;max-age=${maxAgeSec};SameSite=Lax${secure}`
   } catch {
     // Analytics identifiers are optional. Storage failures must not affect UX.
   }
@@ -121,7 +131,12 @@ function reportAnalyticsDeliveryFailure(input: {
   status?: number | null
   error?: unknown
 }) {
-  if (typeof window === "undefined") return
+  if (
+    typeof window === "undefined" ||
+    !hasConsent("analytics") ||
+    input.payload.eventn_ctx?.analytics_environment !== "production"
+  )
+    return
 
   const reason = analyticsFailureReason({
     status: input.status,
@@ -174,6 +189,15 @@ export function getJitsuIdentityContext(): {
   session_id: string
   user_id?: string
 } {
+  if (!getBrowserAnalyticsContext()) {
+    if (!hasConsent("analytics")) {
+      setCookie(COOKIE_ANON_ID, "", 0)
+      setCookie(COOKIE_SESSION_ID, "", 0)
+      setCookie(COOKIE_USER_ID, "", 0)
+      userTraits = {}
+    }
+    return { anonymous_id: "", session_id: "" }
+  }
   return {
     anonymous_id: getAnonymousId(),
     session_id: getSessionId(),
@@ -181,7 +205,10 @@ export function getJitsuIdentityContext(): {
   }
 }
 
-export function getJitsuContextSnapshot(): Record<string, string | undefined> & {
+export function getJitsuContextSnapshot(): Record<
+  string,
+  string | undefined
+> & {
   anonymous_id: string
   session_id: string
   user_id?: string
@@ -194,21 +221,28 @@ export function getJitsuContextSnapshot(): Record<string, string | undefined> & 
 
 // ── Send event to Jitsu Classic /api/v1/event ───────────────────
 
-function sendEvent(payload: Record<string, any>) {
-  if (typeof window === "undefined") return
+function sendEvent(
+  payload: Record<string, any>,
+  context: BrowserAnalyticsContext
+) {
+  if (typeof window === "undefined" || !getBrowserAnalyticsContext()) return
 
-  const host = process.env.NEXT_PUBLIC_JITSU_HOST
-  const token = process.env.NEXT_PUBLIC_JITSU_WRITE_KEY
+  const destination = browserAnalyticsDestination(context, "jitsu")
   const body = JSON.stringify(payload)
 
-  if (host && token) {
-    const url = `${host}/api/v1/event?token=${token}`
+  if (destination) {
+    const url = `${destination.url}?token=${encodeURIComponent(
+      destination.key
+    )}`
     try {
       fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,
         keepalive: true,
+        redirect: "error",
+        credentials: "omit",
+        referrerPolicy: "no-referrer",
       })
         .then((res) => {
           if (res && !res.ok) {
@@ -247,7 +281,7 @@ function sendEvent(payload: Record<string, any>) {
   ).replace(/\/+$/, "")
   const communicationsKey = process.env.NEXT_PUBLIC_COMMUNICATIONS_API_KEY
 
-  if (communicationsUrl) {
+  if (communicationsUrl && context.analytics_environment === "production") {
     try {
       fetch(`${communicationsUrl}/api/track`, {
         method: "POST",
@@ -257,6 +291,9 @@ function sendEvent(payload: Record<string, any>) {
         },
         body,
         keepalive: true,
+        redirect: "error",
+        credentials: "omit",
+        referrerPolicy: "no-referrer",
       })
         .then((res) => {
           if (res && !res.ok) {
@@ -288,7 +325,7 @@ function sendEvent(payload: Record<string, any>) {
     }
   }
 
-  sendGpAnalyticsMirror(payload)
+  sendGpAnalyticsMirror(payload, context)
 }
 
 function normalizeRouteMarket(
@@ -316,14 +353,12 @@ function normalizeCustomerType(
   return value === "dtc" || value === "institutional" ? value : "unknown"
 }
 
-function sendGpAnalyticsMirror(payload: Record<string, any>) {
-  const endpoint = process.env.NEXT_PUBLIC_GP_ANALYTICS_ENDPOINT
-  const apiKey = process.env.NEXT_PUBLIC_GP_ANALYTICS_CLIENT_KEY
-  const clientPath = process.env.NEXT_PUBLIC_GP_ANALYTICS_CLIENT_PATH || "/a"
-  const dualRunEnabled =
-    process.env.NEXT_PUBLIC_GP_ANALYTICS_DUAL_RUN !== "false"
-
-  if (!endpoint || !apiKey || !dualRunEnabled) return
+function sendGpAnalyticsMirror(
+  payload: Record<string, any>,
+  context: BrowserAnalyticsContext
+) {
+  const destination = browserAnalyticsDestination(context, "gp")
+  if (!destination) return
 
   try {
     const ctx = payload.eventn_ctx || {}
@@ -374,14 +409,17 @@ function sendGpAnalyticsMirror(payload: Record<string, any>) {
       },
     }
 
-    fetch(`${clientPath.replace(/\/$/, "")}/v1/track`, {
+    fetch(destination.url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${destination.key}`,
       },
       body: JSON.stringify(body),
       keepalive: true,
+      redirect: "error",
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
     })
       .then((res) => {
         if (res && !res.ok) {
@@ -443,7 +481,7 @@ function buildEvent(
         ? { experiment_context: activeExperimentContext }
         : {}),
       user: resolvedUserId
-        ? { anonymous_id: anonymousId, id: resolvedUserId, ...userTraits }
+        ? { ...userTraits, anonymous_id: anonymousId, id: resolvedUserId }
         : { anonymous_id: anonymousId },
       page: {
         url: window.location.href,
@@ -465,21 +503,57 @@ function buildEvent(
 
 // ── Public API ──────────────────────────────────────────────────
 
+const OWNED_CONTEXT_KEYS = new Set([
+  "event_id",
+  "event_timestamp_ms",
+  "anonymous_id",
+  "session_id",
+  "user_id",
+  "user",
+  "source",
+  "src",
+  "test_event",
+  "test_order",
+  "livemode",
+  "analytics_environment",
+  "rehearsal_id",
+  "analytics_consent",
+  "analytics_consent_at",
+  "marketing_consent",
+])
+
+function measurementContext(): BrowserAnalyticsContext | null {
+  const context = getBrowserAnalyticsContext()
+  if (!context) getJitsuIdentityContext()
+  return context
+}
+
+function eventProperties(properties?: Record<string, any>) {
+  return Object.fromEntries(
+    Object.entries(properties || {}).filter(
+      ([key]) => !OWNED_CONTEXT_KEYS.has(key)
+    )
+  )
+}
+
 /**
  * Track a named event with properties. Automatically injects global
  * parameters and context (anonymous_id, session_id, page, screen, etc.)
  */
-export function jitsuTrack(
-  event: string,
-  properties?: Record<string, any>
-) {
+export function jitsuTrack(event: string, properties?: Record<string, any>) {
   try {
+    const context = measurementContext()
+    if (!context || isServerOwnedAnalyticsEvent(event)) return
     const payload = buildEvent(event, { src: "jitsu_track" })
     payload.event_type = event
     if (properties) {
-      payload.eventn_ctx = { ...payload.eventn_ctx, ...properties }
+      payload.eventn_ctx = {
+        ...payload.eventn_ctx,
+        ...eventProperties(properties),
+      }
     }
-    sendEvent(payload)
+    Object.assign(payload.eventn_ctx, context)
+    sendEvent(payload, context)
   } catch {
     // Silent fail — analytics should never trip a route error boundary.
   }
@@ -489,22 +563,27 @@ export function jitsuTrack(
  * Identify a known user. Call on login or account creation.
  * Subsequent events will include the user_id.
  */
-export function jitsuIdentify(
-  id: string,
-  traits?: Record<string, any>
-) {
+export function jitsuIdentify(id: string, traits?: Record<string, any>) {
   try {
-    // Persist user_id in a 1-year cookie so identity survives logout
+    const context = measurementContext()
+    if (!context) return
+    if (!id || id.includes("@")) {
+      setCookie(COOKIE_USER_ID, "", 0)
+      userTraits = {}
+      return
+    }
+    // Only an opaque account ID can be an analytics user ID.
     setCookie(COOKIE_USER_ID, id, 365 * 24 * 60 * 60)
     if (traits) userTraits = { ...userTraits, ...traits }
 
     const payload = buildEvent("identify")
     payload.eventn_ctx.user = {
+      ...userTraits,
       anonymous_id: getAnonymousId(),
       id,
-      ...userTraits,
     }
-    sendEvent(payload)
+    Object.assign(payload.eventn_ctx, context)
+    sendEvent(payload, context)
   } catch {
     // Silent fail
   }
@@ -515,11 +594,17 @@ export function jitsuIdentify(
  */
 export function jitsuPage(properties?: Record<string, any>) {
   try {
+    const context = measurementContext()
+    if (!context) return
     const payload = buildEvent("page_viewed")
     if (properties) {
-      payload.eventn_ctx = { ...payload.eventn_ctx, ...properties }
+      payload.eventn_ctx = {
+        ...payload.eventn_ctx,
+        ...eventProperties(properties),
+      }
     }
-    sendEvent(payload)
+    Object.assign(payload.eventn_ctx, context)
+    sendEvent(payload, context)
   } catch {
     // Silent fail
   }
@@ -533,7 +618,7 @@ export function jitsuPage(properties?: Record<string, any>) {
 export function setJitsuContext(ctx: Partial<typeof globalContext>) {
   const next = { ...globalContext }
   for (const [key, value] of Object.entries(ctx)) {
-    if (typeof value === "string") {
+    if (typeof value === "string" && !OWNED_CONTEXT_KEYS.has(key)) {
       next[key] = value
     }
   }

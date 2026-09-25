@@ -1,5 +1,6 @@
 import { getCheckoutCalendar, setFulfillmentDetails, verifyCartCalendarForCheckout } from "@lib/data/cart"
 import { sdk } from "@lib/config"
+import { getAuthHeaders } from "@lib/data/cookies"
 
 jest.mock("next/cache", () => ({ revalidateTag: jest.fn(), unstable_cache: (fn: unknown) => fn }))
 jest.mock("next/navigation", () => ({ redirect: jest.fn() }))
@@ -104,4 +105,12 @@ test("valid signed validation allows payment but cannot authorize a legacy date 
   await expect(verifyCartCalendarForCheckout(input.cartId)).resolves.toBeUndefined()
   await expect(setFulfillmentDetails(dateInput)).rejects.toThrow()
   expect(sdk.store.cart.update).not.toHaveBeenCalled()
+})
+
+test("calendar compatibility reads do not capture customer cart activity", async () => {
+  await getCheckoutCalendar(input)
+  await verifyCartCalendarForCheckout(input.cartId)
+  expect(getAuthHeaders).toHaveBeenCalled()
+  for (const [options] of (getAuthHeaders as jest.Mock).mock.calls)
+    expect(options?.cartMeasurement).not.toBe(true)
 })
