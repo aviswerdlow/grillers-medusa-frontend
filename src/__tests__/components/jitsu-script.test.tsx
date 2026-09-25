@@ -11,10 +11,12 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("@lib/utils/cookies", () => ({
   hasConsent: jest.fn(),
+  CONSENT_CHANGED_EVENT: "gp:consent-changed",
 }))
 
 jest.mock("@lib/jitsu", () => ({
   jitsuPage: jest.fn(),
+  getJitsuIdentityContext: jest.fn(),
 }))
 
 describe("JitsuScript page tracking", () => {

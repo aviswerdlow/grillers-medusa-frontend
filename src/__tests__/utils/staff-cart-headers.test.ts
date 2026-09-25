@@ -1,7 +1,8 @@
 import { sdk } from "@lib/config"
-import { updateCart } from "@lib/data/cart"
+import { updateCart, listCartOptions } from "@lib/data/cart"
 import {
   getAuthHeaders,
+  getCartId,
   getCacheTag,
   getStaffImpersonationCartId,
 } from "@lib/data/cookies"
@@ -14,6 +15,7 @@ jest.mock("next/cache", () => ({
 
 jest.mock("@lib/config", () => ({
   sdk: {
+    client: { fetch: jest.fn(async () => ({ shipping_options: [] })) },
     store: {
       cart: {
         update: jest.fn(),
@@ -29,6 +31,7 @@ jest.mock("@lib/data/customer", () => ({
 jest.mock("@lib/data/cookies", () => ({
   getAuthHeaders: jest.fn(),
   getCacheTag: jest.fn(),
+  getCacheOptions: jest.fn(async () => ({})),
   getCartId: jest.fn(),
   getStaffImpersonationCartId: jest.fn(),
   removeCartId: jest.fn(),
@@ -110,6 +113,33 @@ describe("staff context cart headers", () => {
     )
     expect(mockedRevalidateTag).toHaveBeenCalledWith("carts")
     expect(mockedRevalidateTag).toHaveBeenCalledWith("fulfillment")
-    expect(mockedCartUpdate.mock.calls[0][3]).not.toHaveProperty("authorization")
+    expect(mockedCartUpdate.mock.calls[0][3]).not.toHaveProperty(
+      "authorization"
+    )
+    expect(mockedGetAuthHeaders).not.toHaveBeenCalledWith({
+      cartMeasurement: true,
+    })
+  })
+  it("forwards current context for an ordinary customer mutation", async () => {
+    mockedGetActiveStaffImpersonation.mockResolvedValue(null)
+    ;(getCartId as jest.Mock).mockResolvedValue("cart_customer")
+    mockedGetAuthHeaders.mockResolvedValue({
+      authorization: "Bearer customer",
+      "x-gp-measurement-context": "captured",
+    })
+    await updateCart({ email: "customer@example.test" })
+    expect(mockedGetAuthHeaders).toHaveBeenCalledWith({ cartMeasurement: true })
+    expect(mockedCartUpdate.mock.calls[0][3]).toMatchObject({
+      "x-gp-measurement-context": "captured",
+    })
+  })
+  it("keeps cached shipping-option reads free of measurement headers", async () => {
+    mockedGetActiveStaffImpersonation.mockResolvedValue(null)
+    ;(getCartId as jest.Mock).mockResolvedValue("cart_customer")
+    await listCartOptions()
+    expect(mockedGetAuthHeaders).toHaveBeenCalledWith({})
+    expect(mockedGetAuthHeaders).not.toHaveBeenCalledWith({
+      cartMeasurement: true,
+    })
   })
 })

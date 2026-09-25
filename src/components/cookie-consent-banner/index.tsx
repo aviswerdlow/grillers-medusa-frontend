@@ -79,8 +79,6 @@ export default function CookieConsentBanner({
     acceptAllCookies()
     setShowBanner(false)
     setSessionDismissed()
-    // Reload to load GTM/GA4
-    window.location.reload()
   }
 
   const handleRejectAll = () => {
@@ -96,10 +94,6 @@ export default function CookieConsentBanner({
     })
     setShowBanner(false)
     setSessionDismissed()
-    // Reload if analytics was accepted to load GTM/GA4
-    if (preferences.analytics) {
-      window.location.reload()
-    }
   }
 
   if (!showBanner) {
