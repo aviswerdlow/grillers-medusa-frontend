@@ -4,6 +4,9 @@ jest.mock("@lib/data/order-review", () => ({
   acceptCheckoutReview: jest.fn(),
   recoverReviewedCheckout: jest.fn(),
 }))
+jest.mock("@lib/data/staff/institutional-terms", () => ({
+  getStaffInstitutionalTerms: jest.fn(),
+}))
 
 import { render, screen } from "@testing-library/react"
 

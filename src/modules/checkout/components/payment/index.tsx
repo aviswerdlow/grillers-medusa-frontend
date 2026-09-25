@@ -30,12 +30,14 @@ const Payment = ({
   availablePaymentMethods,
   savedPaymentMethods = [],
   invoiceApproved = false,
+  invoiceTermsName,
 }: {
   cart: any
   availablePaymentMethods: any[]
   savedPaymentMethods?: SavedPaymentMethod[]
   // #283: when true, the customer is an approved B2B account and may pay by invoice.
   invoiceApproved?: boolean
+  invoiceTermsName?: string
 }) => {
   const cartTitleMap = useCartTitleMap(cart?.items)
   const showsDeliveryStep = cart?.metadata?.fulfillmentType === "ups_shipping"
@@ -56,6 +58,7 @@ const Payment = ({
     useState<string | null>(null)
   // #283: approved B2B accounts can switch to the no-card invoice path.
   const [payByInvoice, setPayByInvoice] = useState(false)
+  const invoiceSelected = invoiceApproved && payByInvoice
   // #283 (Codex P2): true while any place-order submit is in flight, locking the payment-mode
   // toggle so a card submit can't be switched to invoice (or vice versa) mid-flight.
   const [submitting, setSubmitting] = useState(false)
@@ -177,7 +180,7 @@ const Payment = ({
     fulfillmentReady && (hasPreparedCardForFinalCharge || paidByGiftcard)
 
   // #283: invoice path needs no card — just a shipping method on the cart.
-  const invoiceReady = payByInvoice && fulfillmentReady
+  const invoiceReady = invoiceSelected && fulfillmentReady
 
   // Check if address step is complete (required before payment)
   const addressComplete = !!(
@@ -299,7 +302,7 @@ const Payment = ({
                   onClick={() => setPayByInvoice(false)}
                   className={clx(
                     "w-full min-h-[50px] px-4 py-3 rounded-lg border text-left text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                    !payByInvoice
+                    !invoiceSelected
                       ? "border-Gold bg-Gold/5 text-Charcoal"
                       : "border-gray-200 text-gray-700 hover:border-Gold/60"
                   )}
@@ -312,18 +315,18 @@ const Payment = ({
                   onClick={() => setPayByInvoice(true)}
                   className={clx(
                     "w-full min-h-[50px] px-4 py-3 rounded-lg border text-left text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-                    payByInvoice
+                    invoiceSelected
                       ? "border-Gold bg-Gold/5 text-Charcoal"
                       : "border-gray-200 text-gray-700 hover:border-Gold/60"
                   )}
                 >
-                  Pay by invoice (Net terms)
+                  Pay by invoice ({invoiceTermsName || "approved terms"})
                 </button>
               </div>
             </div>
           )}
 
-          {!payByInvoice &&
+          {!invoiceSelected &&
             !paidByGiftcard &&
             cardPaymentMethods.length > 0 && (
               <>
@@ -431,7 +434,7 @@ const Payment = ({
               </>
             )}
 
-          {!payByInvoice &&
+          {!invoiceSelected &&
             !paidByGiftcard &&
             cardPaymentMethods.length === 0 && (
               <div className="mb-4 rounded-lg border border-red-200/80 bg-red-50 p-4 text-sm text-red-700">
@@ -471,7 +474,7 @@ const Payment = ({
               <InventoryResolutionNotice cart={cart} />
               <CheckoutOrderReview
                 cart={cart}
-                paymentMode={payByInvoice ? "invoice" : "card"}
+                paymentMode={invoiceSelected ? "invoice" : "card"}
                 disabled={submitting}
               >
                 {({ acceptance, invalidate }) => (
@@ -485,7 +488,7 @@ const Payment = ({
                         onReviewRequired={invalidate}
                         savedPaymentMethodId={selectedSavedPaymentMethodId}
                         setupIntentClientSecret={setupIntentClientSecret}
-                        payByInvoice={payByInvoice}
+                        payByInvoice={invoiceSelected}
                         onSubmittingChange={setSubmitting}
                         data-testid="submit-order-button"
                       />
