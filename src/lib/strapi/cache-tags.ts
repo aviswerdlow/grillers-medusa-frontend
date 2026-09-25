@@ -14,12 +14,14 @@ export const STRAPI_CACHE_TAGS = {
 } as const
 
 // Previous storefront releases tagged every Strapi result with this value.
-// Keep invalidating it during the model-tag rollout; current caches never
-// attach it, so this only drains entries created by older deployments.
+// Keep invalidating it during the model-tag rollout. Information and legal
+// pages, plus customer service, also use this shared tag so every publish
+// webhook refreshes their result caches.
 export const LEGACY_STRAPI_CACHE_TAG = "strapi"
 
 export type StrapiCacheTag =
   (typeof STRAPI_CACHE_TAGS)[keyof typeof STRAPI_CACHE_TAGS]
+  | typeof LEGACY_STRAPI_CACHE_TAG
 
 export const ALL_STRAPI_CACHE_TAGS = Array.from(
   new Set(Object.values(STRAPI_CACHE_TAGS))

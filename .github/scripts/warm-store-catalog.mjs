@@ -1,4 +1,7 @@
 import { readFile } from "node:fs/promises"
+import warmRouteModule from "./warm-route.cjs"
+
+const { warmRoute } = warmRouteModule
 
 const {
   DEPLOY_SHA,
@@ -78,17 +81,6 @@ async function warm(surface, handle) {
   return result
 }
 
-async function warmRoute(path) {
-  const response = await fetch(new URL(path, deployment), {
-    redirect: "error",
-    signal: AbortSignal.timeout(70_000),
-  })
-  const html = await response.text()
-  if (!response.ok || html.includes("Collection temporarily unavailable")) {
-    throw new Error(`Route ${path} warm-up failed (${response.status})`)
-  }
-}
-
 const store = await warm("store")
 if (store.visibleProductCount < 1) {
   throw new Error("Store catalog warm-up returned no visible products")
@@ -123,36 +115,33 @@ if (handles.length === 0) {
 const failures = []
 try {
   await warm("home")
-  await warmRoute("/us")
+  await warmRoute("/us", deployment)
   console.log("Warmed homepage CMS queries and route")
 } catch (error) {
-  failures.push(error.message)
+  failures.push(String(error.message || error))
 }
 
 // Keep Strapi traffic bounded while filling every distinct manifest handle.
 let cursor = 0
+let collectionsWarmed = 0
 const worker = async () => {
   while (cursor < handles.length) {
     const handle = handles[cursor++]
     try {
       await warm("collection", handle)
-      await warmRoute(`/us/collections/${handle}`)
+      await warmRoute(`/us/collections/${handle}`, deployment)
+      collectionsWarmed++
     } catch (error) {
-      failures.push(error.message)
+      failures.push(String(error.message || error))
     }
   }
 }
 await Promise.all(Array.from({ length: 4 }, () => worker()))
-console.log(
-  `Warmed ${
-    handles.length -
-    failures.filter((failure) => failure.startsWith("collection/")).length
-  }/${handles.length} manifest collections`
-)
+console.log(`Warmed ${collectionsWarmed}/${handles.length} manifest collections`)
 
 // These are the published routes handled by customer-service/page.tsx and
-// page/[slug]/page.tsx. Visit the page as well as the CMS-backed homepage and
-// collections so the first customer request need not fill their Data Cache.
+// page/[slug]/page.tsx. These visits fill the CMS result cache for published
+// pages; a 404 can also mean an entry is not published yet.
 const informationPaths = [
   "/us/customer-service",
   ...[
@@ -171,23 +160,24 @@ const informationPaths = [
   ].map((slug) => `/us/page/${slug}`),
 ]
 let informationCursor = 0
+let informationWarmed = 0
+let informationSkipped = 0
 const informationWorker = async () => {
   while (informationCursor < informationPaths.length) {
     const path = informationPaths[informationCursor++]
     try {
-      await warmRoute(path)
+      const result = await warmRoute(path, deployment, {
+        allowNotFound: path.startsWith("/us/page/"),
+      })
+      if (result === "not_found") informationSkipped++
+      else informationWarmed++
     } catch (error) {
-      failures.push(error.message)
+      failures.push(String(error.message || error))
     }
   }
 }
 await Promise.all(Array.from({ length: 4 }, () => informationWorker()))
-console.log(
-  `Warmed ${
-    informationPaths.length -
-    failures.filter((failure) => failure.startsWith("Route /us/page/") || failure.startsWith("Route /us/customer-service")).length
-  }/${informationPaths.length} information routes`
-)
+console.log(`Warmed ${informationWarmed}/${informationPaths.length - informationSkipped} available information routes; skipped ${informationSkipped} 404 routes`)
 if (failures.length) {
   throw new Error(`Production warm-up incomplete: ${failures.join(", ")}`)
 }

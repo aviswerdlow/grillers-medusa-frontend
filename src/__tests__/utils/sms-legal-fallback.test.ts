@@ -1,14 +1,12 @@
 import { createElement } from "react"
 import { render, screen } from "@testing-library/react"
 import { getLegalPage } from "@lib/data/strapi/legal"
-import strapiClient from "@lib/strapi"
+import { cachedStrapiRequest } from "@lib/strapi"
 import { StructuredInfoContent } from "@modules/info/templates/structured-content"
 
 jest.mock("@lib/strapi", () => ({
   __esModule: true,
-  default: {
-    request: jest.fn(),
-  },
+  cachedStrapiRequest: jest.fn(),
 }))
 
 jest.mock("graphql-request", () => ({
@@ -31,7 +29,7 @@ function flattenText(value: unknown): string {
 
 describe("SMS terms fallback", () => {
   it("describes only the marketing program and only supported controls", async () => {
-    ;(strapiClient.request as jest.Mock).mockRejectedValueOnce(
+    ;(cachedStrapiRequest as jest.Mock).mockRejectedValueOnce(
       new Error("Strapi unavailable")
     )
 
@@ -66,7 +64,7 @@ describe("SMS terms fallback", () => {
 
 describe("order SMS legal fallbacks", () => {
   it("keeps the order-update terms delivery-only and order-specific", async () => {
-    ;(strapiClient.request as jest.Mock).mockRejectedValueOnce(
+    ;(cachedStrapiRequest as jest.Mock).mockRejectedValueOnce(
       new Error("Strapi unavailable")
     )
 
@@ -96,7 +94,7 @@ describe("order SMS legal fallbacks", () => {
   })
 
   it("keeps mobile consent out of third-party marketing sharing", async () => {
-    ;(strapiClient.request as jest.Mock).mockRejectedValueOnce(
+    ;(cachedStrapiRequest as jest.Mock).mockRejectedValueOnce(
       new Error("Strapi unavailable")
     )
 
