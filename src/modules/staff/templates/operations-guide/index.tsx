@@ -621,6 +621,9 @@ const sections: GuideSection[] = [
     ],
     watch: [
       "Stripe card refunds send a refund email from the payment.refunded event and queue a QuickBooks accounting posting task.",
+      "In Accounting actions, check each charge and refund separately. Pending means it is saved for delivery; Awaiting QuickBooks means the bridge has received it; posted requires the accounting receipt. A paid card order needs both an invoice and its applied payment before dependent refunds can post.",
+      "To retry accounting, select the failed or blocked action in the retry menu and record why its cause has been resolved. This retries that accounting request only. A missing or uncertain QuickBooks receipt needs reconciliation before another write is attempted.",
+      "A repeated refund submission keeps the same request identity. If the result needs reconciliation, stop and check Stripe, Medusa and the accounting action history. Do not change the note or start a new refund to bypass the hold.",
       "Offline payments, check refunds, and customer credits are disabled in Order Support for launch. Use Stripe card capture/refund, Customer Account actions for account credit, or record an internal note for accounting follow-up.",
       "Canceling before QuickBooks posting is skipped in QBD; canceling after QuickBooks posting queues a sales-order close task for Web Connector.",
       "Cancellation can be blocked once picking, packing, final charge, or fulfillment has started. Record a note, send the order back in Pack & Finalize, or use a refund/customer-credit follow-up when the order is locked.",
@@ -863,6 +866,7 @@ const sections: GuideSection[] = [
     watch: [
       "Medusa Admin can include legacy, disabled, reorder-only, or admin-only products. Do not treat every admin product as a storefront gap.",
       "A successful Stripe refund can still leave QBD posting pending.",
+      "Older pending requests are not replayed automatically when durable accounting is enabled. Escalate the listed request for reconciliation. If Accounting actions is unavailable, do not interpret the empty history as completed work.",
       "A catch-weight order can be placed with a saved card but no Stripe charge. Do not treat the checkout estimate as collected revenue.",
       "If a customer asks to close or delete their web account, do not delete QuickBooks customer records. Preserve accounting history, remove saved cards when appropriate, and suppress marketing if requested.",
       "Order cancellation after fulfillment may be restricted and may require operations review.",
