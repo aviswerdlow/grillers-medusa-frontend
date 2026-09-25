@@ -4,11 +4,12 @@ import {
   getAtlantaDeliveryZones,
   type AtlantaDeliveryZone,
 } from "@lib/data/strapi/fulfillment"
+import { isUpcomingDeadlineDate } from "@lib/data/holiday-deadlines"
 
 type HolidayDeadline = {
   documentId: string
   HolidayName: string
-  HolidayDate: string
+  HolidayDate?: string | null
   DeliveryCutoff: string
   UPSShippingCutoff: string
   PlantPickupCutoff: string
@@ -122,7 +123,12 @@ export async function getInfoSupplementalData(
       const data = await strapiClient.request<{
         holidayDeadlines?: HolidayDeadline[]
       }>(HolidayDeadlinesQuery)
-      return { holidayDeadlines: data.holidayDeadlines || [] }
+      const now = new Date()
+      return {
+        holidayDeadlines: (data.holidayDeadlines || []).filter((row) =>
+          isUpcomingDeadlineDate(row.HolidayDate, now)
+        ),
+      }
     }
 
     if (pageSlug === "shipping-southeast-pickup") {
@@ -155,7 +161,9 @@ export async function getInfoSupplementalData(
 
 function formatDate(date?: string | null) {
   if (!date) return "TBD"
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
+  const parsed = new Date(`${date}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) return date
+  return parsed.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
