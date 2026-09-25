@@ -187,6 +187,12 @@ export default function LocalMilestonesPhone({ office }: { office: boolean }) {
         cache: "no-store",
       })
       const result = await response.json().catch(() => ({}))
+      if (response.status === 409 && result.message === "evidence_upload_id_conflict") {
+        sessionStorage.setItem(key, `upload_${crypto.randomUUID()}`)
+        setError("This photo upload attempt can no longer be retried. Keep the same photo selected and tap Store photo privately again; a new attempt is ready. The order was not marked delivered.")
+        await refreshEvidence(detail.state.order_id, detail.state.mode)
+        return
+      }
       if (!response.ok || result.evidence?.status !== "stored_private") {
         setError("Photo upload is incomplete. Keep the same photo selected and retry; the order was not marked delivered.")
         await refreshEvidence(detail.state.order_id, detail.state.mode)
